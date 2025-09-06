@@ -41,6 +41,7 @@ describe('AuthController (e2e)', () => {
       };
 
       // First, create a user
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await request(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
@@ -51,6 +52,7 @@ describe('AuthController (e2e)', () => {
         senha: 'Password123!',
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/auth/login')
         .send(loginDto)
@@ -67,6 +69,7 @@ describe('AuthController (e2e)', () => {
         senha: 'wrongpassword',
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/auth/login')
         .send(loginDto)
@@ -79,6 +82,7 @@ describe('AuthController (e2e)', () => {
         senha: 'Password123!',
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/auth/login')
         .send(loginDto)

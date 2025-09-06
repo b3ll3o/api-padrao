@@ -79,9 +79,6 @@ describe('AuthService', () => {
     });
 
     it('should return null if user does not exist', async () => {
-      const mockUser: Partial<Usuario> = {
-        comparePassword: jest.fn().mockResolvedValue(false),
-      };
       mockUsuarioRepository.findByEmail.mockResolvedValue(null);
 
       const result: UserWithoutSenha | null = await service.validateUser(
@@ -128,7 +125,14 @@ describe('AuthService', () => {
         updatedAt: new Date(),
       };
       const validateUserSpy = jest.spyOn(service, 'validateUser');
-      validateUserSpy.mockResolvedValue(mockUser as { id: number; email: string; createdAt: Date; updatedAt: Date; });
+      validateUserSpy.mockResolvedValue(
+        mockUser as {
+          id: number;
+          email: string;
+          createdAt: Date;
+          updatedAt: Date;
+        },
+      );
 
       const loginDto = { email: 'test@example.com', senha: 'password123' };
       const result = await service.login(loginDto);
