@@ -21,6 +21,7 @@ describe('UsuariosController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
+    await prisma.usuario.deleteMany();
   });
 
   afterAll(async () => {

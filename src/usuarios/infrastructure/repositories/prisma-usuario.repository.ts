@@ -9,18 +9,24 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
 
   async create(data: Usuario): Promise<Usuario> {
     const usuario = await this.prisma.usuario.create({ data });
-    return {
-      ...usuario,
-      senha: usuario.senha === null ? undefined : usuario.senha,
-    };
+    const newUsuario = new Usuario();
+    newUsuario.id = usuario.id;
+    newUsuario.email = usuario.email;
+    newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
+    newUsuario.createdAt = usuario.createdAt;
+    newUsuario.updatedAt = usuario.updatedAt;
+    return newUsuario;
   }
 
   async findByEmail(email: string): Promise<Usuario | null> {
     const usuario = await this.prisma.usuario.findUnique({ where: { email } });
     if (!usuario) return null;
-    return {
-      ...usuario,
-      senha: usuario.senha === null ? undefined : usuario.senha,
-    };
+    const newUsuario = new Usuario();
+    newUsuario.id = usuario.id;
+    newUsuario.email = usuario.email;
+    newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
+    newUsuario.createdAt = usuario.createdAt;
+    newUsuario.updatedAt = usuario.updatedAt;
+    return newUsuario;
   }
 }
