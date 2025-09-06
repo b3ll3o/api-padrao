@@ -2,17 +2,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './application/services/auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
 import { UsuarioRepository } from '../usuarios/domain/repositories/usuario.repository';
+import { Usuario } from 'src/usuarios/domain/entities/usuario.entity';
 
-jest.mock('bcrypt', () => ({
-  compare: jest.fn((password, hash) => password === hash),
-}));
+interface UserWithoutSenha {
+  id: number;
+  email: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 describe('AuthService', () => {
   let service: AuthService;
-  let usuarioRepository: UsuarioRepository;
-  let jwtService: JwtService;
 
   const mockUsuarioRepository = {
     findByEmail: jest.fn(),
@@ -38,8 +39,6 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    usuarioRepository = module.get<UsuarioRepository>(UsuarioRepository);
-    jwtService = module.get<JwtService>(JwtService);
   });
 
   afterEach(() => {
@@ -52,30 +51,40 @@ describe('AuthService', () => {
 
   describe('validateUser', () => {
     it('should return a user if credentials are valid', async () => {
-      const mockUser = {
+      const mockUser: Partial<Usuario> = {
         id: 1,
         email: 'test@example.com',
         senha: 'hashedPassword',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        comparePassword: jest.fn().mockResolvedValue(true),
       };
       mockUsuarioRepository.findByEmail.mockResolvedValue(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.validateUser(
+      const result: UserWithoutSenha | null = await service.validateUser(
         'test@example.com',
         'password123',
       );
 
-      expect(result).toEqual({ id: 1, email: 'test@example.com' });
+      expect(result).toEqual({
+        id: 1,
+        email: 'test@example.com',
+        createdAt: mockUser.createdAt,
+        updatedAt: mockUser.updatedAt,
+      });
       expect(mockUsuarioRepository.findByEmail).toHaveBeenCalledWith(
         'test@example.com',
       );
-      expect(bcrypt.compare).toHaveBeenCalledWith('password123', 'hashedPassword');
+      expect(mockUser.comparePassword).toHaveBeenCalledWith('password123');
     });
 
     it('should return null if user does not exist', async () => {
+      const mockUser: Partial<Usuario> = {
+        comparePassword: jest.fn().mockResolvedValue(false),
+      };
       mockUsuarioRepository.findByEmail.mockResolvedValue(null);
 
-      const result = await service.validateUser(
+      const result: UserWithoutSenha | null = await service.validateUser(
         'nonexistent@example.com',
         'password123',
       );
@@ -84,19 +93,20 @@ describe('AuthService', () => {
       expect(mockUsuarioRepository.findByEmail).toHaveBeenCalledWith(
         'nonexistent@example.com',
       );
-      expect(bcrypt.compare).not.toHaveBeenCalled();
     });
 
     it('should return null if password is invalid', async () => {
-      const mockUser = {
+      const mockUser: Partial<Usuario> = {
         id: 1,
         email: 'test@example.com',
         senha: 'hashedPassword',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        comparePassword: jest.fn().mockResolvedValue(false),
       };
       mockUsuarioRepository.findByEmail.mockResolvedValue(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-      const result = await service.validateUser(
+      const result: UserWithoutSenha | null = await service.validateUser(
         'test@example.com',
         'wrongPassword',
       );
@@ -105,24 +115,26 @@ describe('AuthService', () => {
       expect(mockUsuarioRepository.findByEmail).toHaveBeenCalledWith(
         'test@example.com',
       );
-      expect(bcrypt.compare).toHaveBeenCalledWith('wrongPassword', 'hashedPassword');
+      expect(mockUser.comparePassword).toHaveBeenCalledWith('wrongPassword');
     });
   });
 
   describe('login', () => {
     it('should return an access token if login is successful', async () => {
-      const mockUser = {
+      const mockUser: UserWithoutSenha = {
         id: 1,
         email: 'test@example.com',
-        senha: 'hashedPassword',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
-      jest.spyOn(service, 'validateUser').mockResolvedValue(mockUser);
+      const validateUserSpy = jest.spyOn(service, 'validateUser');
+      validateUserSpy.mockResolvedValue(mockUser as { id: number; email: string; createdAt: Date; updatedAt: Date; });
 
       const loginDto = { email: 'test@example.com', senha: 'password123' };
       const result = await service.login(loginDto);
 
       expect(result).toEqual({ access_token: 'mockAccessToken' });
-      expect(service.validateUser).toHaveBeenCalledWith(
+      expect(validateUserSpy).toHaveBeenCalledWith(
         'test@example.com',
         'password123',
       );
@@ -133,14 +145,15 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException if login fails', async () => {
-      jest.spyOn(service, 'validateUser').mockResolvedValue(null);
+      const validateUserSpy = jest.spyOn(service, 'validateUser');
+      validateUserSpy.mockResolvedValue(null);
 
       const loginDto = { email: 'test@example.com', senha: 'wrongPassword' };
 
       await expect(service.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
       );
-      expect(service.validateUser).toHaveBeenCalledWith(
+      expect(validateUserSpy).toHaveBeenCalledWith(
         'test@example.com',
         'wrongPassword',
       );

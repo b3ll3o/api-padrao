@@ -55,7 +55,7 @@ describe('AuthController (e2e)', () => {
         .post('/auth/login')
         .send(loginDto)
         .expect(201)
-        .then((res) => {
+        .then((res: { body: { access_token: string } }) => {
           expect(res.body).toHaveProperty('access_token');
           expect(typeof res.body.access_token).toBe('string');
         });

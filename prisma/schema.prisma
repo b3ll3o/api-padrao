@@ -20,4 +20,19 @@ model Usuario {
   senha     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  perfil    Perfil?  @relation(fields: [perfilId], references: [id])
+  perfilId  Int?
+}
+
+model Perfil {
+  id        Int        @id @default(autoincrement())
+  nome      String     @unique
+  usuarios  Usuario[]
+  permissoes Permissao[]
+}
+
+model Permissao {
+  id        Int      @id @default(autoincrement())
+  nome      String   @unique
+  perfis    Perfil[]
 }

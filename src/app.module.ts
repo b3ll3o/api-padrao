@@ -5,9 +5,17 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/application/guards/auth.guard';
+import { PermissoesModule } from './permissoes/permissoes.module';
+import { PerfisModule } from './perfis/perfis.module';
 
 @Module({
-  imports: [UsuariosModule, PrismaModule, AuthModule],
+  imports: [
+    UsuariosModule,
+    PrismaModule,
+    AuthModule,
+    PermissoesModule,
+    PerfisModule,
+  ],
   controllers: [],
   providers: [
     {

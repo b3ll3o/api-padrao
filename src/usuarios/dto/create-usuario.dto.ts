@@ -8,7 +8,10 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUsuarioDto {
-  @ApiProperty({ example: 'test@example.com', description: 'Endereço de e-mail do usuário' })
+  @ApiProperty({
+    example: 'test@example.com',
+    description: 'Endereço de e-mail do usuário',
+  })
   @IsEmail({}, { message: 'E-mail inválido' })
   email: string;
 
