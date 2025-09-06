@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import * as bcrypt from 'bcrypt';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
+import { Usuario } from '../../domain/entities/usuario.entity';
 
 @Injectable()
 export class UsuariosService {
@@ -15,12 +16,15 @@ export class UsuariosService {
       throw new ConflictException('Usuário com este email já cadastrado');
     }
 
+    const newUsuario = new Usuario();
+    newUsuario.email = createUsuarioDto.email;
+
     if (createUsuarioDto.senha) {
       const salt = await bcrypt.genSalt();
-      createUsuarioDto.senha = await bcrypt.hash(createUsuarioDto.senha, salt);
+      newUsuario.senha = await bcrypt.hash(createUsuarioDto.senha, salt);
     }
 
-    const usuario = await this.usuarioRepository.create(createUsuarioDto);
+    const usuario = await this.usuarioRepository.create(newUsuario);
 
     delete usuario.senha;
     return usuario;
