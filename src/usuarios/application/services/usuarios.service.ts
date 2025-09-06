@@ -22,7 +22,7 @@ export class UsuariosService {
 
     const usuario = await this.usuarioRepository.create(createUsuarioDto);
 
-    const { senha, ...result } = usuario;
-    return result;
+    delete usuario.senha;
+    return usuario;
   }
 }

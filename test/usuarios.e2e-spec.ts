@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import * as supertestRequest from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -31,9 +33,12 @@ describe('UsuariosController (e2e)', () => {
 
   describe('POST /usuarios', () => {
     it('should create a user and return 201', () => {
-      const createUserDto = { email: 'test@example.com', senha: 'Password123!' };
+      const createUserDto = {
+        email: 'test@example.com',
+        senha: 'Password123!',
+      };
 
-      return request(app.getHttpServer())
+      return supertestRequest(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
         .expect(201)
@@ -48,13 +53,16 @@ describe('UsuariosController (e2e)', () => {
     });
 
     it('should return 409 if email already exists', async () => {
-      const createUserDto = { email: 'test@example.com', senha: 'Password123!' };
+      const createUserDto = {
+        email: 'test@example.com',
+        senha: 'Password123!',
+      };
 
       // Create the first user
       await prisma.usuario.create({ data: createUserDto });
 
       // Attempt to create the second user with the same email
-      return request(app.getHttpServer())
+      return supertestRequest(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
         .expect(409);
@@ -63,7 +71,7 @@ describe('UsuariosController (e2e)', () => {
     it('should return 400 if email is invalid', () => {
       const createUserDto = { email: 'invalid-email', senha: 'Password123!' };
 
-      return request(app.getHttpServer())
+      return supertestRequest(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
         .expect(400);
@@ -72,7 +80,7 @@ describe('UsuariosController (e2e)', () => {
     it('should return 400 if password is too short', () => {
       const createUserDto = { email: 'test@example.com', senha: '123' };
 
-      return request(app.getHttpServer())
+      return supertestRequest(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
         .expect(400);
@@ -84,7 +92,7 @@ describe('UsuariosController (e2e)', () => {
         senha: 'password',
       };
 
-      return request(app.getHttpServer())
+      return supertestRequest(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
         .expect(400);

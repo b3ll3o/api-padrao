@@ -6,7 +6,6 @@ import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 
 describe('UsuariosService', () => {
   let service: UsuariosService;
-  let repository: UsuarioRepository;
 
   const mockUsuarioRepository = {
     create: jest.fn(),
@@ -25,7 +24,6 @@ describe('UsuariosService', () => {
     }).compile();
 
     service = module.get<UsuariosService>(UsuariosService);
-    repository = module.get<UsuarioRepository>(UsuarioRepository);
   });
 
   it('should be defined', () => {
