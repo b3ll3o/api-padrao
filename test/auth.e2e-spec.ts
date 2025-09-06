@@ -29,6 +29,10 @@ describe('AuthController (e2e)', () => {
     await prisma.usuario.deleteMany();
   });
 
+  afterEach(async () => {
+    await prisma.usuario.deleteMany();
+  });
+
   describe('POST /auth/login', () => {
     it('should allow a user to login successfully', async () => {
       const createUserDto = {
