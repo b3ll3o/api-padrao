@@ -6,6 +6,6 @@ export abstract class PermissaoRepository {
   abstract create(data: CreatePermissaoDto): Promise<Permissao>;
   abstract findAll(): Promise<Permissao[]>;
   abstract findOne(id: number): Promise<Permissao | undefined>;
-  abstract update(id: number, data: UpdatePermissaoDto): Promise<Permissao>;
+  abstract update(id: number, data: UpdatePermissaoDto): Promise<Permissao | undefined>;
   abstract remove(id: number): Promise<void>;
 }

@@ -34,21 +34,36 @@ export class PrismaPerfilRepository implements PerfilRepository {
     return perfil || undefined;
   }
 
-  async update(id: number, data: UpdatePerfilDto): Promise<Perfil> {
+  async update(id: number, data: UpdatePerfilDto): Promise<Perfil | undefined> {
     const { permissoesIds, ...perfilData } = data;
-    return this.prisma.perfil.update({
-      where: { id },
-      data: {
-        ...perfilData,
-        permissoes: {
-          set: permissoesIds?.map((id) => ({ id })),
+    try {
+      return await this.prisma.perfil.update({
+        where: { id },
+        data: {
+          ...perfilData,
+          permissoes: {
+            set: permissoesIds?.map((id) => ({ id })),
+          },
         },
-      },
-      include: { permissoes: true },
-    });
+        include: { permissoes: true },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   async remove(id: number): Promise<void> {
-    await this.prisma.perfil.delete({ where: { id } });
+    try {
+      await this.prisma.perfil.delete({ where: { id } });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        // If the record to delete is not found, do nothing, as the goal is to ensure it's removed.
+        return;
+      }
+      throw error;
+    }
   }
 }

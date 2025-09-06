@@ -22,11 +22,26 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     return permissao || undefined;
   }
 
-  async update(id: number, data: UpdatePermissaoDto): Promise<Permissao> {
-    return this.prisma.permissao.update({ where: { id }, data });
+  async update(id: number, data: UpdatePermissaoDto): Promise<Permissao | undefined> {
+    try {
+      return await this.prisma.permissao.update({ where: { id }, data });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   async remove(id: number): Promise<void> {
-    await this.prisma.permissao.delete({ where: { id } });
+    try {
+      await this.prisma.permissao.delete({ where: { id } });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        // If the record to delete is not found, do nothing, as the goal is to ensure it's removed.
+        return;
+      }
+      throw error;
+    }
   }
 }

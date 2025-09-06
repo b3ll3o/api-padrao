@@ -13,7 +13,7 @@ export class PerfisService {
   ) {}
 
   async create(createPerfilDto: CreatePerfilDto): Promise<Perfil> {
-    if (createPerfilDto.permissoesIds) {
+    if (createPerfilDto.permissoesIds && createPerfilDto.permissoesIds.length > 0) {
       for (const id of createPerfilDto.permissoesIds) {
         await this.permissoesService.findOne(id); // Validate if permission exists
       }
