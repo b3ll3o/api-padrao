@@ -11,7 +11,7 @@ Este projeto é uma API RESTful desenvolvida com NestJS, utilizando Prisma como 
 *   **ORM:** Prisma
 *   **Banco de Dados:** PostgreSQL
 *   **Autenticação:** JWT (JSON Web Tokens)
-*   **Containerização:** Docker / Podman
+*   **Containerização:** Docker
 
 ## Configuração do Ambiente
 
@@ -21,7 +21,7 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
 
 *   Node.js (versão 20.x ou superior)
 *   npm (gerenciador de pacotes do Node.js)
-*   Docker ou Podman (para o banco de dados PostgreSQL)
+*   Docker (para o banco de dados PostgreSQL)
 
 ### Instalação
 
@@ -50,7 +50,7 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
 
 2.  Inicie o contêiner do PostgreSQL e pgAdmin (se estiver usando Docker/Podman Compose):
     ```bash
-    docker-compose up -d # ou podman-compose up -d
+    docker-compose up -d
     ```
 
 3.  Execute as migrações do Prisma para criar o schema do banco de dados:
