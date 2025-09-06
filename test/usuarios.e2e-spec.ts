@@ -32,6 +32,10 @@ describe('UsuariosController (e2e)', () => {
     await prisma.usuario.deleteMany();
   });
 
+  afterEach(async () => {
+    await prisma.usuario.deleteMany();
+  });
+
   describe('POST /usuarios', () => {
     it('should create a user and return 201', () => {
       const createUserDto = {
