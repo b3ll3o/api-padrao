@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { PermissoesService } from './permissoes.service';
 import { PermissaoRepository } from '../../domain/repositories/permissao.repository';
@@ -52,7 +53,12 @@ describe('PermissoesService', () => {
   describe('create', () => {
     it('should create a permissao', async () => {
       const createPermissaoDto = { nome: 'Test Permissao' };
-      const expectedPermissao = { id: 1, ...createPermissaoDto, createdAt: new Date(), updatedAt: new Date() };
+      const expectedPermissao = {
+        id: 1,
+        ...createPermissaoDto,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       mockPermissaoRepository.create.mockResolvedValue(expectedPermissao);
 
       const result = await service.create(createPermissaoDto);
@@ -65,8 +71,18 @@ describe('PermissoesService', () => {
   describe('findAll', () => {
     it('should return an array of permissoes', async () => {
       const expectedPermissoes = [
-        { id: 1, nome: 'Permissao 1', createdAt: new Date(), updatedAt: new Date() },
-        { id: 2, nome: 'Permissao 2', createdAt: new Date(), updatedAt: new Date() },
+        {
+          id: 1,
+          nome: 'Permissao 1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 2,
+          nome: 'Permissao 2',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       ];
       mockPermissaoRepository.findAll.mockResolvedValue(expectedPermissoes);
 
@@ -79,7 +95,12 @@ describe('PermissoesService', () => {
 
   describe('findOne', () => {
     it('should return a single permissao', async () => {
-      const expectedPermissao = { id: 1, nome: 'Test Permissao', createdAt: new Date(), updatedAt: new Date() };
+      const expectedPermissao = {
+        id: 1,
+        nome: 'Test Permissao',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       mockPermissaoRepository.findOne.mockResolvedValue(expectedPermissao);
 
       const result = await service.findOne(1);
@@ -91,7 +112,9 @@ describe('PermissoesService', () => {
     it('should throw NotFoundException if permissao not found', async () => {
       mockPermissaoRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne(999)).rejects.toThrowError('Permissão com ID 999 não encontrada');
+      await expect(service.findOne(999)).rejects.toThrowError(
+        'Permissão com ID 999 não encontrada',
+      );
       expect(repository.findOne).toHaveBeenCalledWith(999);
     });
   });
@@ -99,8 +122,18 @@ describe('PermissoesService', () => {
   describe('update', () => {
     it('should update a permissao', async () => {
       const updatePermissaoDto = { nome: 'Updated Permissao' };
-      const existingPermissao = { id: 1, nome: 'Test Permissao', createdAt: new Date(), updatedAt: new Date() };
-      const expectedPermissao = { id: 1, ...updatePermissaoDto, createdAt: new Date(), updatedAt: new Date() };
+      const existingPermissao = {
+        id: 1,
+        nome: 'Test Permissao',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const expectedPermissao = {
+        id: 1,
+        ...updatePermissaoDto,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
       mockPermissaoRepository.findOne.mockResolvedValue(existingPermissao);
       mockPermissaoRepository.update.mockResolvedValue(expectedPermissao);
@@ -114,15 +147,24 @@ describe('PermissoesService', () => {
     it('should throw NotFoundException if permissao to update not found', async () => {
       mockPermissaoRepository.update.mockResolvedValue(null);
 
-      await expect(service.update(999, { nome: 'Non Existent' })).rejects.toThrowError('Permissão com ID 999 não encontrada');
-      expect(repository.update).toHaveBeenCalledWith(999, { nome: 'Non Existent' });
+      await expect(
+        service.update(999, { nome: 'Non Existent' }),
+      ).rejects.toThrowError('Permissão com ID 999 não encontrada');
+      expect(repository.update).toHaveBeenCalledWith(999, {
+        nome: 'Non Existent',
+      });
       expect(repository.findOne).not.toHaveBeenCalled();
     });
   });
 
   describe('remove', () => {
     it('should remove a permissao', async () => {
-      const existingPermissao = { id: 1, nome: 'Test Permissao', createdAt: new Date(), updatedAt: new Date() };
+      const existingPermissao = {
+        id: 1,
+        nome: 'Test Permissao',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       mockPermissaoRepository.findOne.mockResolvedValue(existingPermissao);
       mockPermissaoRepository.remove.mockResolvedValue(undefined);
 
@@ -135,7 +177,9 @@ describe('PermissoesService', () => {
     it('should throw NotFoundException if permissao to remove not found', async () => {
       mockPermissaoRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.remove(999)).rejects.toThrowError('Permissão com ID 999 não encontrada');
+      await expect(service.remove(999)).rejects.toThrowError(
+        'Permissão com ID 999 não encontrada',
+      );
       expect(repository.findOne).toHaveBeenCalledWith(999);
       expect(repository.remove).not.toHaveBeenCalled();
     });

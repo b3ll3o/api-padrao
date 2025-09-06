@@ -9,7 +9,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CreatePerfilDto {
   @ApiProperty({
-    description: 'The name of the perfil',
+    description: 'O nome do perfil',
     example: 'Administrador',
   })
   @IsString()
@@ -17,7 +17,7 @@ export class CreatePerfilDto {
   nome: string;
 
   @ApiProperty({
-    description: 'Array of permission IDs',
+    description: 'Array de IDs de permissões',
     example: [1, 2, 3],
     required: false,
   })

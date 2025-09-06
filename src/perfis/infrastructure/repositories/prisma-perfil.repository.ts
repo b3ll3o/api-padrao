@@ -48,6 +48,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
         include: { permissoes: true },
       });
     } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (error.code === 'P2025') {
         return undefined;
       }
@@ -59,6 +60,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
     try {
       await this.prisma.perfil.delete({ where: { id } });
     } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (error.code === 'P2025') {
         // If the record to delete is not found, do nothing, as the goal is to ensure it's removed.
         return;

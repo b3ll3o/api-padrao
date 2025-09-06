@@ -22,10 +22,14 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     return permissao || undefined;
   }
 
-  async update(id: number, data: UpdatePermissaoDto): Promise<Permissao | undefined> {
+  async update(
+    id: number,
+    data: UpdatePermissaoDto,
+  ): Promise<Permissao | undefined> {
     try {
       return await this.prisma.permissao.update({ where: { id }, data });
     } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (error.code === 'P2025') {
         return undefined;
       }
@@ -37,6 +41,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     try {
       await this.prisma.permissao.delete({ where: { id } });
     } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (error.code === 'P2025') {
         // If the record to delete is not found, do nothing, as the goal is to ensure it's removed.
         return;

@@ -28,22 +28,22 @@ export class PerfisController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create a new perfil' })
+  @ApiOperation({ summary: 'Criar um novo perfil' })
   @ApiResponse({
     status: 201,
-    description: 'The perfil has been successfully created.',
+    description: 'O perfil foi criado com sucesso.',
     type: Perfil,
   })
-  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 400, description: 'Requisição inválida.' })
   create(@Body() createPerfilDto: CreatePerfilDto): Promise<Perfil> {
     return this.perfisService.create(createPerfilDto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Retrieve all perfis' })
+  @ApiOperation({ summary: 'Listar todos os perfis' })
   @ApiResponse({
     status: 200,
-    description: 'Returns all perfis.',
+    description: 'Retorna todos os perfis.',
     type: [Perfil],
   })
   findAll(): Promise<Perfil[]> {
@@ -51,26 +51,26 @@ export class PerfisController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Retrieve a perfil by ID' })
+  @ApiOperation({ summary: 'Buscar um perfil por ID' })
   @ApiResponse({
     status: 200,
-    description: 'Returns the perfil with the specified ID.',
+    description: 'Retorna o perfil com o ID especificado.',
     type: Perfil,
   })
-  @ApiResponse({ status: 404, description: 'Perfil not found.' })
+  @ApiResponse({ status: 404, description: 'Perfil não encontrado.' })
   findOne(@Param('id') id: string): Promise<Perfil> {
     return this.perfisService.findOne(+id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update an existing perfil' })
+  @ApiOperation({ summary: 'Atualizar um perfil existente' })
   @ApiResponse({
     status: 200,
-    description: 'The perfil has been successfully updated.',
+    description: 'O perfil foi atualizado com sucesso.',
     type: Perfil,
   })
-  @ApiResponse({ status: 400, description: 'Bad Request.' })
-  @ApiResponse({ status: 404, description: 'Perfil not found.' })
+  @ApiResponse({ status: 400, description: 'Requisição inválida.' })
+  @ApiResponse({ status: 404, description: 'Perfil não encontrado.' })
   update(
     @Param('id') id: string,
     @Body() updatePerfilDto: UpdatePerfilDto,
@@ -80,12 +80,12 @@ export class PerfisController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a perfil by ID' })
+  @ApiOperation({ summary: 'Remover um perfil por ID' })
   @ApiResponse({
     status: 204,
-    description: 'The perfil has been successfully deleted.',
+    description: 'O perfil foi removido com sucesso.',
   })
-  @ApiResponse({ status: 404, description: 'Perfil not found.' })
+  @ApiResponse({ status: 404, description: 'Perfil não encontrado.' })
   remove(@Param('id') id: string): Promise<void> {
     return this.perfisService.remove(+id);
   }
