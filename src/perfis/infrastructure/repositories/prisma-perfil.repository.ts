@@ -68,4 +68,9 @@ export class PrismaPerfilRepository implements PerfilRepository {
       throw error;
     }
   }
+
+  async findByNome(nome: string): Promise<Perfil | undefined> {
+    const perfil = await this.prisma.perfil.findUnique({ where: { nome } });
+    return perfil || undefined;
+  }
 }

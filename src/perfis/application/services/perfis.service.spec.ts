@@ -16,6 +16,7 @@ describe('PerfisService', () => {
     findOne: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    findByNome: jest.fn(),
   };
 
   const mockPermissoesService = {
@@ -70,6 +71,7 @@ describe('PerfisService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      mockPerfilRepository.findByNome.mockResolvedValue(null);
       mockPerfilRepository.create.mockResolvedValue(expectedPerfil);
       mockPermissoesService.findOne.mockResolvedValue({
         id: 1,
@@ -79,6 +81,7 @@ describe('PerfisService', () => {
       const result = await service.create(createPerfilDto);
 
       expect(result).toEqual(expectedPerfil);
+      expect(repository.findByNome).toHaveBeenCalledWith(createPerfilDto.nome);
       expect(repository.create).toHaveBeenCalledWith(createPerfilDto);
       expect(permissoesService.findOne).toHaveBeenCalledWith(1);
     });
@@ -91,13 +94,42 @@ describe('PerfisService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      mockPerfilRepository.findByNome.mockResolvedValue(null);
       mockPerfilRepository.create.mockResolvedValue(expectedPerfil);
 
       const result = await service.create(createPerfilDto);
 
       expect(result).toEqual(expectedPerfil);
+      expect(repository.findByNome).toHaveBeenCalledWith(createPerfilDto.nome);
       expect(repository.create).toHaveBeenCalledWith(createPerfilDto);
       expect(permissoesService.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException if perfil with same name already exists', async () => {
+      const createPerfilDto = { nome: 'Existing Perfil' };
+      mockPerfilRepository.findByNome.mockResolvedValue({
+        id: 1,
+        nome: 'Existing Perfil',
+      });
+
+      await expect(service.create(createPerfilDto)).rejects.toThrowError(
+        `Perfil com o nome '${createPerfilDto.nome}' já existe.`,
+      );
+      expect(repository.findByNome).toHaveBeenCalledWith(createPerfilDto.nome);
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if permissions do not exist', async () => {
+      const createPerfilDto = { nome: 'Perfil with Invalid Perms', permissoesIds: [999] };
+      mockPerfilRepository.findByNome.mockResolvedValue(null);
+      mockPermissoesService.findOne.mockRejectedValue(new Error('Permissão com ID 999 não encontrada'));
+
+      await expect(service.create(createPerfilDto)).rejects.toThrowError(
+        'Permissão com ID 999 não encontrada',
+      );
+      expect(repository.findByNome).toHaveBeenCalledWith(createPerfilDto.nome);
+      expect(permissoesService.findOne).toHaveBeenCalledWith(999);
+      expect(repository.create).not.toHaveBeenCalled();
     });
   });
 

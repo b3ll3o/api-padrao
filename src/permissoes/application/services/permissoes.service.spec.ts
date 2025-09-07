@@ -14,6 +14,7 @@ describe('PermissoesService', () => {
     findOne: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    findByNome: jest.fn(),
   };
 
   const mockPrismaService = {
@@ -59,12 +60,28 @@ describe('PermissoesService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      mockPermissaoRepository.findByNome.mockResolvedValue(null);
       mockPermissaoRepository.create.mockResolvedValue(expectedPermissao);
 
       const result = await service.create(createPermissaoDto);
 
       expect(result).toEqual(expectedPermissao);
+      expect(repository.findByNome).toHaveBeenCalledWith(createPermissaoDto.nome);
       expect(repository.create).toHaveBeenCalledWith(createPermissaoDto);
+    });
+
+    it('should throw ConflictException if permissao with same name already exists', async () => {
+      const createPermissaoDto = { nome: 'Existing Permissao' };
+      mockPermissaoRepository.findByNome.mockResolvedValue({
+        id: 1,
+        nome: 'Existing Permissao',
+      });
+
+      await expect(service.create(createPermissaoDto)).rejects.toThrowError(
+        `Permissão com o nome '${createPermissaoDto.nome}' já existe.`,
+      );
+      expect(repository.findByNome).toHaveBeenCalledWith(createPermissaoDto.nome);
+      expect(repository.create).not.toHaveBeenCalled();
     });
   });
 

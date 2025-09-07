@@ -87,6 +87,43 @@ describe('PerfisController (e2e)', () => {
         .send(createPerfilDto)
         .expect(400);
     });
+
+    it('should return 409 if perfil with same name already exists', async () => {
+      const createPerfilDto = { nome: 'duplicate:name' };
+      // Create the first perfil
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      await request(app.getHttpServer())
+        .post('/perfis')
+        .set('Authorization', `Bearer ${token}`)
+        .send(createPerfilDto)
+        .expect(201);
+
+      // Attempt to create a duplicate perfil
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      return request(app.getHttpServer())
+        .post('/perfis')
+        .set('Authorization', `Bearer ${token}`)
+        .send(createPerfilDto)
+        .expect(409)
+        .expect((res) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          expect(res.body.message).toEqual(`Perfil com o nome '${createPerfilDto.nome}' já existe.`);
+        });
+    });
+
+    it('should return 404 if permissions do not exist', async () => {
+      const createPerfilDto = { nome: 'Perfil with Invalid Perms', permissoesIds: [99999] };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      return request(app.getHttpServer())
+        .post('/perfis')
+        .set('Authorization', `Bearer ${token}`)
+        .send(createPerfilDto)
+        .expect(404)
+        .expect((res) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          expect(res.body.message).toEqual('Permissão com ID 99999 não encontrada');
+        });
+    });
   });
 
   describe('GET /perfis', () => {
