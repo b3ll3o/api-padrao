@@ -2,7 +2,7 @@
 
 ## Descrição do Projeto
 
-Este projeto é uma API RESTful desenvolvida com NestJS, utilizando Prisma como ORM e PostgreSQL como banco de dados. A API inclui um módulo de autenticação com JWT e um módulo de gerenciamento de usuários.
+Este projeto é uma API RESTful desenvolvida com NestJS, utilizando Prisma como ORM e PostgreSQL como banco de dados. A API inclui módulos de autenticação com JWT, gerenciamento de usuários, perfis e permissões.
 
 ## Tecnologias Utilizadas
 
@@ -73,6 +73,11 @@ A aplicação estará disponível em `http://localhost:3000` (ou na porta config
 npm run build
 npm run start:prod
 ```
+
+## Documentação da API (Swagger)
+
+A documentação interativa da API está disponível através do Swagger UI.
+Após iniciar a aplicação, acesse: `http://localhost:3000/swagger`
 
 ## Executando Testes
 
@@ -159,6 +164,201 @@ Os testes E2E são executados em um banco de dados separado (`api-padrao-test`).
             "A senha deve conter pelo menos uma letra maiúscula, uma minúscula, um número ou um caractere especial"
           ],
           "error": "Bad Request"
+        }
+        ```
+
+### Perfis
+
+*   **`POST /perfis`**: Cria um novo perfil.
+    *   **Requer Autenticação (JWT)**
+    *   **Request Body:**
+        ```json
+        {
+          "nome": "Administrador",
+          "permissoesIds": [1, 2]
+        }
+        ```
+    *   **Response (Success - 201 Created):**
+        ```json
+        {
+          "id": 1,
+          "nome": "Administrador",
+          "permissoes": [
+            { "id": 1, "nome": "read:users" },
+            { "id": 2, "nome": "write:users" }
+          ]
+        }
+        ```
+    *   **Response (Failure - 400 Bad Request):**
+        ```json
+        {
+          "statusCode": 400,
+          "message": "Nome é obrigatório",
+          "error": "Bad Request"
+        }
+        ```
+
+*   **`GET /perfis`**: Lista todos os perfis.
+    *   **Requer Autenticação (JWT)**
+    *   **Response (Success - 200 OK):**
+        ```json
+        [
+          {
+            "id": 1,
+            "nome": "Administrador",
+            "permissoes": []
+          }
+        ]
+        ```
+
+*   **`GET /perfis/:id`**: Busca um perfil por ID.
+    *   **Requer Autenticação (JWT)**
+    *   **Response (Success - 200 OK):**
+        ```json
+        {
+          "id": 1,
+          "nome": "Administrador",
+          "permissoes": []
+        }
+        ```
+    *   **Response (Failure - 404 Not Found):**
+        ```json
+        {
+          "statusCode": 404,
+          "message": "Perfil com ID 999 não encontrado",
+          "error": "Not Found"
+        }
+        ```
+
+*   **`PATCH /perfis/:id`**: Atualiza um perfil existente.
+    *   **Requer Autenticação (JWT)**
+    *   **Request Body:**
+        ```json
+        {
+          "nome": "Editor",
+          "permissoesIds": [3]
+        }
+        ```
+    *   **Response (Success - 200 OK):**
+        ```json
+        {
+          "id": 1,
+          "nome": "Editor",
+          "permissoes": [
+            { "id": 3, "nome": "delete:users" }
+          ]
+        }
+        ```
+    *   **Response (Failure - 404 Not Found):**
+        ```json
+        {
+          "statusCode": 404,
+          "message": "Perfil com ID 999 não encontrado",
+          "error": "Not Found"
+        }
+        ```
+
+*   **`DELETE /perfis/:id`**: Remove um perfil por ID.
+    *   **Requer Autenticação (JWT)**
+    *   **Response (Success - 204 No Content)**
+    *   **Response (Failure - 404 Not Found):**
+        ```json
+        {
+          "statusCode": 404,
+          "message": "Perfil com ID 999 não encontrado",
+          "error": "Not Found"
+        }
+        ```
+
+### Permissões
+
+*   **`POST /permissoes`**: Cria uma nova permissão.
+    *   **Requer Autenticação (JWT)**
+    *   **Request Body:**
+        ```json
+        {
+          "nome": "read:users"
+        }
+        ```
+    *   **Response (Success - 201 Created):**
+        ```json
+        {
+          "id": 1,
+          "nome": "read:users"
+        }
+        ```
+    *   **Response (Failure - 400 Bad Request):**
+        ```json
+        {
+          "statusCode": 400,
+          "message": "Nome é obrigatório",
+          "error": "Bad Request"
+        }
+        ```
+
+*   **`GET /permissoes`**: Lista todas as permissões.
+    *   **Requer Autenticação (JWT)**
+    *   **Response (Success - 200 OK):**
+        ```json
+        [
+          {
+            "id": 1,
+            "nome": "read:users"
+          }
+        ]
+        ```
+
+*   **`GET /permissoes/:id`**: Busca uma permissão por ID.
+    *   **Requer Autenticação (JWT)**
+    *   **Response (Success - 200 OK):**
+        ```json
+        {
+          "id": 1,
+          "nome": "read:users"
+        }
+        ```
+    *   **Response (Failure - 404 Not Found):**
+        ```json
+        {
+          "statusCode": 404,
+          "message": "Permissão com ID 999 não encontrada",
+          "error": "Not Found"
+        }
+        ```
+
+*   **`PATCH /permissoes/:id`**: Atualiza uma permissão existente.
+    *   **Requer Autenticação (JWT)**
+    *   **Request Body:**
+        ```json
+        {
+          "nome": "write:users"
+        }
+        ```
+    *   **Response (Success - 200 OK):**
+        ```json
+        {
+          "id": 1,
+          "nome": "write:users"
+        }
+        ```
+    *   **Response (Failure - 404 Not Found):**
+        ```json
+        {
+          "statusCode": 404,
+          "message": "Permissão com ID 999 não encontrada",
+          "error": "Not Found"
+        }
+        ```
+
+*   **`DELETE /permissoes/:id`**: Remove uma permissão por ID.
+    *   **Requer Autenticação (JWT)**
+    *   **Response (Success - 204 No Content)**
+    *   **Response (Failure - 404 Not Found):**
+        ```json
+        {
+          "statusCode": 404,
+          "message": "Permissão com ID 999 não encontrada",
+          "error": "Not Found"
         }
         ```
 
