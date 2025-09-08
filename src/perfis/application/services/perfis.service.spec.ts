@@ -159,7 +159,13 @@ describe('PerfisService', () => {
 
       const result = await service.findAll(paginationDto);
 
-      expect(result).toEqual({ data: expectedPerfis, total: 2 });
+      expect(result).toEqual({ 
+        data: expectedPerfis, 
+        total: 2,
+        page: 1,
+        limit: 10,
+        totalPages: 1
+      });
       expect(repository.findAll).toHaveBeenCalledWith(0, 10);
     });
   });
@@ -214,7 +220,13 @@ describe('PerfisService', () => {
 
       const result = await service.findByNome('Test Perfil', paginationDto);
 
-      expect(result).toEqual({ data: expectedPerfis, total: 2 });
+      expect(result).toEqual({ 
+        data: expectedPerfis, 
+        total: 2,
+        page: 1,
+        limit: 10,
+        totalPages: 1
+      });
       expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith(
         'Test Perfil',
         0,
@@ -231,7 +243,13 @@ describe('PerfisService', () => {
         paginationDto,
       );
 
-      expect(result).toEqual({ data: [], total: 0 });
+      expect(result).toEqual({ 
+        data: [], 
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0
+      });
       expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith(
         'Non Existent Perfil',
         0,

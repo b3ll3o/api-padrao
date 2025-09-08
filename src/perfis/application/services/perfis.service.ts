@@ -9,6 +9,7 @@ import { PerfilRepository } from '../../domain/repositories/perfil.repository';
 import { Perfil } from '../../domain/entities/perfil.entity';
 import { PermissoesService } from '../../../permissoes/application/services/permissoes.service';
 import { PaginationDto } from '../../../dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
 
 @Injectable()
 export class PerfisService {
@@ -39,13 +40,20 @@ export class PerfisService {
 
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<{ data: Perfil[]; total: number }> {
+  ): Promise<PaginatedResponseDto<Perfil>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
     const skip = (page - 1) * limit;
     const take = limit;
     const [data, total] = await this.perfilRepository.findAll(skip, take);
-    return { data, total };
+    const totalPages = Math.ceil(total / limit);
+    return { 
+      data,
+      total,
+      page,
+      limit,
+      totalPages
+    };
   }
 
   async findOne(id: number): Promise<Perfil> {
@@ -59,14 +67,14 @@ export class PerfisService {
   async findByNome(
     nome: string,
     paginationDto: PaginationDto,
-  ): Promise<{ data: Perfil[]; total: number }> {
+  ): Promise<PaginatedResponseDto<Perfil>> {
     return this.findByNomeContaining(nome, paginationDto);
   }
 
   async findByNomeContaining(
     nome: string,
     paginationDto: PaginationDto,
-  ): Promise<{ data: Perfil[]; total: number }> {
+  ): Promise<PaginatedResponseDto<Perfil>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
     const skip = (page - 1) * limit;
@@ -76,7 +84,14 @@ export class PerfisService {
       skip,
       take,
     );
-    return { data, total };
+    const totalPages = Math.ceil(total / limit);
+    return { 
+      data,
+      total,
+      page,
+      limit,
+      totalPages
+    };
   }
 
   async update(id: number, updatePerfilDto: UpdatePerfilDto): Promise<Perfil> {

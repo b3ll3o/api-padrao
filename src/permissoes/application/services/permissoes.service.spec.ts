@@ -116,7 +116,13 @@ describe('PermissoesService', () => {
 
       const result = await service.findAll(paginationDto);
 
-      expect(result).toEqual({ data: expectedPermissoes, total: 2 });
+      expect(result).toEqual({ 
+        data: expectedPermissoes, 
+        total: 2,
+        page: 1,
+        limit: 10,
+        totalPages: 1
+      });
       expect(repository.findAll).toHaveBeenCalledWith(0, 10);
     });
   });
@@ -171,7 +177,13 @@ describe('PermissoesService', () => {
 
       const result = await service.findByNome('Test Permissao', paginationDto);
 
-      expect(result).toEqual({ data: expectedPermissoes, total: 2 });
+      expect(result).toEqual({ 
+        data: expectedPermissoes, 
+        total: 2,
+        page: 1,
+        limit: 10,
+        totalPages: 1
+      });
       expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith(
         'Test Permissao',
         0,
@@ -188,7 +200,13 @@ describe('PermissoesService', () => {
         paginationDto,
       );
 
-      expect(result).toEqual({ data: [], total: 0 });
+      expect(result).toEqual({ 
+        data: [], 
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0
+      });
       expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith(
         'Non Existent Permissao',
         0,
