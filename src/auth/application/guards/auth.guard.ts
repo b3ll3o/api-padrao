@@ -23,13 +23,13 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
     const result = await super.canActivate(context);
 
     if (result) {
-      // @ts-ignore
-      request.usuarioLogado = request.user; // user is attached by AuthGuard
+      // @ts-expect-error: Property 'usuarioLogado' does not exist on type 'Request'. It is added dynamically.
+      request.usuarioLogado = request.user as any; // user is attached by AuthGuard
     }
     return result as boolean;
   }
 
-  handleRequest(err, user, info, context: ExecutionContext) {
+  handleRequest(err: any, user: any): any {
     if (err || !user) {
       throw err || new UnauthorizedException();
     }

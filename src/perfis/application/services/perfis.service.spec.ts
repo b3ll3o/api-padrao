@@ -82,7 +82,7 @@ describe('PerfisService', () => {
 
       expect(result).toEqual(expectedPerfil);
       expect(repository.findByNome).toHaveBeenCalledWith(createPerfilDto.nome);
-      expect(repository.create).toHaveBeenCalledWith(createPerfilDto);
+      expect(mockPerfilRepository.create).toHaveBeenCalledWith(createPerfilDto);
       expect(permissoesService.findOne).toHaveBeenCalledWith(1);
     });
 
@@ -101,7 +101,7 @@ describe('PerfisService', () => {
 
       expect(result).toEqual(expectedPerfil);
       expect(repository.findByNome).toHaveBeenCalledWith(createPerfilDto.nome);
-      expect(repository.create).toHaveBeenCalledWith(createPerfilDto);
+      expect(mockPerfilRepository.create).toHaveBeenCalledWith(createPerfilDto);
       expect(permissoesService.findOne).not.toHaveBeenCalled();
     });
 
@@ -120,9 +120,14 @@ describe('PerfisService', () => {
     });
 
     it('should throw NotFoundException if permissions do not exist', async () => {
-      const createPerfilDto = { nome: 'Perfil with Invalid Perms', permissoesIds: [999] };
+      const createPerfilDto = {
+        nome: 'Perfil with Invalid Perms',
+        permissoesIds: [999],
+      };
       mockPerfilRepository.findByNome.mockResolvedValue(null);
-      mockPermissoesService.findOne.mockRejectedValue(new Error('Permissão com ID 999 não encontrada'));
+      mockPermissoesService.findOne.mockRejectedValue(
+        new Error('Permissão com ID 999 não encontrada'),
+      );
 
       await expect(service.create(createPerfilDto)).rejects.toThrowError(
         'Permissão com ID 999 não encontrada',
@@ -203,7 +208,9 @@ describe('PerfisService', () => {
     it('should throw NotFoundException if perfil not found by nome', async () => {
       mockPerfilRepository.findByNome.mockResolvedValue(null);
 
-      await expect(service.findByNome('Non Existent Perfil')).rejects.toThrowError(
+      await expect(
+        service.findByNome('Non Existent Perfil'),
+      ).rejects.toThrowError(
         "Perfil com nome 'Non Existent Perfil' não encontrado",
       );
       expect(repository.findByNome).toHaveBeenCalledWith('Non Existent Perfil');

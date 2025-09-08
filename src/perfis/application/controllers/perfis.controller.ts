@@ -8,7 +8,6 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
-  Req,
 } from '@nestjs/common';
 import { PerfisService } from '../services/perfis.service';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
@@ -47,7 +46,7 @@ export class PerfisController {
     description: 'Retorna todos os perfis.',
     type: [Perfil],
   })
-  findAll(@Req() req): Promise<Perfil[]> {
+  findAll(): Promise<Perfil[]> {
     return this.perfisService.findAll();
   }
 

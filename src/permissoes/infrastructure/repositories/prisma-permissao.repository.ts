@@ -51,7 +51,9 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
   }
 
   async findByNome(nome: string): Promise<Permissao | undefined> {
-    const permissao = await this.prisma.permissao.findUnique({ where: { nome } });
+    const permissao = await this.prisma.permissao.findUnique({
+      where: { nome },
+    });
     return permissao || undefined;
   }
 }

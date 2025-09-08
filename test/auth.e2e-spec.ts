@@ -43,8 +43,12 @@ describe('AuthController (e2e)', () => {
   describe('POST /auth/login', () => {
     it('should allow a user to login successfully and return JWT with profiles and permissions', async () => {
       // Create permissions
-      const perm1 = await prisma.permissao.create({ data: { nome: 'read:users' } });
-      const perm2 = await prisma.permissao.create({ data: { nome: 'write:users' } });
+      const perm1 = await prisma.permissao.create({
+        data: { nome: 'read:users' },
+      });
+      const perm2 = await prisma.permissao.create({
+        data: { nome: 'write:users' },
+      });
 
       // Create a profile with permissions
       const perfil = await prisma.perfil.create({

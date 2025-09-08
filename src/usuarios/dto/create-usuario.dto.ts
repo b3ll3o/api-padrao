@@ -25,7 +25,11 @@ export class CreateUsuarioDto {
   })
   senha?: string;
 
-  @ApiProperty({ description: 'IDs dos perfis associados ao usuário', type: [Number], required: false })
+  @ApiProperty({
+    description: 'IDs dos perfis associados ao usuário',
+    type: [Number],
+    required: false,
+  })
   @IsOptional()
   perfisIds?: number[];
 }

@@ -107,12 +107,17 @@ describe('PerfisController (e2e)', () => {
         .expect(409)
         .expect((res) => {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          expect(res.body.message).toEqual(`Perfil com o nome '${createPerfilDto.nome}' já existe.`);
+          expect(res.body.message).toEqual(
+            `Perfil com o nome '${createPerfilDto.nome}' já existe.`,
+          );
         });
     });
 
     it('should return 404 if permissions do not exist', async () => {
-      const createPerfilDto = { nome: 'Perfil with Invalid Perms', permissoesIds: [99999] };
+      const createPerfilDto = {
+        nome: 'Perfil with Invalid Perms',
+        permissoesIds: [99999],
+      };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/perfis')
@@ -121,7 +126,9 @@ describe('PerfisController (e2e)', () => {
         .expect(404)
         .expect((res) => {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          expect(res.body.message).toEqual('Permissão com ID 99999 não encontrada');
+          expect(res.body.message).toEqual(
+            'Permissão com ID 99999 não encontrada',
+          );
         });
     });
   });

@@ -3,6 +3,7 @@ import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import * as bcrypt from 'bcrypt';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
 import { Usuario } from '../../domain/entities/usuario.entity';
+import { Perfil } from 'src/perfis/domain/entities/perfil.entity';
 
 @Injectable()
 export class UsuariosService {
@@ -26,7 +27,9 @@ export class UsuariosService {
 
     // Assign perfilId if provided
     if (createUsuarioDto.perfisIds) {
-      newUsuario.perfis = createUsuarioDto.perfisIds.map(id => ({ id } as any));
+      newUsuario.perfis = createUsuarioDto.perfisIds.map(
+        (id) => ({ id }) as Perfil,
+      );
     }
 
     const usuario = await this.usuarioRepository.create(newUsuario);

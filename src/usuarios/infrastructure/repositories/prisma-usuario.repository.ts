@@ -39,7 +39,9 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     return newUsuario;
   }
 
-  async findByEmailWithPerfisAndPermissoes(email: string): Promise<Usuario | null> {
+  async findByEmailWithPerfisAndPermissoes(
+    email: string,
+  ): Promise<Usuario | null> {
     const usuario = await this.prisma.usuario.findUnique({
       where: { email },
       include: {

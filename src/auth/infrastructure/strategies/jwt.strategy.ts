@@ -4,7 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { jwtConstants } from '../constants/jwt.constants';
 import { UsuariosService } from '../../../usuarios/application/services/usuarios.service';
 
-interface JwtPayload {
+export interface JwtPayload {
   email: string;
   sub: number;
   perfis?: {
@@ -31,6 +31,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async validate(payload: JwtPayload) {
-    return { userId: payload.sub, email: payload.email, perfis: payload.perfis };
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      perfis: payload.perfis,
+    };
   }
 }

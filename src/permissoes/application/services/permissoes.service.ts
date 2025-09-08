@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
 import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';
 import { PermissaoRepository } from '../../domain/repositories/permissao.repository';
@@ -9,7 +13,9 @@ export class PermissoesService {
   constructor(private readonly permissaoRepository: PermissaoRepository) {}
 
   async create(createPermissaoDto: CreatePermissaoDto): Promise<Permissao> {
-    const existingPermissao = await this.permissaoRepository.findByNome(createPermissaoDto.nome);
+    const existingPermissao = await this.permissaoRepository.findByNome(
+      createPermissaoDto.nome,
+    );
     if (existingPermissao) {
       throw new ConflictException(
         `Permissão com o nome '${createPermissaoDto.nome}' já existe.`,
@@ -33,7 +39,9 @@ export class PermissoesService {
   async findByNome(nome: string): Promise<Permissao> {
     const permissao = await this.permissaoRepository.findByNome(nome);
     if (!permissao) {
-      throw new NotFoundException(`Permissão com nome '${nome}' não encontrada`);
+      throw new NotFoundException(
+        `Permissão com nome '${nome}' não encontrada`,
+      );
     }
     return permissao;
   }

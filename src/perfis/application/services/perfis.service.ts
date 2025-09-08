@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
 import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 import { PerfilRepository } from '../../domain/repositories/perfil.repository';
@@ -13,7 +17,9 @@ export class PerfisService {
   ) {}
 
   async create(createPerfilDto: CreatePerfilDto): Promise<Perfil> {
-    const existingPerfil = await this.perfilRepository.findByNome(createPerfilDto.nome);
+    const existingPerfil = await this.perfilRepository.findByNome(
+      createPerfilDto.nome,
+    );
     if (existingPerfil) {
       throw new ConflictException(
         `Perfil com o nome '${createPerfilDto.nome}' já existe.`,

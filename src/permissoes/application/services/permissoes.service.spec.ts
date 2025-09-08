@@ -66,8 +66,10 @@ describe('PermissoesService', () => {
       const result = await service.create(createPermissaoDto);
 
       expect(result).toEqual(expectedPermissao);
-      expect(repository.findByNome).toHaveBeenCalledWith(createPermissaoDto.nome);
-      expect(repository.create).toHaveBeenCalledWith(createPermissaoDto);
+      expect(repository.findByNome).toHaveBeenCalledWith(
+        createPermissaoDto.nome,
+      );
+      expect(mockPermissaoRepository.create).toHaveBeenCalledWith(createPermissaoDto);
     });
 
     it('should throw ConflictException if permissao with same name already exists', async () => {
@@ -80,7 +82,9 @@ describe('PermissoesService', () => {
       await expect(service.create(createPermissaoDto)).rejects.toThrowError(
         `Permissão com o nome '${createPermissaoDto.nome}' já existe.`,
       );
-      expect(repository.findByNome).toHaveBeenCalledWith(createPermissaoDto.nome);
+      expect(repository.findByNome).toHaveBeenCalledWith(
+        createPermissaoDto.nome,
+      );
       expect(repository.create).not.toHaveBeenCalled();
     });
   });
@@ -155,10 +159,14 @@ describe('PermissoesService', () => {
     it('should throw NotFoundException if permissao not found by name', async () => {
       mockPermissaoRepository.findByNome.mockResolvedValue(null);
 
-      await expect(service.findByNome('Non Existent Permissao')).rejects.toThrowError(
+      await expect(
+        service.findByNome('Non Existent Permissao'),
+      ).rejects.toThrowError(
         "Permissão com nome 'Non Existent Permissao' não encontrada",
       );
-      expect(repository.findByNome).toHaveBeenCalledWith('Non Existent Permissao');
+      expect(repository.findByNome).toHaveBeenCalledWith(
+        'Non Existent Permissao',
+      );
     });
   });
 

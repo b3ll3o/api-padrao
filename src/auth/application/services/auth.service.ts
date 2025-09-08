@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { LoginUsuarioDto } from '../../dto/login-usuario.dto';
 import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
-import { Usuario } from '../../../usuarios/domain/entities/usuario.entity';
+import { jwtConstants } from '../../infrastructure/constants/jwt.constants';
 
 @Injectable()
 export class AuthService {
@@ -12,9 +12,10 @@ export class AuthService {
   ) {}
 
   async login(loginUsuarioDto: LoginUsuarioDto) {
-    const user = await this.usuarioRepository.findByEmailWithPerfisAndPermissoes(
-      loginUsuarioDto.email,
-    );
+    const user =
+      await this.usuarioRepository.findByEmailWithPerfisAndPermissoes(
+        loginUsuarioDto.email,
+      );
 
     if (!user || !(await user.comparePassword(loginUsuarioDto.senha))) {
       throw new UnauthorizedException('Credenciais inválidas');
@@ -31,7 +32,7 @@ export class AuthService {
 
     const payload = { email: user.email, sub: user.id, perfis };
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign(payload, { expiresIn: jwtConstants.expiresIn }),
     };
   }
 }
