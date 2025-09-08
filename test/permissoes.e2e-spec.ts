@@ -28,7 +28,7 @@ describe('PermissoesController (e2e)', () => {
       email: 'test-permissao@example.com',
       senha: 'Password123!',
     };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
     await request(app.getHttpServer())
       .post('/usuarios')
       .send(createUserDto)
@@ -40,12 +40,11 @@ describe('PermissoesController (e2e)', () => {
       senha: 'Password123!',
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const res = await request(app.getHttpServer())
       .post('/auth/login')
       .send(loginDto)
       .expect(201);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+
     token = res.body.access_token;
   });
 
@@ -70,7 +69,7 @@ describe('PermissoesController (e2e)', () => {
   describe('POST /permissoes', () => {
     it('deve criar uma permissão', async () => {
       const createPermissaoDto = { nome: `read:users-${Date.now()}` };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .post('/permissoes')
         .set('Authorization', `Bearer ${token}`)
@@ -78,14 +77,14 @@ describe('PermissoesController (e2e)', () => {
         .expect(201)
         .expect((res) => {
           expect(res.body).toHaveProperty('id');
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(res.body.nome).toEqual(createPermissaoDto.nome);
         });
     });
 
     it('deve retornar 400 se o nome estiver faltando', () => {
       const createPermissaoDto = {};
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .post('/permissoes')
         .set('Authorization', `Bearer ${token}`)
@@ -97,7 +96,7 @@ describe('PermissoesController (e2e)', () => {
   describe('GET /permissoes', () => {
     it('deve retornar uma lista paginada de permissões', async () => {
       await prisma.permissao.create({ data: { nome: 'write:users' } });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .get('/permissoes')
         .set('Authorization', `Bearer ${token}`)
@@ -118,20 +117,19 @@ describe('PermissoesController (e2e)', () => {
       const permissao = await prisma.permissao.create({
         data: { nome: 'delete:users' },
       });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .get(`/permissoes/${permissao.id}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('id', permissao.id);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(res.body.nome).toEqual(permissao.nome);
         });
     });
 
     it('deve retornar 404 se a permissão não for encontrada', () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/permissoes/99999')
         .set('Authorization', `Bearer ${token}`)
@@ -150,7 +148,6 @@ describe('PermissoesController (e2e)', () => {
       });
       const paginationDto = { page: 1, limit: 10 };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/permissoes/nome/teste')
         .query(paginationDto) // Add query parameters
@@ -170,7 +167,7 @@ describe('PermissoesController (e2e)', () => {
 
     it('deve retornar um array vazio se nenhuma permissão for encontrada', () => {
       const paginationDto = { page: 1, limit: 10 };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .get('/permissoes/nome/naoexiste')
         .query(paginationDto) // Add query parameters

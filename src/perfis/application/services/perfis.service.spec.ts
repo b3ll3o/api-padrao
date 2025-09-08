@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { PerfisService } from './perfis.service';
 import { PerfilRepository } from '../../domain/repositories/perfil.repository';
@@ -159,12 +158,12 @@ describe('PerfisService', () => {
 
       const result = await service.findAll(paginationDto);
 
-      expect(result).toEqual({ 
-        data: expectedPerfis, 
+      expect(result).toEqual({
+        data: expectedPerfis,
         total: 2,
         page: 1,
         limit: 10,
-        totalPages: 1
+        totalPages: 1,
       });
       expect(repository.findAll).toHaveBeenCalledWith(0, 10);
     });
@@ -220,12 +219,12 @@ describe('PerfisService', () => {
 
       const result = await service.findByNome('Test Perfil', paginationDto);
 
-      expect(result).toEqual({ 
-        data: expectedPerfis, 
+      expect(result).toEqual({
+        data: expectedPerfis,
         total: 2,
         page: 1,
         limit: 10,
-        totalPages: 1
+        totalPages: 1,
       });
       expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith(
         'Test Perfil',
@@ -243,12 +242,12 @@ describe('PerfisService', () => {
         paginationDto,
       );
 
-      expect(result).toEqual({ 
-        data: [], 
+      expect(result).toEqual({
+        data: [],
         total: 0,
         page: 1,
         limit: 10,
-        totalPages: 0
+        totalPages: 0,
       });
       expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith(
         'Non Existent Perfil',
@@ -316,8 +315,8 @@ describe('PerfisService', () => {
     it('should throw NotFoundException if perfil to update not found', async () => {
       mockPerfilRepository.update.mockResolvedValue(null);
 
-      await expect(() => 
-        service.update(999, { nome: 'Non Existent' })
+      await expect(() =>
+        service.update(999, { nome: 'Non Existent' }),
       ).rejects.toThrow('Perfil com ID 999 não encontrado');
       expect(repository.update).toHaveBeenCalledWith(999, {
         nome: 'Non Existent',

@@ -8,7 +8,7 @@ export class PaginationDto {
     minimum: 1,
     default: 1,
     example: 1,
-    type: Number
+    type: Number,
   })
   @IsOptional()
   @IsInt()
@@ -21,7 +21,7 @@ export class PaginationDto {
     minimum: 1,
     default: 10,
     example: 10,
-    type: Number
+    type: Number,
   })
   @IsOptional()
   @IsInt()

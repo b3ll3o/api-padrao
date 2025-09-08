@@ -72,7 +72,7 @@ describe('AuthService', () => {
       expect(
         mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
       ).toHaveBeenCalledWith('test@example.com');
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(mockUser.comparePassword).toHaveBeenCalledWith('password123');
       expect(mockJwtService.sign).toHaveBeenCalledWith(
         {
@@ -136,7 +136,7 @@ describe('AuthService', () => {
       expect(
         mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
       ).toHaveBeenCalledWith('test@example.com');
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(mockUser.comparePassword).toHaveBeenCalledWith('wrongPassword');
       expect(mockJwtService.sign).not.toHaveBeenCalled();
     });

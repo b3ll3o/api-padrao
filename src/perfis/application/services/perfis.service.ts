@@ -47,12 +47,12 @@ export class PerfisService {
     const take = limit;
     const [data, total] = await this.perfilRepository.findAll(skip, take);
     const totalPages = Math.ceil(total / limit);
-    return { 
+    return {
       data,
       total,
       page,
       limit,
-      totalPages
+      totalPages,
     };
   }
 
@@ -85,12 +85,12 @@ export class PerfisService {
       take,
     );
     const totalPages = Math.ceil(total / limit);
-    return { 
+    return {
       data,
       total,
       page,
       limit,
-      totalPages
+      totalPages,
     };
   }
 

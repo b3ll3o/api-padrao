@@ -67,7 +67,7 @@ describe('AuthController (e2e)', () => {
       };
 
       // Primeiro, criar um usuário com o perfil
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       await request(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
@@ -78,7 +78,6 @@ describe('AuthController (e2e)', () => {
         senha: 'Password123!',
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/auth/login')
         .send(loginDto)
@@ -88,26 +87,25 @@ describe('AuthController (e2e)', () => {
           expect(typeof res.body.access_token).toBe('string');
 
           // Decodificar o JWT e verificar seu conteúdo
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
           const decodedJwt: any = jwtService.decode(res.body.access_token);
 
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           expect(decodedJwt.email).toEqual(createUserDto.email);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(decodedJwt.sub).toBeDefined();
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(decodedJwt.perfis).toBeInstanceOf(Array);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(decodedJwt.perfis.length).toEqual(1);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(decodedJwt.perfis[0].nome).toEqual(perfil.nome);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(decodedJwt.perfis[0].permissoes).toBeInstanceOf(Array);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(decodedJwt.perfis[0].permissoes.length).toEqual(2);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(decodedJwt.perfis[0].permissoes[0].nome).toEqual(perm1.nome);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(decodedJwt.perfis[0].permissoes[1].nome).toEqual(perm2.nome);
         });
     });
@@ -118,7 +116,6 @@ describe('AuthController (e2e)', () => {
         senha: 'wrongpassword',
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/auth/login')
         .send(loginDto)
@@ -131,7 +128,6 @@ describe('AuthController (e2e)', () => {
         senha: 'Password123!',
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/auth/login')
         .send(loginDto)

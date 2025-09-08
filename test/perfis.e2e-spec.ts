@@ -28,7 +28,7 @@ describe('PerfisController (e2e)', () => {
       email: 'test-perfil@example.com',
       senha: 'Password123!',
     };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
     await request(app.getHttpServer())
       .post('/usuarios')
       .send(createUserDto)
@@ -40,12 +40,11 @@ describe('PerfisController (e2e)', () => {
       senha: 'Password123!',
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const res = await request(app.getHttpServer())
       .post('/auth/login')
       .send(loginDto)
       .expect(201);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+
     token = res.body.access_token;
   });
 
@@ -70,7 +69,7 @@ describe('PerfisController (e2e)', () => {
   describe('POST /perfis', () => {
     it('deve criar um perfil', async () => {
       const createPerfilDto = { nome: `Admin-${Date.now()}` };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${token}`)
@@ -78,14 +77,14 @@ describe('PerfisController (e2e)', () => {
         .expect(201)
         .expect((res) => {
           expect(res.body).toHaveProperty('id');
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(res.body.nome).toEqual(createPerfilDto.nome);
         });
     });
 
     it('deve retornar 400 se o nome estiver faltando', () => {
       const createPerfilDto = {};
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${token}`)
@@ -96,7 +95,7 @@ describe('PerfisController (e2e)', () => {
     it('deve retornar 409 se o perfil com o mesmo nome já existir', async () => {
       const createPerfilDto = { nome: 'duplicate:name' };
       // Criar o primeiro perfil
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       await request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${token}`)
@@ -104,14 +103,13 @@ describe('PerfisController (e2e)', () => {
         .expect(201);
 
       // Tentar criar um perfil duplicado
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${token}`)
         .send(createPerfilDto)
         .expect(409)
         .expect((res) => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           expect(res.body.message).toEqual(
             `Perfil com o nome '${createPerfilDto.nome}' já existe.`,
           );
@@ -123,14 +121,13 @@ describe('PerfisController (e2e)', () => {
         nome: 'Perfil com Permissões Inválidas',
         permissoesIds: [99999],
       };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${token}`)
         .send(createPerfilDto)
         .expect(404)
         .expect((res) => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           expect(res.body.message).toEqual(
             'Permissão com ID 99999 não encontrada',
           );
@@ -141,7 +138,7 @@ describe('PerfisController (e2e)', () => {
   describe('GET /perfis', () => {
     it('deve retornar uma lista paginada de perfis', async () => {
       await prisma.perfil.create({ data: { nome: 'User' } });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .get('/perfis')
         .set('Authorization', `Bearer ${token}`)
@@ -160,20 +157,19 @@ describe('PerfisController (e2e)', () => {
   describe('GET /perfis/:id', () => {
     it('deve retornar um único perfil', async () => {
       const perfil = await prisma.perfil.create({ data: { nome: 'Editor' } });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .get(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('id', perfil.id);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(res.body.nome).toEqual(perfil.nome);
         });
     });
 
     it('deve retornar 404 se o perfil não for encontrado', () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/perfis/99999')
         .set('Authorization', `Bearer ${token}`)
@@ -185,7 +181,7 @@ describe('PerfisController (e2e)', () => {
     it('deve atualizar um perfil', async () => {
       const perfil = await prisma.perfil.create({ data: { nome: 'Viewer' } });
       const updatePerfilDto = { nome: 'Updated Viewer' };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${token}`)
@@ -193,14 +189,14 @@ describe('PerfisController (e2e)', () => {
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('id', perfil.id);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
           expect(res.body.nome).toEqual(updatePerfilDto.nome);
         });
     });
 
     it('deve retornar 404 se o perfil não for encontrado', () => {
       const updatePerfilDto = { nome: 'Non Existent' };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .patch('/perfis/99999')
         .set('Authorization', `Bearer ${token}`)
@@ -214,7 +210,7 @@ describe('PerfisController (e2e)', () => {
       const perfil = await prisma.perfil.create({
         data: { nome: 'Deletable' },
       });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .delete(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${token}`)
@@ -222,7 +218,6 @@ describe('PerfisController (e2e)', () => {
     });
 
     it('deve retornar 404 se o perfil não for encontrado', () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .delete('/perfis/99999')
         .set('Authorization', `Bearer ${token}`)
@@ -241,7 +236,6 @@ describe('PerfisController (e2e)', () => {
       });
       const paginationDto = { page: 1, limit: 10 };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/perfis/nome/teste')
         .query(paginationDto) // Add query parameters
@@ -261,7 +255,7 @@ describe('PerfisController (e2e)', () => {
 
     it('deve retornar um array vazio se nenhum perfil for encontrado', () => {
       const paginationDto = { page: 1, limit: 10 };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       return request(app.getHttpServer())
         .get('/perfis/nome/naoexiste')
         .query(paginationDto) // Add query parameters

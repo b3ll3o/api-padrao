@@ -8,7 +8,8 @@ async function bootstrap() {
   // Swagger configuration
   const config = new DocumentBuilder()
     .setTitle('API Padrão')
-    .setDescription(`
+    .setDescription(
+      `
       API RESTful desenvolvida com NestJS, utilizando Prisma como ORM e PostgreSQL como banco de dados.
       
       ## Recursos
@@ -26,21 +27,26 @@ async function bootstrap() {
       ## Autenticação
       A API utiliza autenticação JWT (Bearer Token) para proteger os endpoints.
       Para obter um token, utilize o endpoint /auth/login.
-    `)
+    `,
+    )
     .setVersion('1.0.0')
-    .setContact('API Padrão Team', 'https://github.com/b3ll3o/api-padrao', 'contato@email.com')
+    .setContact(
+      'API Padrão Team',
+      'https://github.com/b3ll3o/api-padrao',
+      'contato@email.com',
+    )
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
     .addServer('http://localhost:3000', 'Local')
     .addServer('https://api-padrao-dev.example.com', 'Development')
     .addServer('https://api-padrao.example.com', 'Production')
     .addBearerAuth(
-      { 
-        type: 'http', 
-        scheme: 'bearer', 
+      {
+        type: 'http',
+        scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'Enter JWT token'
+        description: 'Enter JWT token',
       },
-      'JWT-auth'
+      'JWT-auth',
     )
     .addTag('Autenticação', 'Endpoints relacionados à autenticação')
     .addTag('Usuários', 'Gerenciamento de usuários do sistema')

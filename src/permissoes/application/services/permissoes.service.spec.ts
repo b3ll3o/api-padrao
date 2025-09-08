@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { PermissoesService } from './permissoes.service';
 import { PermissaoRepository } from '../../domain/repositories/permissao.repository';
@@ -116,12 +115,12 @@ describe('PermissoesService', () => {
 
       const result = await service.findAll(paginationDto);
 
-      expect(result).toEqual({ 
-        data: expectedPermissoes, 
+      expect(result).toEqual({
+        data: expectedPermissoes,
         total: 2,
         page: 1,
         limit: 10,
-        totalPages: 1
+        totalPages: 1,
       });
       expect(repository.findAll).toHaveBeenCalledWith(0, 10);
     });
@@ -177,12 +176,12 @@ describe('PermissoesService', () => {
 
       const result = await service.findByNome('Test Permissao', paginationDto);
 
-      expect(result).toEqual({ 
-        data: expectedPermissoes, 
+      expect(result).toEqual({
+        data: expectedPermissoes,
         total: 2,
         page: 1,
         limit: 10,
-        totalPages: 1
+        totalPages: 1,
       });
       expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith(
         'Test Permissao',
@@ -200,12 +199,12 @@ describe('PermissoesService', () => {
         paginationDto,
       );
 
-      expect(result).toEqual({ 
-        data: [], 
+      expect(result).toEqual({
+        data: [],
         total: 0,
         page: 1,
         limit: 10,
-        totalPages: 0
+        totalPages: 0,
       });
       expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith(
         'Non Existent Permissao',
@@ -243,8 +242,8 @@ describe('PermissoesService', () => {
     it('should throw NotFoundException if permissao to update not found', async () => {
       mockPermissaoRepository.update.mockResolvedValue(null);
 
-      await expect(() => 
-        service.update(999, { nome: 'Non Existent' })
+      await expect(() =>
+        service.update(999, { nome: 'Non Existent' }),
       ).rejects.toThrow('Permissão com ID 999 não encontrada');
       expect(repository.update).toHaveBeenCalledWith(999, {
         nome: 'Non Existent',

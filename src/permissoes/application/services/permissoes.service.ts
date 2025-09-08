@@ -35,12 +35,12 @@ export class PermissoesService {
     const take = limit;
     const [data, total] = await this.permissaoRepository.findAll(skip, take);
     const totalPages = Math.ceil(total / limit);
-    return { 
+    return {
       data,
       total,
       page,
       limit,
-      totalPages
+      totalPages,
     };
   }
 
@@ -73,12 +73,12 @@ export class PermissoesService {
       take,
     );
     const totalPages = Math.ceil(total / limit);
-    return { 
+    return {
       data,
       total,
       page,
       limit,
-      totalPages
+      totalPages,
     };
   }
 
