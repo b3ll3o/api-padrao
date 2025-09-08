@@ -27,28 +27,6 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     return newUsuario;
   }
 
-  async findAll(skip: number, take: number): Promise<[Usuario[], number]> {
-    const data = await this.prisma.usuario.findMany({
-      skip,
-      take,
-      include: { perfis: true }, // Include profiles if needed for display
-    });
-    const total = await this.prisma.usuario.count();
-    const users = data.map((usuario) => {
-      const newUsuario = new Usuario();
-      newUsuario.id = usuario.id;
-      newUsuario.email = usuario.email;
-      newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
-      newUsuario.createdAt = usuario.createdAt;
-      newUsuario.updatedAt = usuario.updatedAt;
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      newUsuario.perfis = usuario.perfis;
-      return newUsuario;
-    });
-    return [users, total];
-  }
-
   async findOne(id: number): Promise<Usuario | undefined> {
     const usuario = await this.prisma.usuario.findUnique({
       where: { id },

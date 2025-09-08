@@ -8,7 +8,6 @@ import * as bcrypt from 'bcrypt';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { Perfil } from 'src/perfis/domain/entities/perfil.entity';
-import { PaginationDto } from '../../../dto/pagination.dto';
 
 @Injectable()
 export class UsuariosService {
@@ -41,17 +40,6 @@ export class UsuariosService {
 
     delete usuario.senha;
     return usuario;
-  }
-
-  async findAll(
-    paginationDto: PaginationDto,
-  ): Promise<{ data: Usuario[]; total: number }> {
-    const page = paginationDto.page ?? 1;
-    const limit = paginationDto.limit ?? 10;
-    const skip = (page - 1) * limit;
-    const take = limit;
-    const [data, total] = await this.usuarioRepository.findAll(skip, take);
-    return { data, total };
   }
 
   async findOne(id: number): Promise<Usuario> {
