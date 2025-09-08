@@ -61,8 +61,10 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     });
   }
 
-  async findByNomeContaining(nome: string): Promise<Permissao[]> {
-    return this.prisma.permissao.findMany({
+  async findByNomeContaining(nome: string, skip: number, take: number): Promise<[Permissao[], number]> {
+    const data = await this.prisma.permissao.findMany({
+      skip,
+      take,
       where: {
         nome: {
           contains: nome,
@@ -70,5 +72,14 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
         },
       },
     });
+    const total = await this.prisma.permissao.count({
+      where: {
+        nome: {
+          contains: nome,
+          mode: 'insensitive',
+        },
+      },
+    });
+    return [data, total];
   }
 }

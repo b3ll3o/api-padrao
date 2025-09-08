@@ -49,7 +49,10 @@ export class PerfisController {
     description: 'Retorna todos os perfis.',
     type: PaginatedResponseDto, // Change type here
   })
-  findAll(@Query() paginationDto: PaginationDto): Promise<PaginatedResponseDto<Perfil>> { // Change return type here
+  findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<Perfil>> {
+    // Change return type here
     return this.perfisService.findAll(paginationDto);
   }
 
@@ -70,10 +73,10 @@ export class PerfisController {
   @ApiResponse({
     status: 200,
     description: 'Retorna uma lista de perfis que contêm a string no nome.',
-    type: [Perfil],
+    type: PaginatedResponseDto,
   })
-  findByNome(@Param('nome') nome: string): Promise<Perfil[]> {
-    return this.perfisService.findByNomeContaining(nome);
+  findByNome(@Param('nome') nome: string, @Query() paginationDto: PaginationDto): Promise<PaginatedResponseDto<Perfil>> {
+    return this.perfisService.findByNomeContaining(nome, paginationDto);
   }
 
   @Patch(':id')

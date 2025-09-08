@@ -1,7 +1,12 @@
 import { Controller, Post, Body, Get, Query, Param } from '@nestjs/common';
 import { UsuariosService } from '../services/usuarios.service';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
-import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { Public } from '../../../auth/application/decorators/public.decorator';
 import { PaginationDto } from '../../../dto/pagination.dto';
 import { Usuario } from 'src/usuarios/domain/entities/usuario.entity';
@@ -30,7 +35,10 @@ export class UsuariosController {
     type: PaginatedResponseDto, // Change type here
   })
   @ApiBearerAuth()
-  findAll(@Query() paginationDto: PaginationDto): Promise<PaginatedResponseDto<Usuario>> { // Change return type here
+  findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<Usuario>> {
+    // Change return type here
     return this.usuariosService.findAll(paginationDto);
   }
 

@@ -25,7 +25,9 @@ export class PermissoesService {
     return this.permissaoRepository.create(createPermissaoDto);
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: Permissao[], total: number }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: Permissao[]; total: number }> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
     const skip = (page - 1) * limit;
@@ -42,12 +44,17 @@ export class PermissoesService {
     return permissao;
   }
 
-  async findByNome(nome: string): Promise<Permissao[]> {
-    return this.permissaoRepository.findByNomeContaining(nome);
+  async findByNome(nome: string, paginationDto: PaginationDto): Promise<{ data: Permissao[], total: number }> {
+    return this.findByNomeContaining(nome, paginationDto);
   }
 
-  async findByNomeContaining(nome: string): Promise<Permissao[]> {
-    return this.permissaoRepository.findByNomeContaining(nome);
+  async findByNomeContaining(nome: string, paginationDto: PaginationDto): Promise<{ data: Permissao[], total: number }> {
+    const page = paginationDto.page ?? 1;
+    const limit = paginationDto.limit ?? 10;
+    const skip = (page - 1) * limit;
+    const take = limit;
+    const [data, total] = await this.permissaoRepository.findByNomeContaining(nome, skip, take);
+    return { data, total };
   }
 
   async update(

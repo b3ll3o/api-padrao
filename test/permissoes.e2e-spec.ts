@@ -3,6 +3,8 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { PaginatedResponseDto } from '../src/dto/paginated-response.dto';
+import { Permissao } from '../src/permissoes/domain/entities/permissao.entity';
 
 describe('PermissoesController (e2e)', () => {
   let app: INestApplication;
@@ -101,11 +103,12 @@ describe('PermissoesController (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toHaveProperty('data');
-          expect(res.body.data).toBeInstanceOf(Array);
-          expect(res.body.data.length).toBeGreaterThan(0);
-          expect(res.body).toHaveProperty('total');
-          expect(typeof res.body.total).toBe('number');
+          const paginatedResponse = res.body as PaginatedResponseDto<Permissao>;
+          expect(paginatedResponse).toHaveProperty('data');
+          expect(paginatedResponse.data).toBeInstanceOf(Array);
+          expect(paginatedResponse.data.length).toBeGreaterThan(0);
+          expect(paginatedResponse).toHaveProperty('total');
+          expect(typeof paginatedResponse.total).toBe('number');
         });
     });
   });
@@ -145,29 +148,41 @@ describe('PermissoesController (e2e)', () => {
           { nome: 'permissao_teste_2' },
         ],
       });
+      const paginationDto = { page: 1, limit: 10 };
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/permissoes/nome/teste')
+        .query(paginationDto) // Add query parameters
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toBeInstanceOf(Array);
-          expect(res.body.length).toEqual(2);
-          expect(res.body[0].nome).toContain('teste');
-          expect(res.body[1].nome).toContain('teste');
+          const paginatedResponse = res.body as PaginatedResponseDto<Permissao>;
+          expect(paginatedResponse).toHaveProperty('data');
+          expect(paginatedResponse.data).toBeInstanceOf(Array);
+          expect(paginatedResponse.data.length).toEqual(2);
+          expect(paginatedResponse.data[0].nome).toContain('teste');
+          expect(paginatedResponse.data[1].nome).toContain('teste');
+          expect(paginatedResponse).toHaveProperty('total');
+          expect(typeof paginatedResponse.total).toBe('number');
         });
     });
 
     it('deve retornar um array vazio se nenhuma permissão for encontrada', () => {
+      const paginationDto = { page: 1, limit: 10 };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/permissoes/nome/naoexiste')
+        .query(paginationDto) // Add query parameters
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toBeInstanceOf(Array);
-          expect(res.body.length).toEqual(0);
+          const paginatedResponse = res.body as PaginatedResponseDto<Permissao>;
+          expect(paginatedResponse).toHaveProperty('data');
+          expect(paginatedResponse.data).toBeInstanceOf(Array);
+          expect(paginatedResponse.data.length).toEqual(0);
+          expect(paginatedResponse).toHaveProperty('total');
+          expect(typeof paginatedResponse.total).toBe('number');
         });
     });
   });

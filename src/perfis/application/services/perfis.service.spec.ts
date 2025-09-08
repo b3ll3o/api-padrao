@@ -191,7 +191,7 @@ describe('PerfisService', () => {
   });
 
   describe('findByNome', () => {
-    it('should return an array of perfis containing the name', async () => {
+    it('should return a paginated list of perfis containing the name', async () => {
       const expectedPerfis = [
         {
           id: 1,
@@ -206,21 +206,23 @@ describe('PerfisService', () => {
           updatedAt: new Date(),
         },
       ];
-      mockPerfilRepository.findByNomeContaining.mockResolvedValue(expectedPerfis);
+      const paginationDto = { page: 1, limit: 10 };
+      mockPerfilRepository.findByNomeContaining.mockResolvedValue([expectedPerfis, 2]);
 
-      const result = await service.findByNome('Test Perfil');
+      const result = await service.findByNome('Test Perfil', paginationDto);
 
-      expect(result).toEqual(expectedPerfis);
-      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith('Test Perfil');
+      expect(result).toEqual({ data: expectedPerfis, total: 2 });
+      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith('Test Perfil', 0, 10);
     });
 
-    it('should return an empty array if no perfil is found by name', async () => {
-      mockPerfilRepository.findByNomeContaining.mockResolvedValue([]);
+    it('should return an empty paginated list if no perfil is found by name', async () => {
+      const paginationDto = { page: 1, limit: 10 };
+      mockPerfilRepository.findByNomeContaining.mockResolvedValue([[], 0]);
 
-      const result = await service.findByNome('Non Existent Perfil');
+      const result = await service.findByNome('Non Existent Perfil', paginationDto);
 
-      expect(result).toEqual([]);
-      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith('Non Existent Perfil');
+      expect(result).toEqual({ data: [], total: 0 });
+      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith('Non Existent Perfil', 0, 10);
     });
   });
 

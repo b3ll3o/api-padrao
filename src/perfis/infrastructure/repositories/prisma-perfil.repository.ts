@@ -82,8 +82,10 @@ export class PrismaPerfilRepository implements PerfilRepository {
     });
   }
 
-  async findByNomeContaining(nome: string): Promise<Perfil[]> {
-    return this.prisma.perfil.findMany({
+  async findByNomeContaining(nome: string, skip: number, take: number): Promise<[Perfil[], number]> {
+    const data = await this.prisma.perfil.findMany({
+      skip,
+      take,
       where: {
         nome: {
           contains: nome,
@@ -92,5 +94,14 @@ export class PrismaPerfilRepository implements PerfilRepository {
       },
       include: { permissoes: true },
     });
+    const total = await this.prisma.perfil.count({
+      where: {
+        nome: {
+          contains: nome,
+          mode: 'insensitive',
+        },
+      },
+    });
+    return [data, total];
   }
 }

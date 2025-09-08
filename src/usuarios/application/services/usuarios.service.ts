@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import * as bcrypt from 'bcrypt';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
@@ -39,7 +43,9 @@ export class UsuariosService {
     return usuario;
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: Usuario[], total: number }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: Usuario[]; total: number }> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
     const skip = (page - 1) * limit;

@@ -109,7 +109,10 @@ describe('PermissoesService', () => {
         },
       ];
       const paginationDto = { page: 1, limit: 10 };
-      mockPermissaoRepository.findAll.mockResolvedValue([expectedPermissoes, 2]);
+      mockPermissaoRepository.findAll.mockResolvedValue([
+        expectedPermissoes,
+        2,
+      ]);
 
       const result = await service.findAll(paginationDto);
 
@@ -145,7 +148,7 @@ describe('PermissoesService', () => {
   });
 
   describe('findByName', () => {
-    it('should return an array of permissoes containing the name', async () => {
+    it('should return a paginated list of permissoes containing the name', async () => {
       const expectedPermissoes = [
         {
           id: 1,
@@ -160,21 +163,23 @@ describe('PermissoesService', () => {
           updatedAt: new Date(),
         },
       ];
-      mockPermissaoRepository.findByNomeContaining.mockResolvedValue(expectedPermissoes);
+      const paginationDto = { page: 1, limit: 10 };
+      mockPermissaoRepository.findByNomeContaining.mockResolvedValue([expectedPermissoes, 2]);
 
-      const result = await service.findByNome('Test Permissao');
+      const result = await service.findByNome('Test Permissao', paginationDto);
 
-      expect(result).toEqual(expectedPermissoes);
-      expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith('Test Permissao');
+      expect(result).toEqual({ data: expectedPermissoes, total: 2 });
+      expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith('Test Permissao', 0, 10);
     });
 
-    it('should return an empty array if no permissao is found by name', async () => {
-      mockPermissaoRepository.findByNomeContaining.mockResolvedValue([]);
+    it('should return an empty paginated list if no permissao is found by name', async () => {
+      const paginationDto = { page: 1, limit: 10 };
+      mockPermissaoRepository.findByNomeContaining.mockResolvedValue([[], 0]);
 
-      const result = await service.findByNome('Non Existent Permissao');
+      const result = await service.findByNome('Non Existent Permissao', paginationDto);
 
-      expect(result).toEqual([]);
-      expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith('Non Existent Permissao');
+      expect(result).toEqual({ data: [], total: 0 });
+      expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith('Non Existent Permissao', 0, 10);
     });
   });
 

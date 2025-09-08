@@ -37,7 +37,9 @@ export class PerfisService {
     return this.perfilRepository.create(createPerfilDto);
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: Perfil[], total: number }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: Perfil[]; total: number }> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
     const skip = (page - 1) * limit;
@@ -54,12 +56,17 @@ export class PerfisService {
     return perfil;
   }
 
-  async findByNome(nome: string): Promise<Perfil[]> {
-    return this.perfilRepository.findByNomeContaining(nome);
+  async findByNome(nome: string, paginationDto: PaginationDto): Promise<{ data: Perfil[], total: number }> {
+    return this.findByNomeContaining(nome, paginationDto);
   }
 
-  async findByNomeContaining(nome: string): Promise<Perfil[]> {
-    return this.perfilRepository.findByNomeContaining(nome);
+  async findByNomeContaining(nome: string, paginationDto: PaginationDto): Promise<{ data: Perfil[], total: number }> {
+    const page = paginationDto.page ?? 1;
+    const limit = paginationDto.limit ?? 10;
+    const skip = (page - 1) * limit;
+    const take = limit;
+    const [data, total] = await this.perfilRepository.findByNomeContaining(nome, skip, take);
+    return { data, total };
   }
 
   async update(id: number, updatePerfilDto: UpdatePerfilDto): Promise<Perfil> {
@@ -83,4 +90,3 @@ export class PerfisService {
     await this.perfilRepository.remove(id);
   }
 }
-

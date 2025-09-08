@@ -49,7 +49,10 @@ export class PermissoesController {
     description: 'Retorna todas as permissões.',
     type: PaginatedResponseDto, // Change type here
   })
-  findAll(@Query() paginationDto: PaginationDto): Promise<PaginatedResponseDto<Permissao>> { // Change return type here
+  findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<Permissao>> {
+    // Change return type here
     return this.permissoesService.findAll(paginationDto);
   }
 
@@ -70,10 +73,10 @@ export class PermissoesController {
   @ApiResponse({
     status: 200,
     description: 'Retorna uma lista de permissões que contêm a string no nome.',
-    type: [Permissao],
+    type: PaginatedResponseDto,
   })
-  findByName(@Param('nome') nome: string): Promise<Permissao[]> {
-    return this.permissoesService.findByNomeContaining(nome);
+  findByName(@Param('nome') nome: string, @Query() paginationDto: PaginationDto): Promise<PaginatedResponseDto<Permissao>> {
+    return this.permissoesService.findByNomeContaining(nome, paginationDto);
   }
 
   @Patch(':id')
