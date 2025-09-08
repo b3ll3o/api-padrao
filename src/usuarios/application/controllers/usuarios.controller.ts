@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Req } from '@nestjs/common';
 import { UsuariosService } from '../services/usuarios.service';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import {
@@ -7,6 +7,7 @@ import {
   ApiTags,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 import { Public } from '../../../auth/application/decorators/public.decorator';
 import { Usuario } from 'src/usuarios/domain/entities/usuario.entity';
 
@@ -33,8 +34,9 @@ export class UsuariosController {
     type: Usuario,
   })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
+  @ApiResponse({ status: 403, description: 'Acesso negado.' })
   @ApiBearerAuth()
-  findOne(@Param('id') id: string): Promise<Usuario> {
-    return this.usuariosService.findOne(+id);
+  findOne(@Param('id') id: string, @Req() req: Request): Promise<Usuario> {
+    return this.usuariosService.findOne(+id, req.usuarioLogado);
   }
 }

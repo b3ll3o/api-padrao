@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import * as bcrypt from 'bcrypt';
@@ -42,11 +43,18 @@ export class UsuariosService {
     return usuario;
   }
 
-  async findOne(id: number): Promise<Usuario> {
+  async findOne(id: number, usuarioLogado: any): Promise<Usuario> {
     const usuario = await this.usuarioRepository.findOne(id);
     if (!usuario) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
+
+    if (usuario.id !== usuarioLogado.id) {
+      throw new ForbiddenException(
+        'Você não tem permissão para acessar os dados deste usuário',
+      );
+    }
+
     return usuario;
   }
 }

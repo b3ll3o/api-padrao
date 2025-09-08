@@ -77,7 +77,7 @@ describe('UsuariosService', () => {
   });
 
   describe('findOne', () => {
-    it('should return a single usuario', async () => {
+    it('should return a single usuario when user requests their own data', async () => {
       const expectedUsuario = {
         id: 1,
         email: 'test@example.com',
@@ -86,16 +86,30 @@ describe('UsuariosService', () => {
       };
       mockUsuarioRepository.findOne.mockResolvedValue(expectedUsuario);
 
-      const result = await service.findOne(1);
+      const result = await service.findOne(1, { id: 1 });
 
       expect(result).toEqual(expectedUsuario);
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1);
     });
 
+    it('should throw ForbiddenException when user tries to access another user data', async () => {
+      const usuario = {
+        id: 1,
+        email: 'test@example.com',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockUsuarioRepository.findOne.mockResolvedValue(usuario);
+
+      await expect(() => service.findOne(1, { id: 2 })).rejects.toThrow(
+        'Você não tem permissão para acessar os dados deste usuário',
+      );
+    });
+
     it('should throw NotFoundException if usuario not found', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(undefined);
 
-      await expect(() => service.findOne(999)).rejects.toThrow(
+      await expect(() => service.findOne(999, { id: 999 })).rejects.toThrow(
         'Usuário com ID 999 não encontrado',
       );
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(999);
