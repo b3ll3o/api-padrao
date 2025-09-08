@@ -53,7 +53,11 @@ describe('PermissoesService', () => {
 
   describe('create', () => {
     it('should create a permissao', async () => {
-      const createPermissaoDto = { nome: 'Test Permissao' };
+      const createPermissaoDto = {
+        nome: 'Test Permissao',
+        codigo: 'TEST_PERMISSAO',
+        descricao: 'Permissão de teste',
+      };
       const expectedPermissao = {
         id: 1,
         ...createPermissaoDto,
@@ -75,10 +79,16 @@ describe('PermissoesService', () => {
     });
 
     it('should throw ConflictException if permissao with same name already exists', async () => {
-      const createPermissaoDto = { nome: 'Existing Permissao' };
+      const createPermissaoDto = {
+        nome: 'Existing Permissao',
+        codigo: 'EXISTING_PERMISSAO',
+        descricao: 'Permissão existente',
+      };
       mockPermissaoRepository.findByNome.mockResolvedValue({
         id: 1,
         nome: 'Existing Permissao',
+        codigo: 'EXISTING_PERMISSAO',
+        descricao: 'Permissão existente',
       });
 
       await expect(() => service.create(createPermissaoDto)).rejects.toThrow(
@@ -216,7 +226,11 @@ describe('PermissoesService', () => {
 
   describe('update', () => {
     it('should update a permissao', async () => {
-      const updatePermissaoDto = { nome: 'Updated Permissao' };
+      const updatePermissaoDto = {
+        nome: 'Updated Permissao',
+        codigo: 'UPDATED_PERMISSAO',
+        descricao: 'Permissão atualizada',
+      };
       const existingPermissao = {
         id: 1,
         nome: 'Test Permissao',
@@ -243,10 +257,16 @@ describe('PermissoesService', () => {
       mockPermissaoRepository.update.mockResolvedValue(null);
 
       await expect(() =>
-        service.update(999, { nome: 'Non Existent' }),
+        service.update(999, {
+          nome: 'Non Existent',
+          codigo: 'NON_EXISTENT',
+          descricao: 'Permissão inexistente',
+        }),
       ).rejects.toThrow('Permissão com ID 999 não encontrada');
       expect(repository.update).toHaveBeenCalledWith(999, {
         nome: 'Non Existent',
+        codigo: 'NON_EXISTENT',
+        descricao: 'Permissão inexistente',
       });
       expect(repository.findOne).not.toHaveBeenCalled();
     });

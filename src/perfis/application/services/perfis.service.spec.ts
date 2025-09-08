@@ -64,7 +64,12 @@ describe('PerfisService', () => {
 
   describe('create', () => {
     it('should create a perfil', async () => {
-      const createPerfilDto = { nome: 'Test Perfil', permissoesIds: [1] };
+      const createPerfilDto = {
+        nome: 'Test Perfil',
+        codigo: 'TEST_PERFIL',
+        descricao: 'Perfil de teste',
+        permissoesIds: [1],
+      };
       const expectedPerfil = {
         id: 1,
         ...createPerfilDto,
@@ -87,7 +92,11 @@ describe('PerfisService', () => {
     });
 
     it('should create a perfil without permissions', async () => {
-      const createPerfilDto = { nome: 'Test Perfil' };
+      const createPerfilDto = {
+        nome: 'Test Perfil',
+        codigo: 'TEST_PERFIL',
+        descricao: 'Perfil de teste',
+      };
       const expectedPerfil = {
         id: 1,
         ...createPerfilDto,
@@ -106,7 +115,11 @@ describe('PerfisService', () => {
     });
 
     it('should throw ConflictException if perfil with same name already exists', async () => {
-      const createPerfilDto = { nome: 'Existing Perfil' };
+      const createPerfilDto = {
+        nome: 'Existing Perfil',
+        codigo: 'EXISTING_PERFIL',
+        descricao: 'Perfil existente',
+      };
       mockPerfilRepository.findByNome.mockResolvedValue({
         id: 1,
         nome: 'Existing Perfil',
@@ -122,6 +135,8 @@ describe('PerfisService', () => {
     it('should throw NotFoundException if permissions do not exist', async () => {
       const createPerfilDto = {
         nome: 'Perfil with Invalid Perms',
+        codigo: 'PERFIL_INVALID_PERMS',
+        descricao: 'Perfil com permissões inválidas',
         permissoesIds: [999],
       };
       mockPerfilRepository.findByNome.mockResolvedValue(null);
@@ -259,7 +274,12 @@ describe('PerfisService', () => {
 
   describe('update', () => {
     it('should update a perfil', async () => {
-      const updatePerfilDto = { nome: 'Updated Perfil', permissoesIds: [1] };
+      const updatePerfilDto = {
+        nome: 'Updated Perfil',
+        codigo: 'UPDATED_PERFIL',
+        descricao: 'Perfil atualizado',
+        permissoesIds: [1],
+      };
       const existingPerfil = {
         id: 1,
         nome: 'Old Perfil',
@@ -288,7 +308,11 @@ describe('PerfisService', () => {
     });
 
     it('should update a perfil without permissions', async () => {
-      const updatePerfilDto = { nome: 'Updated Perfil' };
+      const updatePerfilDto = {
+        nome: 'Updated Perfil',
+        codigo: 'UPDATED_PERFIL',
+        descricao: 'Perfil atualizado',
+      };
       const existingPerfil = {
         id: 1,
         nome: 'Old Perfil',
@@ -316,10 +340,16 @@ describe('PerfisService', () => {
       mockPerfilRepository.update.mockResolvedValue(null);
 
       await expect(() =>
-        service.update(999, { nome: 'Non Existent' }),
+        service.update(999, {
+          nome: 'Non Existent',
+          codigo: 'NON_EXISTENT',
+          descricao: 'Perfil inexistente',
+        }),
       ).rejects.toThrow('Perfil com ID 999 não encontrado');
       expect(repository.update).toHaveBeenCalledWith(999, {
         nome: 'Non Existent',
+        codigo: 'NON_EXISTENT',
+        descricao: 'Perfil inexistente',
       });
       expect(repository.findOne).not.toHaveBeenCalled();
     });

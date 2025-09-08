@@ -68,7 +68,11 @@ describe('PerfisController (e2e)', () => {
 
   describe('POST /perfis', () => {
     it('deve criar um perfil', async () => {
-      const createPerfilDto = { nome: `Admin-${Date.now()}` };
+      const createPerfilDto = {
+        nome: `Admin-${Date.now()}`,
+        codigo: `ADMIN_${Date.now()}`,
+        descricao: 'Perfil de administrador',
+      };
 
       return request(app.getHttpServer())
         .post('/perfis')
@@ -93,7 +97,11 @@ describe('PerfisController (e2e)', () => {
     });
 
     it('deve retornar 409 se o perfil com o mesmo nome já existir', async () => {
-      const createPerfilDto = { nome: 'duplicate:name' };
+      const createPerfilDto = {
+        nome: 'duplicate:name',
+        codigo: 'DUPLICATE_NAME',
+        descricao: 'Perfil duplicado',
+      };
       // Criar o primeiro perfil
 
       await request(app.getHttpServer())
@@ -119,6 +127,8 @@ describe('PerfisController (e2e)', () => {
     it('deve retornar 404 se as permissões não existirem', async () => {
       const createPerfilDto = {
         nome: 'Perfil com Permissões Inválidas',
+        codigo: 'PERFIL_PERMISSOES_INVALIDAS',
+        descricao: 'Perfil com permissões que não existem',
         permissoesIds: [99999],
       };
 
@@ -137,7 +147,13 @@ describe('PerfisController (e2e)', () => {
 
   describe('GET /perfis', () => {
     it('deve retornar uma lista paginada de perfis', async () => {
-      await prisma.perfil.create({ data: { nome: 'User' } });
+      await prisma.perfil.create({
+        data: {
+          nome: 'User',
+          codigo: 'USER',
+          descricao: 'Perfil de usuário comum',
+        },
+      });
 
       return request(app.getHttpServer())
         .get('/perfis')
@@ -156,7 +172,13 @@ describe('PerfisController (e2e)', () => {
 
   describe('GET /perfis/:id', () => {
     it('deve retornar um único perfil', async () => {
-      const perfil = await prisma.perfil.create({ data: { nome: 'Editor' } });
+      const perfil = await prisma.perfil.create({
+        data: {
+          nome: 'Editor',
+          codigo: 'EDITOR',
+          descricao: 'Perfil de editor',
+        },
+      });
 
       return request(app.getHttpServer())
         .get(`/perfis/${perfil.id}`)
@@ -179,7 +201,13 @@ describe('PerfisController (e2e)', () => {
 
   describe('PATCH /perfis/:id', () => {
     it('deve atualizar um perfil', async () => {
-      const perfil = await prisma.perfil.create({ data: { nome: 'Viewer' } });
+      const perfil = await prisma.perfil.create({
+        data: {
+          nome: 'Viewer',
+          codigo: 'VIEWER',
+          descricao: 'Perfil de visualizador',
+        },
+      });
       const updatePerfilDto = { nome: 'Updated Viewer' };
 
       return request(app.getHttpServer())
@@ -208,7 +236,11 @@ describe('PerfisController (e2e)', () => {
   describe('DELETE /perfis/:id', () => {
     it('deve deletar um perfil', async () => {
       const perfil = await prisma.perfil.create({
-        data: { nome: 'Deletable' },
+        data: {
+          nome: 'Deletable',
+          codigo: 'DELETABLE',
+          descricao: 'Perfil deletável',
+        },
       });
 
       return request(app.getHttpServer())
@@ -229,9 +261,21 @@ describe('PerfisController (e2e)', () => {
     it('deve retornar perfis que contêm a string no nome', async () => {
       await prisma.perfil.createMany({
         data: [
-          { nome: 'perfil_teste_1' },
-          { nome: 'outro_perfil' },
-          { nome: 'perfil_teste_2' },
+          {
+            nome: 'perfil_teste_1',
+            codigo: 'PERFIL_TESTE_1',
+            descricao: 'Perfil de teste 1',
+          },
+          {
+            nome: 'outro_perfil',
+            codigo: 'OUTRO_PERFIL',
+            descricao: 'Outro perfil de teste',
+          },
+          {
+            nome: 'perfil_teste_2',
+            codigo: 'PERFIL_TESTE_2',
+            descricao: 'Perfil de teste 2',
+          },
         ],
       });
       const paginationDto = { page: 1, limit: 10 };

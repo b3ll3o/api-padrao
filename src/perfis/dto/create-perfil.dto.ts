@@ -17,6 +17,22 @@ export class CreatePerfilDto {
   nome: string;
 
   @ApiProperty({
+    description: 'O código do perfil',
+    example: 'ADMIN',
+  })
+  @IsString()
+  @IsNotEmpty()
+  codigo: string;
+
+  @ApiProperty({
+    description: 'A descrição do perfil',
+    example: 'Perfil de administrador do sistema',
+  })
+  @IsString()
+  @IsNotEmpty()
+  descricao: string;
+
+  @ApiProperty({
     description: 'Array de IDs de permissões',
     example: [1, 2, 3],
     required: false,

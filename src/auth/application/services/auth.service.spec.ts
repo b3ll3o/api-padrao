@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from './application/services/auth.service';
+import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
-import { UsuarioRepository } from '../usuarios/domain/repositories/usuario.repository';
-import { Usuario } from 'src/usuarios/domain/entities/usuario.entity';
-import { Perfil } from 'src/perfis/domain/entities/perfil.entity';
-import { Permissao } from 'src/permissoes/domain/entities/permissao.entity';
+import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
+import { Usuario } from '../../../usuarios/domain/entities/usuario.entity';
+import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
+import { Permissao } from '../../../permissoes/domain/entities/permissao.entity';
 
 describe('AuthService', () => {
   let service: AuthService;

@@ -24,14 +24,18 @@ model Usuario {
 }
 
 model Perfil {
-  id        Int        @id @default(autoincrement())
-  nome      String     @unique
-  usuarios  Usuario[]
-  permissoes Permissao[]
+  id          Int          @id @default(autoincrement())
+  nome        String       @unique
+  codigo      String       @unique
+  descricao   String
+  usuarios    Usuario[]
+  permissoes  Permissao[]
 }
 
 model Permissao {
-  id        Int      @id @default(autoincrement())
-  nome      String   @unique
-  perfis    Perfil[]
+  id          Int      @id @default(autoincrement())
+  nome        String   @unique
+  codigo      String   @unique
+  descricao   String
+  perfis      Perfil[]
 }

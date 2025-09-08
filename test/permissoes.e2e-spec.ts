@@ -68,7 +68,11 @@ describe('PermissoesController (e2e)', () => {
 
   describe('POST /permissoes', () => {
     it('deve criar uma permissão', async () => {
-      const createPermissaoDto = { nome: `read:users-${Date.now()}` };
+      const createPermissaoDto = {
+        nome: `read:users-${Date.now()}`,
+        codigo: `READ_USERS_${Date.now()}`,
+        descricao: 'Permissão para ler usuários',
+      };
 
       return request(app.getHttpServer())
         .post('/permissoes')
@@ -95,7 +99,13 @@ describe('PermissoesController (e2e)', () => {
 
   describe('GET /permissoes', () => {
     it('deve retornar uma lista paginada de permissões', async () => {
-      await prisma.permissao.create({ data: { nome: 'write:users' } });
+      await prisma.permissao.create({
+        data: {
+          nome: 'write:users',
+          codigo: 'WRITE_USERS',
+          descricao: 'Permissão para escrever usuários',
+        },
+      });
 
       return request(app.getHttpServer())
         .get('/permissoes')
@@ -115,7 +125,11 @@ describe('PermissoesController (e2e)', () => {
   describe('GET /permissoes/:id', () => {
     it('deve retornar uma única permissão', async () => {
       const permissao = await prisma.permissao.create({
-        data: { nome: 'delete:users' },
+        data: {
+          nome: 'delete:users',
+          codigo: 'DELETE_USERS',
+          descricao: 'Permissão para deletar usuários',
+        },
       });
 
       return request(app.getHttpServer())
@@ -141,9 +155,21 @@ describe('PermissoesController (e2e)', () => {
     it('deve retornar permissões que contêm a string no nome', async () => {
       await prisma.permissao.createMany({
         data: [
-          { nome: 'permissao_teste_1' },
-          { nome: 'outra_permissao' },
-          { nome: 'permissao_teste_2' },
+          {
+            nome: 'permissao_teste_1',
+            codigo: 'PERMISSAO_TESTE_1',
+            descricao: 'Permissão de teste 1',
+          },
+          {
+            nome: 'outra_permissao',
+            codigo: 'OUTRA_PERMISSAO',
+            descricao: 'Outra permissão de teste',
+          },
+          {
+            nome: 'permissao_teste_2',
+            codigo: 'PERMISSAO_TESTE_2',
+            descricao: 'Permissão de teste 2',
+          },
         ],
       });
       const paginationDto = { page: 1, limit: 10 };
