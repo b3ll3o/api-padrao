@@ -139,7 +139,7 @@ describe('PerfisService', () => {
   });
 
   describe('findAll', () => {
-    it('should return an array of perfis', async () => {
+    it('should return a paginated list of perfis', async () => {
       const expectedPerfis = [
         {
           id: 1,
@@ -154,12 +154,13 @@ describe('PerfisService', () => {
           updatedAt: new Date(),
         },
       ];
-      mockPerfilRepository.findAll.mockResolvedValue(expectedPerfis);
+      const paginationDto = { page: 1, limit: 10 };
+      mockPerfilRepository.findAll.mockResolvedValue([expectedPerfis, 2]);
 
-      const result = await service.findAll();
+      const result = await service.findAll(paginationDto);
 
-      expect(result).toEqual(expectedPerfis);
-      expect(repository.findAll).toHaveBeenCalled();
+      expect(result).toEqual({ data: expectedPerfis, total: 2 });
+      expect(repository.findAll).toHaveBeenCalledWith(0, 10);
     });
   });
 

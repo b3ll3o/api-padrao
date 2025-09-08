@@ -6,4 +6,6 @@ export abstract class UsuarioRepository {
   abstract findByEmailWithPerfisAndPermissoes(
     email: string,
   ): Promise<Usuario | null>;
+  abstract findAll(skip: number, take: number): Promise<[Usuario[], number]>;
+  abstract findOne(id: number): Promise<Usuario | undefined>;
 }

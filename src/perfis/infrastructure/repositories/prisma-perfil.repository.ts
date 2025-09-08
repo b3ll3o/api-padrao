@@ -22,8 +22,14 @@ export class PrismaPerfilRepository implements PerfilRepository {
     });
   }
 
-  async findAll(): Promise<Perfil[]> {
-    return this.prisma.perfil.findMany({ include: { permissoes: true } });
+  async findAll(skip: number, take: number): Promise<[Perfil[], number]> {
+    const data = await this.prisma.perfil.findMany({
+      skip,
+      take,
+      include: { permissoes: true },
+    });
+    const total = await this.prisma.perfil.count();
+    return [data, total];
   }
 
   async findOne(id: number): Promise<Perfil | undefined> {

@@ -8,6 +8,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { PermissoesService } from '../services/permissoes.service';
 import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
@@ -19,6 +20,8 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { PaginationDto } from '../../../dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
 
 @ApiTags('Permissoes')
 @ApiBearerAuth()
@@ -44,10 +47,10 @@ export class PermissoesController {
   @ApiResponse({
     status: 200,
     description: 'Retorna todas as permissões.',
-    type: [Permissao],
+    type: PaginatedResponseDto, // Change type here
   })
-  findAll(): Promise<Permissao[]> {
-    return this.permissoesService.findAll();
+  findAll(@Query() paginationDto: PaginationDto): Promise<PaginatedResponseDto<Permissao>> { // Change return type here
+    return this.permissoesService.findAll(paginationDto);
   }
 
   @Get(':id')

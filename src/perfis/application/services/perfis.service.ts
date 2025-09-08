@@ -8,6 +8,7 @@ import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 import { PerfilRepository } from '../../domain/repositories/perfil.repository';
 import { Perfil } from '../../domain/entities/perfil.entity';
 import { PermissoesService } from '../../../permissoes/application/services/permissoes.service';
+import { PaginationDto } from '../../../dto/pagination.dto';
 
 @Injectable()
 export class PerfisService {
@@ -36,8 +37,13 @@ export class PerfisService {
     return this.perfilRepository.create(createPerfilDto);
   }
 
-  async findAll(): Promise<Perfil[]> {
-    return this.perfilRepository.findAll();
+  async findAll(paginationDto: PaginationDto): Promise<{ data: Perfil[], total: number }> {
+    const page = paginationDto.page ?? 1;
+    const limit = paginationDto.limit ?? 10;
+    const skip = (page - 1) * limit;
+    const take = limit;
+    const [data, total] = await this.perfilRepository.findAll(skip, take);
+    return { data, total };
   }
 
   async findOne(id: number): Promise<Perfil> {
@@ -77,3 +83,4 @@ export class PerfisService {
     await this.perfilRepository.remove(id);
   }
 }
+

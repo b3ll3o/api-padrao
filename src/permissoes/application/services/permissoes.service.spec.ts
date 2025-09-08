@@ -93,7 +93,7 @@ describe('PermissoesService', () => {
   });
 
   describe('findAll', () => {
-    it('should return an array of permissoes', async () => {
+    it('should return a paginated list of permissoes', async () => {
       const expectedPermissoes = [
         {
           id: 1,
@@ -108,12 +108,13 @@ describe('PermissoesService', () => {
           updatedAt: new Date(),
         },
       ];
-      mockPermissaoRepository.findAll.mockResolvedValue(expectedPermissoes);
+      const paginationDto = { page: 1, limit: 10 };
+      mockPermissaoRepository.findAll.mockResolvedValue([expectedPermissoes, 2]);
 
-      const result = await service.findAll();
+      const result = await service.findAll(paginationDto);
 
-      expect(result).toEqual(expectedPermissoes);
-      expect(repository.findAll).toHaveBeenCalled();
+      expect(result).toEqual({ data: expectedPermissoes, total: 2 });
+      expect(repository.findAll).toHaveBeenCalledWith(0, 10);
     });
   });
 

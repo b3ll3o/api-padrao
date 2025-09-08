@@ -137,7 +137,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('GET /perfis', () => {
-    it('deve retornar um array de perfis', async () => {
+    it('deve retornar uma lista paginada de perfis', async () => {
       await prisma.perfil.create({ data: { nome: 'User' } });
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -145,9 +145,11 @@ describe('PerfisController (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toBeInstanceOf(Array);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          expect(res.body.length).toBeGreaterThan(0);
+          expect(res.body).toHaveProperty('data');
+          expect(res.body.data).toBeInstanceOf(Array);
+          expect(res.body.data.length).toBeGreaterThan(0);
+          expect(res.body).toHaveProperty('total');
+          expect(typeof res.body.total).toBe('number');
         });
     });
   });

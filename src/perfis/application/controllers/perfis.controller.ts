@@ -8,6 +8,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { PerfisService } from '../services/perfis.service';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
@@ -19,6 +20,8 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { PaginationDto } from '../../../dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
 
 @ApiTags('Perfis')
 @ApiBearerAuth()
@@ -44,10 +47,10 @@ export class PerfisController {
   @ApiResponse({
     status: 200,
     description: 'Retorna todos os perfis.',
-    type: [Perfil],
+    type: PaginatedResponseDto, // Change type here
   })
-  findAll(): Promise<Perfil[]> {
-    return this.perfisService.findAll();
+  findAll(@Query() paginationDto: PaginationDto): Promise<PaginatedResponseDto<Perfil>> { // Change return type here
+    return this.perfisService.findAll(paginationDto);
   }
 
   @Get(':id')

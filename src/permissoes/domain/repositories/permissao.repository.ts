@@ -4,7 +4,7 @@ import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';
 
 export abstract class PermissaoRepository {
   abstract create(data: CreatePermissaoDto): Promise<Permissao>;
-  abstract findAll(): Promise<Permissao[]>;
+  abstract findAll(skip: number, take: number): Promise<[Permissao[], number]>;
   abstract findOne(id: number): Promise<Permissao | undefined>;
   abstract update(
     id: number,

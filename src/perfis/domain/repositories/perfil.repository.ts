@@ -4,7 +4,7 @@ import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 
 export abstract class PerfilRepository {
   abstract create(data: CreatePerfilDto): Promise<Perfil>;
-  abstract findAll(): Promise<Perfil[]>;
+  abstract findAll(skip: number, take: number): Promise<[Perfil[], number]>;
   abstract findOne(id: number): Promise<Perfil | undefined>;
   abstract update(
     id: number,

@@ -93,7 +93,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('GET /permissoes', () => {
-    it('deve retornar um array de permissões', async () => {
+    it('deve retornar uma lista paginada de permissões', async () => {
       await prisma.permissao.create({ data: { nome: 'write:users' } });
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -101,9 +101,11 @@ describe('PermissoesController (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toBeInstanceOf(Array);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          expect(res.body.length).toBeGreaterThan(0);
+          expect(res.body).toHaveProperty('data');
+          expect(res.body.data).toBeInstanceOf(Array);
+          expect(res.body.data.length).toBeGreaterThan(0);
+          expect(res.body).toHaveProperty('total');
+          expect(typeof res.body.total).toBe('number');
         });
     });
   });

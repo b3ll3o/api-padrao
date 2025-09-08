@@ -7,6 +7,7 @@ import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
 import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';
 import { PermissaoRepository } from '../../domain/repositories/permissao.repository';
 import { Permissao } from '../../domain/entities/permissao.entity';
+import { PaginationDto } from '../../../dto/pagination.dto';
 
 @Injectable()
 export class PermissoesService {
@@ -24,8 +25,13 @@ export class PermissoesService {
     return this.permissaoRepository.create(createPermissaoDto);
   }
 
-  async findAll(): Promise<Permissao[]> {
-    return this.permissaoRepository.findAll();
+  async findAll(paginationDto: PaginationDto): Promise<{ data: Permissao[], total: number }> {
+    const page = paginationDto.page ?? 1;
+    const limit = paginationDto.limit ?? 10;
+    const skip = (page - 1) * limit;
+    const take = limit;
+    const [data, total] = await this.permissaoRepository.findAll(skip, take);
+    return { data, total };
   }
 
   async findOne(id: number): Promise<Permissao> {

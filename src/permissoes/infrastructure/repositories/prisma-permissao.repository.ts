@@ -13,8 +13,13 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     return this.prisma.permissao.create({ data });
   }
 
-  async findAll(): Promise<Permissao[]> {
-    return this.prisma.permissao.findMany();
+  async findAll(skip: number, take: number): Promise<[Permissao[], number]> {
+    const data = await this.prisma.permissao.findMany({
+      skip,
+      take,
+    });
+    const total = await this.prisma.permissao.count();
+    return [data, total];
   }
 
   async findOne(id: number): Promise<Permissao | undefined> {
