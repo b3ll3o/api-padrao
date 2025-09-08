@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, Req } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Req, ForbiddenException } from '@nestjs/common';
 import { UsuariosService } from '../services/usuarios.service';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import {
@@ -37,6 +37,9 @@ export class UsuariosController {
   @ApiResponse({ status: 403, description: 'Acesso negado.' })
   @ApiBearerAuth()
   findOne(@Param('id') id: string, @Req() req: Request): Promise<Usuario> {
+    if (!req.usuarioLogado) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
     return this.usuariosService.findOne(+id, req.usuarioLogado);
   }
 }

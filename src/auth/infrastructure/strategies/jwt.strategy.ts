@@ -6,7 +6,8 @@ import { UsuariosService } from '../../../usuarios/application/services/usuarios
 
 export interface JwtPayload {
   email: string;
-  sub: number;
+  userId?: number;
+  sub?: number;
   perfis?: {
     id: number;
     nome: string;

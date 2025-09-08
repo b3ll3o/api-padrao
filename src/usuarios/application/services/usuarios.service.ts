@@ -1,7 +1,38 @@
 import {
   ConflictException,
   Injectable,
-  NotFoundException,
+  No  async findOne(i  async findOne(id: number, usuarioLogado: JwtPayload): Promise<Usuario> {
+    const usuario = await this.usuarioRepository.findOne(id);
+    if (!usuario) {
+      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+
+    if (usuario.id !== usuarioLogado.userId) {
+      throw new ForbiddenException(
+        'Você não tem permissão para acessar os dados deste usuário',
+      );
+    }
+
+    const { senha: _, perfis: __, ...usuarioSemDadosSensiveis } = usuario;
+    return usuarioSemDadosSensiveis;
+  }arioLogado: JwtPayload): Promise<Usuario> {
+    const usuario = await this.usuarioRepository.findOne(id);
+    if (!usuario) {
+      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+
+    if (usuario.id !== usuarioLogado.userId) {
+      throw new ForbiddenException(
+        'Você não tem permissão para acessar os dados deste usuário',
+      );
+    }
+
+    // Remove sensitive data
+    delete usuario.senha;
+    delete usuario.perfis;
+    
+    return usuario;
+  }n,
   ForbiddenException,
 } from '@nestjs/common';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
@@ -9,6 +40,9 @@ import * as bcrypt from 'bcrypt';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { Perfil } from 'src/perfis/domain/entities/perfil.entity';
+import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+
+type UsuarioLogado = JwtPayload;
 
 @Injectable()
 export class UsuariosService {
@@ -43,13 +77,13 @@ export class UsuariosService {
     return usuario;
   }
 
-  async findOne(id: number, usuarioLogado: any): Promise<Usuario> {
+  async findOne(id: number, usuarioLogado: UsuarioLogado): Promise<Usuario> {
     const usuario = await this.usuarioRepository.findOne(id);
     if (!usuario) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
 
-    if (usuario.id !== usuarioLogado.id) {
+    if (usuario.id !== usuarioLogado.userId) {
       throw new ForbiddenException(
         'Você não tem permissão para acessar os dados deste usuário',
       );
