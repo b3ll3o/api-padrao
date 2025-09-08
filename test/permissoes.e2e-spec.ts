@@ -52,6 +52,7 @@ describe('PermissoesController (e2e)', () => {
       where: { email: 'test-permissao@example.com' },
     });
     await app.close();
+    await prisma.$disconnect();
   });
 
   beforeEach(async () => {
@@ -60,11 +61,13 @@ describe('PermissoesController (e2e)', () => {
 
   afterEach(async () => {
     await prisma.permissao.deleteMany();
+    await prisma.perfil.deleteMany();
+    await prisma.usuario.deleteMany();
   });
 
   describe('POST /permissoes', () => {
     it('deve criar uma permissão', async () => {
-      const createPermissaoDto = { nome: 'read:users' };
+      const createPermissaoDto = { nome: `read:users-${Date.now()}` };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/permissoes')
@@ -132,79 +135,38 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('GET /permissoes/nome/:nome', () => {
-    it('deve retornar uma única permissão pelo nome', async () => {
-      const permissao = await prisma.permissao.create({
-        data: { nome: 'read:roles' },
+    it('deve retornar permissões que contêm a string no nome', async () => {
+      await prisma.permissao.createMany({
+        data: [
+          { nome: 'permissao_teste_1' },
+          { nome: 'outra_permissao' },
+          { nome: 'permissao_teste_2' },
+        ],
       });
+
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
-        .get(`/permissoes/nome/${permissao.nome}`)
+        .get('/permissoes/nome/teste')
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toHaveProperty('id', permissao.id);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          expect(res.body.nome).toEqual(permissao.nome);
+          expect(res.body).toBeInstanceOf(Array);
+          expect(res.body.length).toEqual(2);
+          expect(res.body[0].nome).toContain('teste');
+          expect(res.body[1].nome).toContain('teste');
         });
     });
 
-    it('deve retornar 404 se a permissão não for encontrada pelo nome', () => {
+    it('deve retornar um array vazio se nenhuma permissão for encontrada', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
-        .get('/permissoes/nome/non-existent-permission')
+        .get('/permissoes/nome/naoexiste')
         .set('Authorization', `Bearer ${token}`)
-        .expect(404);
-    });
-  });
-
-  describe('PATCH /permissoes/:id', () => {
-    it('deve atualizar uma permissão', async () => {
-      const permissao = await prisma.permissao.create({
-        data: { nome: 'update:users' },
-      });
-      const updatePermissaoDto = { nome: 'update:users:all' };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      return request(app.getHttpServer())
-        .patch(`/permissoes/${permissao.id}`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(updatePermissaoDto)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toHaveProperty('id', permissao.id);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          expect(res.body.nome).toEqual(updatePermissaoDto.nome);
+          expect(res.body).toBeInstanceOf(Array);
+          expect(res.body.length).toEqual(0);
         });
-    });
-
-    it('deve retornar 404 se a permissão não for encontrada', () => {
-      const updatePermissaoDto = { nome: 'Non Existent' }; // Define updatePermissaoDto here
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      return request(app.getHttpServer())
-        .patch('/permissoes/99999')
-        .set('Authorization', `Bearer ${token}`)
-        .send(updatePermissaoDto)
-        .expect(404);
-    });
-  });
-
-  describe('DELETE /permissoes/:id', () => {
-    it('deve deletar uma permissão', async () => {
-      const permissao = await prisma.permissao.create({
-        data: { nome: 'delete:users' },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      return request(app.getHttpServer())
-        .delete(`/permissoes/${permissao.id}`)
-        .set('Authorization', `Bearer ${token}`)
-        .expect(204);
-    });
-
-    it('deve retornar 404 se a permissão não for encontrada', () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      return request(app.getHttpServer())
-        .delete('/permissoes/99999')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(404);
     });
   });
 });

@@ -69,8 +69,22 @@ export class PrismaPerfilRepository implements PerfilRepository {
     }
   }
 
-  async findByNome(nome: string): Promise<Perfil | undefined> {
-    const perfil = await this.prisma.perfil.findUnique({ where: { nome } });
-    return perfil || undefined;
+  async findByNome(nome: string): Promise<Perfil | null> {
+    return this.prisma.perfil.findUnique({
+      where: { nome },
+      include: { permissoes: true },
+    });
+  }
+
+  async findByNomeContaining(nome: string): Promise<Perfil[]> {
+    return this.prisma.perfil.findMany({
+      where: {
+        nome: {
+          contains: nome,
+          mode: 'insensitive',
+        },
+      },
+      include: { permissoes: true },
+    });
   }
 }

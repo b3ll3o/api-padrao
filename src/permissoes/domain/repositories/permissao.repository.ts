@@ -11,5 +11,6 @@ export abstract class PermissaoRepository {
     data: UpdatePermissaoDto,
   ): Promise<Permissao | undefined>;
   abstract remove(id: number): Promise<void>;
-  abstract findByNome(nome: string): Promise<Permissao | undefined>;
+  abstract findByNome(nome: string): Promise<Permissao | null>;
+  abstract findByNomeContaining(nome: string): Promise<Permissao[]>;
 }

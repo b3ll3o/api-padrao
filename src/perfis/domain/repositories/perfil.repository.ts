@@ -11,6 +11,6 @@ export abstract class PerfilRepository {
     data: UpdatePerfilDto,
   ): Promise<Perfil | undefined>;
   abstract remove(id: number): Promise<void>;
-  abstract findByNome(nome: string): Promise<Perfil | undefined>;
-  abstract findByNome(nome: string): Promise<Perfil | undefined>;
+  abstract findByNome(nome: string): Promise<Perfil | null>;
+  abstract findByNomeContaining(nome: string): Promise<Perfil[]>;
 }

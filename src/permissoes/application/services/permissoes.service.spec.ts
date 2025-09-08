@@ -15,6 +15,7 @@ describe('PermissoesService', () => {
     update: jest.fn(),
     remove: jest.fn(),
     findByNome: jest.fn(),
+    findByNomeContaining: jest.fn(),
   };
 
   const mockPrismaService = {
@@ -143,32 +144,36 @@ describe('PermissoesService', () => {
   });
 
   describe('findByName', () => {
-    it('should return a single permissao by name', async () => {
-      const expectedPermissao = {
-        id: 1,
-        nome: 'Test Permissao',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mockPermissaoRepository.findByNome.mockResolvedValue(expectedPermissao);
+    it('should return an array of permissoes containing the name', async () => {
+      const expectedPermissoes = [
+        {
+          id: 1,
+          nome: 'Test Permissao 1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 2,
+          nome: 'Another Test Permissao',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      mockPermissaoRepository.findByNomeContaining.mockResolvedValue(expectedPermissoes);
 
       const result = await service.findByNome('Test Permissao');
 
-      expect(result).toEqual(expectedPermissao);
-      expect(repository.findByNome).toHaveBeenCalledWith('Test Permissao');
+      expect(result).toEqual(expectedPermissoes);
+      expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith('Test Permissao');
     });
 
-    it('should throw NotFoundException if permissao not found by name', async () => {
-      mockPermissaoRepository.findByNome.mockResolvedValue(null);
+    it('should return an empty array if no permissao is found by name', async () => {
+      mockPermissaoRepository.findByNomeContaining.mockResolvedValue([]);
 
-      await expect(
-        service.findByNome('Non Existent Permissao'),
-      ).rejects.toThrowError(
-        "Permissão com nome 'Non Existent Permissao' não encontrada",
-      );
-      expect(repository.findByNome).toHaveBeenCalledWith(
-        'Non Existent Permissao',
-      );
+      const result = await service.findByNome('Non Existent Permissao');
+
+      expect(result).toEqual([]);
+      expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith('Non Existent Permissao');
     });
   });
 

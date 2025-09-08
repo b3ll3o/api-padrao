@@ -52,6 +52,7 @@ describe('PerfisController (e2e)', () => {
       where: { email: 'test-perfil@example.com' },
     });
     await app.close();
+    await prisma.$disconnect();
   });
 
   beforeEach(async () => {
@@ -59,12 +60,14 @@ describe('PerfisController (e2e)', () => {
   });
 
   afterEach(async () => {
+    await prisma.permissao.deleteMany();
     await prisma.perfil.deleteMany();
+    await prisma.usuario.deleteMany();
   });
 
   describe('POST /perfis', () => {
     it('deve criar um perfil', async () => {
-      const createPerfilDto = { nome: 'Admin' };
+      const createPerfilDto = { nome: `Admin-${Date.now()}` };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/perfis')
@@ -223,28 +226,38 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('GET /perfis/nome/:nome', () => {
-    it('deve retornar um único perfil pelo nome', async () => {
-      const perfil = await prisma.perfil.create({
-        data: { nome: 'Admin' },
+    it('deve retornar perfis que contêm a string no nome', async () => {
+      await prisma.perfil.createMany({
+        data: [
+          { nome: 'perfil_teste_1' },
+          { nome: 'outro_perfil' },
+          { nome: 'perfil_teste_2' },
+        ],
       });
+
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
-        .get(`/perfis/nome/${perfil.nome}`)
+        .get('/perfis/nome/teste')
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toHaveProperty('id', perfil.id);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          expect(res.body.nome).toEqual(perfil.nome);
+          expect(res.body).toBeInstanceOf(Array);
+          expect(res.body.length).toEqual(2);
+          expect(res.body[0].nome).toContain('teste');
+          expect(res.body[1].nome).toContain('teste');
         });
     });
 
-    it('deve retornar 404 se o perfil não for encontrado pelo nome', () => {
+    it('deve retornar um array vazio se nenhum perfil for encontrado', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
-        .get('/perfis/nome/non-existent-perfil')
+        .get('/perfis/nome/naoexiste')
         .set('Authorization', `Bearer ${token}`)
-        .expect(404);
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toBeInstanceOf(Array);
+          expect(res.body.length).toEqual(0);
+        });
     });
   });
 });

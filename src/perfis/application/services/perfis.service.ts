@@ -17,14 +17,6 @@ export class PerfisService {
   ) {}
 
   async create(createPerfilDto: CreatePerfilDto): Promise<Perfil> {
-    const existingPerfil = await this.perfilRepository.findByNome(
-      createPerfilDto.nome,
-    );
-    if (existingPerfil) {
-      throw new ConflictException(
-        `Perfil com o nome '${createPerfilDto.nome}' já existe.`,
-      );
-    }
     if (
       createPerfilDto.permissoesIds &&
       createPerfilDto.permissoesIds.length > 0
@@ -32,6 +24,14 @@ export class PerfisService {
       for (const id of createPerfilDto.permissoesIds) {
         await this.permissoesService.findOne(id); // Validate if permission exists
       }
+    }
+    const existingPerfil = await this.perfilRepository.findByNome(
+      createPerfilDto.nome,
+    );
+    if (existingPerfil) {
+      throw new ConflictException(
+        `Perfil com o nome '${createPerfilDto.nome}' já existe.`,
+      );
     }
     return this.perfilRepository.create(createPerfilDto);
   }
@@ -48,12 +48,12 @@ export class PerfisService {
     return perfil;
   }
 
-  async findByNome(nome: string): Promise<Perfil> {
-    const perfil = await this.perfilRepository.findByNome(nome);
-    if (!perfil) {
-      throw new NotFoundException(`Perfil com nome '${nome}' não encontrado`);
-    }
-    return perfil;
+  async findByNome(nome: string): Promise<Perfil[]> {
+    return this.perfilRepository.findByNomeContaining(nome);
+  }
+
+  async findByNomeContaining(nome: string): Promise<Perfil[]> {
+    return this.perfilRepository.findByNomeContaining(nome);
   }
 
   async update(id: number, updatePerfilDto: UpdatePerfilDto): Promise<Perfil> {

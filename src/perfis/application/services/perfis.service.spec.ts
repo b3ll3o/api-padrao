@@ -17,6 +17,7 @@ describe('PerfisService', () => {
     update: jest.fn(),
     remove: jest.fn(),
     findByNome: jest.fn(),
+    findByNomeContaining: jest.fn(),
   };
 
   const mockPermissoesService = {
@@ -132,7 +133,6 @@ describe('PerfisService', () => {
       await expect(service.create(createPerfilDto)).rejects.toThrowError(
         'Permissão com ID 999 não encontrada',
       );
-      expect(repository.findByNome).toHaveBeenCalledWith(createPerfilDto.nome);
       expect(permissoesService.findOne).toHaveBeenCalledWith(999);
       expect(repository.create).not.toHaveBeenCalled();
     });
@@ -190,30 +190,36 @@ describe('PerfisService', () => {
   });
 
   describe('findByNome', () => {
-    it('should return a single perfil by nome', async () => {
-      const expectedPerfil = {
-        id: 1,
-        nome: 'Test Perfil',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mockPerfilRepository.findByNome.mockResolvedValue(expectedPerfil);
+    it('should return an array of perfis containing the name', async () => {
+      const expectedPerfis = [
+        {
+          id: 1,
+          nome: 'Test Perfil 1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 2,
+          nome: 'Another Test Perfil',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      mockPerfilRepository.findByNomeContaining.mockResolvedValue(expectedPerfis);
 
       const result = await service.findByNome('Test Perfil');
 
-      expect(result).toEqual(expectedPerfil);
-      expect(repository.findByNome).toHaveBeenCalledWith('Test Perfil');
+      expect(result).toEqual(expectedPerfis);
+      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith('Test Perfil');
     });
 
-    it('should throw NotFoundException if perfil not found by nome', async () => {
-      mockPerfilRepository.findByNome.mockResolvedValue(null);
+    it('should return an empty array if no perfil is found by name', async () => {
+      mockPerfilRepository.findByNomeContaining.mockResolvedValue([]);
 
-      await expect(
-        service.findByNome('Non Existent Perfil'),
-      ).rejects.toThrowError(
-        "Perfil com nome 'Non Existent Perfil' não encontrado",
-      );
-      expect(repository.findByNome).toHaveBeenCalledWith('Non Existent Perfil');
+      const result = await service.findByNome('Non Existent Perfil');
+
+      expect(result).toEqual([]);
+      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith('Non Existent Perfil');
     });
   });
 

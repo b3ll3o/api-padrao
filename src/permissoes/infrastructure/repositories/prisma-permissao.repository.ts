@@ -50,10 +50,20 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     }
   }
 
-  async findByNome(nome: string): Promise<Permissao | undefined> {
-    const permissao = await this.prisma.permissao.findUnique({
+  async findByNome(nome: string): Promise<Permissao | null> {
+    return this.prisma.permissao.findUnique({
       where: { nome },
     });
-    return permissao || undefined;
+  }
+
+  async findByNomeContaining(nome: string): Promise<Permissao[]> {
+    return this.prisma.permissao.findMany({
+      where: {
+        nome: {
+          contains: nome,
+          mode: 'insensitive',
+        },
+      },
+    });
   }
 }

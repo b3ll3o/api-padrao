@@ -63,15 +63,14 @@ export class PermissoesController {
   }
 
   @Get('nome/:nome')
-  @ApiOperation({ summary: 'Buscar uma permissão por nome' })
+  @ApiOperation({ summary: 'Buscar permissões por nome contendo a string' })
   @ApiResponse({
     status: 200,
-    description: 'Retorna a permissão com o nome especificado.',
-    type: Permissao,
+    description: 'Retorna uma lista de permissões que contêm a string no nome.',
+    type: [Permissao],
   })
-  @ApiResponse({ status: 404, description: 'Permissão não encontrada.' })
-  findByName(@Param('nome') nome: string): Promise<Permissao> {
-    return this.permissoesService.findByNome(nome);
+  findByName(@Param('nome') nome: string): Promise<Permissao[]> {
+    return this.permissoesService.findByNomeContaining(nome);
   }
 
   @Patch(':id')

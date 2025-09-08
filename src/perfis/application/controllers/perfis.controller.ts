@@ -63,15 +63,14 @@ export class PerfisController {
   }
 
   @Get('nome/:nome')
-  @ApiOperation({ summary: 'Buscar um perfil por nome' })
+  @ApiOperation({ summary: 'Buscar perfis por nome contendo a string' })
   @ApiResponse({
     status: 200,
-    description: 'Retorna o perfil com o nome especificado.',
-    type: Perfil,
+    description: 'Retorna uma lista de perfis que contêm a string no nome.',
+    type: [Perfil],
   })
-  @ApiResponse({ status: 404, description: 'Perfil não encontrado.' })
-  findByNome(@Param('nome') nome: string): Promise<Perfil> {
-    return this.perfisService.findByNome(nome);
+  findByNome(@Param('nome') nome: string): Promise<Perfil[]> {
+    return this.perfisService.findByNomeContaining(nome);
   }
 
   @Patch(':id')
