@@ -7,6 +7,8 @@ export class PaginationDto {
     description: 'Número da página (começa em 1)',
     minimum: 1,
     default: 1,
+    example: 1,
+    type: Number
   })
   @IsOptional()
   @IsInt()
@@ -18,6 +20,8 @@ export class PaginationDto {
     description: 'Número de itens por página',
     minimum: 1,
     default: 10,
+    example: 10,
+    type: Number
   })
   @IsOptional()
   @IsInt()
