@@ -82,7 +82,7 @@ describe('PermissoesService', () => {
         nome: 'Existing Permissao',
       });
 
-      await expect(service.create(createPermissaoDto)).rejects.toThrowError(
+      await expect(() => service.create(createPermissaoDto)).rejects.toThrow(
         `Permissão com o nome '${createPermissaoDto.nome}' já existe.`,
       );
       expect(repository.findByNome).toHaveBeenCalledWith(
@@ -140,7 +140,7 @@ describe('PermissoesService', () => {
     it('should throw NotFoundException if permissao not found', async () => {
       mockPermissaoRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne(999)).rejects.toThrowError(
+      await expect(() => service.findOne(999)).rejects.toThrow(
         'Permissão com ID 999 não encontrada',
       );
       expect(repository.findOne).toHaveBeenCalledWith(999);
@@ -225,9 +225,9 @@ describe('PermissoesService', () => {
     it('should throw NotFoundException if permissao to update not found', async () => {
       mockPermissaoRepository.update.mockResolvedValue(null);
 
-      await expect(
-        service.update(999, { nome: 'Non Existent' }),
-      ).rejects.toThrowError('Permissão com ID 999 não encontrada');
+      await expect(() => 
+        service.update(999, { nome: 'Non Existent' })
+      ).rejects.toThrow('Permissão com ID 999 não encontrada');
       expect(repository.update).toHaveBeenCalledWith(999, {
         nome: 'Non Existent',
       });
@@ -255,7 +255,7 @@ describe('PermissoesService', () => {
     it('should throw NotFoundException if permissao to remove not found', async () => {
       mockPermissaoRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.remove(999)).rejects.toThrowError(
+      await expect(() => service.remove(999)).rejects.toThrow(
         'Permissão com ID 999 não encontrada',
       );
       expect(repository.findOne).toHaveBeenCalledWith(999);

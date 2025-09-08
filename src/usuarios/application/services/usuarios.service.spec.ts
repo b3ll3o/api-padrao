@@ -95,7 +95,7 @@ describe('UsuariosService', () => {
     it('should throw NotFoundException if usuario not found', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(undefined);
 
-      await expect(service.findOne(999)).rejects.toThrowError(
+      await expect(() => service.findOne(999)).rejects.toThrow(
         'Usuário com ID 999 não encontrado',
       );
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(999);

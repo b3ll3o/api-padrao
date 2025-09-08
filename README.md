@@ -6,12 +6,15 @@ Este projeto é uma API RESTful desenvolvida com NestJS, utilizando Prisma como 
 
 ## Tecnologias Utilizadas
 
-*   **Framework:** NestJS
-*   **Linguagem:** TypeScript
-*   **ORM:** Prisma
+*   **Framework:** NestJS (v11.0)
+*   **Linguagem:** TypeScript (v5.7)
+*   **ORM:** Prisma (v6.15)
 *   **Banco de Dados:** PostgreSQL
 *   **Autenticação:** JWT (JSON Web Tokens)
+*   **Documentação:** Swagger/OpenAPI (v5.0)
 *   **Containerização:** Docker
+*   **Validação:** class-validator (v0.14)
+*   **Transformação:** class-transformer (v0.5)
 
 ## Configuração do Ambiente
 
@@ -22,6 +25,7 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
 *   Node.js (versão 20.x ou superior)
 *   npm (gerenciador de pacotes do Node.js)
 *   Docker (para o banco de dados PostgreSQL)
+*   Git (para controle de versão)
 
 ### Instalação
 
@@ -102,6 +106,32 @@ Os testes E2E são executados em um banco de dados separado (`api-padrao-test`).
 
 ## Endpoints da API
 
+### Paginação
+
+Todos os endpoints de listagem suportam paginação através dos seguintes parâmetros de query:
+
+```typescript
+{
+  page?: number;    // Página atual (padrão: 1)
+  limit?: number;   // Itens por página (padrão: 10)
+  sort?: string;    // Campo para ordenação
+  order?: 'asc' | 'desc';  // Direção da ordenação (padrão: 'asc')
+}
+```
+
+Exemplo de resposta paginada:
+```json
+{
+  "items": [],      // Array com os itens da página atual
+  "meta": {
+    "page": 1,      // Página atual
+    "limit": 10,    // Itens por página
+    "total": 100,   // Total de itens
+    "pages": 10     // Total de páginas
+  }
+}
+```
+
 ### Autenticação
 
 *   **`POST /auth/login`**: Autentica um usuário e retorna um JWT.
@@ -134,7 +164,8 @@ Os testes E2E são executados em um banco de dados separado (`api-padrao-test`).
         ```json
         {
           "email": "newuser@example.com",
-          "senha": "Password123!"
+          "senha": "Password123!",
+          "perfisIds": [1, 2]
         }
         ```
     *   **Response (Success - 201 Created):**
@@ -142,8 +173,18 @@ Os testes E2E são executados em um banco de dados separado (`api-padrao-test`).
         {
           "id": 1,
           "email": "newuser@example.com",
-          "createdAt": "2023-10-27T10:00:00.000Z",
-          "updatedAt": "2023-10-27T10:00:00.000Z"
+          "perfis": [
+            {
+              "id": 1,
+              "nome": "Admin"
+            },
+            {
+              "id": 2,
+              "nome": "Editor"
+            }
+          ],
+          "createdAt": "2025-09-08T10:00:00.000Z",
+          "updatedAt": "2025-09-08T10:00:00.000Z"
         }
         ```
     *   **Response (Failure - 409 Conflict):**
@@ -198,17 +239,34 @@ Os testes E2E são executados em um banco de dados separado (`api-padrao-test`).
         }
         ```
 
-*   **`GET /perfis`**: Lista todos os perfis.
+*   **`GET /perfis`**: Lista todos os perfis (com suporte a paginação).
     *   **Requer Autenticação (JWT)**
+    *   **Query Parameters:**
+        ```typescript
+        {
+          page?: number;
+          limit?: number;
+          sort?: string;
+          order?: 'asc' | 'desc';
+        }
+        ```
     *   **Response (Success - 200 OK):**
         ```json
-        [
-          {
-            "id": 1,
-            "nome": "Administrador",
-            "permissoes": []
+        {
+          "items": [
+            {
+              "id": 1,
+              "nome": "Administrador",
+              "permissoes": []
+            }
+          ],
+          "meta": {
+            "page": 1,
+            "limit": 10,
+            "total": 1,
+            "pages": 1
           }
-        ]
+        }
         ```
 
 *   **`GET /perfis/:id`**: Busca um perfil por ID.
@@ -296,16 +354,33 @@ Os testes E2E são executados em um banco de dados separado (`api-padrao-test`).
         }
         ```
 
-*   **`GET /permissoes`**: Lista todas as permissões.
+*   **`GET /permissoes`**: Lista todas as permissões (com suporte a paginação).
     *   **Requer Autenticação (JWT)**
+    *   **Query Parameters:**
+        ```typescript
+        {
+          page?: number;
+          limit?: number;
+          sort?: string;
+          order?: 'asc' | 'desc';
+        }
+        ```
     *   **Response (Success - 200 OK):**
         ```json
-        [
-          {
-            "id": 1,
-            "nome": "read:users"
+        {
+          "items": [
+            {
+              "id": 1,
+              "nome": "read:users"
+            }
+          ],
+          "meta": {
+            "page": 1,
+            "limit": 10,
+            "total": 1,
+            "pages": 1
           }
-        ]
+        }
         ```
 
 *   **`GET /permissoes/:id`**: Busca uma permissão por ID.
@@ -361,6 +436,52 @@ Os testes E2E são executados em um banco de dados separado (`api-padrao-test`).
           "error": "Not Found"
         }
         ```
+
+## Estrutura do Projeto
+
+O projeto segue uma arquitetura limpa (Clean Architecture) com a seguinte estrutura:
+
+```
+src/
+├── auth/                   # Módulo de autenticação
+│   ├── application/       # Casos de uso e controllers
+│   ├── domain/           # Regras de negócio e entidades
+│   ├── infrastructure/   # Implementações técnicas
+│   └── dto/              # Objetos de transferência de dados
+├── usuarios/              # Módulo de usuários
+├── perfis/               # Módulo de perfis
+├── permissoes/           # Módulo de permissões
+└── prisma/               # Configuração do Prisma ORM
+```
+
+### Camadas da Arquitetura
+
+* **Domain**: Contém as regras de negócio e entidades
+* **Application**: Implementa os casos de uso da aplicação
+* **Infrastructure**: Lida com aspectos técnicos e frameworks
+* **DTOs**: Define os objetos de transferência de dados
+
+## Testes
+
+O projeto inclui testes unitários e de integração (E2E). Os testes são executados em um banco de dados separado para garantir o isolamento.
+
+### Cobertura de Testes
+
+Execute os testes com cobertura usando:
+
+```bash
+npm run test:cov
+```
+
+### Testes E2E
+
+Os testes E2E cobrem os principais fluxos da aplicação:
+
+* Autenticação e autorização
+* CRUD de usuários
+* CRUD de perfis
+* CRUD de permissões
+* Relacionamentos entre entidades
 
 ## Licença
 

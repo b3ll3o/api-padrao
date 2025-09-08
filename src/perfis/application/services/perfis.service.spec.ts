@@ -113,7 +113,7 @@ describe('PerfisService', () => {
         nome: 'Existing Perfil',
       });
 
-      await expect(service.create(createPerfilDto)).rejects.toThrowError(
+      await expect(() => service.create(createPerfilDto)).rejects.toThrow(
         `Perfil com o nome '${createPerfilDto.nome}' já existe.`,
       );
       expect(repository.findByNome).toHaveBeenCalledWith(createPerfilDto.nome);
@@ -130,7 +130,7 @@ describe('PerfisService', () => {
         new Error('Permissão com ID 999 não encontrada'),
       );
 
-      await expect(service.create(createPerfilDto)).rejects.toThrowError(
+      await expect(() => service.create(createPerfilDto)).rejects.toThrow(
         'Permissão com ID 999 não encontrada',
       );
       expect(permissoesService.findOne).toHaveBeenCalledWith(999);
@@ -183,7 +183,7 @@ describe('PerfisService', () => {
     it('should throw NotFoundException if perfil not found', async () => {
       mockPerfilRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne(999)).rejects.toThrowError(
+      await expect(() => service.findOne(999)).rejects.toThrow(
         'Perfil com ID 999 não encontrado',
       );
       expect(repository.findOne).toHaveBeenCalledWith(999);
@@ -298,9 +298,9 @@ describe('PerfisService', () => {
     it('should throw NotFoundException if perfil to update not found', async () => {
       mockPerfilRepository.update.mockResolvedValue(null);
 
-      await expect(
-        service.update(999, { nome: 'Non Existent' }),
-      ).rejects.toThrowError('Perfil com ID 999 não encontrado');
+      await expect(() => 
+        service.update(999, { nome: 'Non Existent' })
+      ).rejects.toThrow('Perfil com ID 999 não encontrado');
       expect(repository.update).toHaveBeenCalledWith(999, {
         nome: 'Non Existent',
       });
@@ -328,7 +328,7 @@ describe('PerfisService', () => {
     it('should throw NotFoundException if perfil to remove not found', async () => {
       mockPerfilRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.remove(999)).rejects.toThrowError(
+      await expect(() => service.remove(999)).rejects.toThrow(
         'Perfil com ID 999 não encontrado',
       );
       expect(repository.findOne).toHaveBeenCalledWith(999);
