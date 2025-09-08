@@ -21,7 +21,7 @@ describe('PerfisController (e2e)', () => {
 
     await app.init();
 
-    // Create a test user
+    // Criar um usuário de teste
     const createUserDto = {
       email: 'test-perfil@example.com',
       senha: 'Password123!',
@@ -32,7 +32,7 @@ describe('PerfisController (e2e)', () => {
       .send(createUserDto)
       .expect(201);
 
-    // Login to get a token
+    // Fazer login para obter um token
     const loginDto = {
       email: 'test-perfil@example.com',
       senha: 'Password123!',
@@ -63,7 +63,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('POST /perfis', () => {
-    it('should create a perfil', async () => {
+    it('deve criar um perfil', async () => {
       const createPerfilDto = { nome: 'Admin' };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -78,7 +78,7 @@ describe('PerfisController (e2e)', () => {
         });
     });
 
-    it('should return 400 if nome is missing', () => {
+    it('deve retornar 400 se o nome estiver faltando', () => {
       const createPerfilDto = {};
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -88,9 +88,9 @@ describe('PerfisController (e2e)', () => {
         .expect(400);
     });
 
-    it('should return 409 if perfil with same name already exists', async () => {
+    it('deve retornar 409 se o perfil com o mesmo nome já existir', async () => {
       const createPerfilDto = { nome: 'duplicate:name' };
-      // Create the first perfil
+      // Criar o primeiro perfil
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await request(app.getHttpServer())
         .post('/perfis')
@@ -98,7 +98,7 @@ describe('PerfisController (e2e)', () => {
         .send(createPerfilDto)
         .expect(201);
 
-      // Attempt to create a duplicate perfil
+      // Tentar criar um perfil duplicado
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .post('/perfis')
@@ -113,9 +113,9 @@ describe('PerfisController (e2e)', () => {
         });
     });
 
-    it('should return 404 if permissions do not exist', async () => {
+    it('deve retornar 404 se as permissões não existirem', async () => {
       const createPerfilDto = {
-        nome: 'Perfil with Invalid Perms',
+        nome: 'Perfil com Permissões Inválidas',
         permissoesIds: [99999],
       };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
@@ -134,7 +134,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('GET /perfis', () => {
-    it('should return an array of perfis', async () => {
+    it('deve retornar um array de perfis', async () => {
       await prisma.perfil.create({ data: { nome: 'User' } });
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -150,7 +150,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('GET /perfis/:id', () => {
-    it('should return a single perfil', async () => {
+    it('deve retornar um único perfil', async () => {
       const perfil = await prisma.perfil.create({ data: { nome: 'Editor' } });
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -164,7 +164,7 @@ describe('PerfisController (e2e)', () => {
         });
     });
 
-    it('should return 404 if perfil not found', () => {
+    it('deve retornar 404 se o perfil não for encontrado', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/perfis/99999')
@@ -174,7 +174,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('PATCH /perfis/:id', () => {
-    it('should update a perfil', async () => {
+    it('deve atualizar um perfil', async () => {
       const perfil = await prisma.perfil.create({ data: { nome: 'Viewer' } });
       const updatePerfilDto = { nome: 'Updated Viewer' };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
@@ -190,7 +190,7 @@ describe('PerfisController (e2e)', () => {
         });
     });
 
-    it('should return 404 if perfil not found', () => {
+    it('deve retornar 404 se o perfil não for encontrado', () => {
       const updatePerfilDto = { nome: 'Non Existent' };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -202,7 +202,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('DELETE /perfis/:id', () => {
-    it('should delete a perfil', async () => {
+    it('deve deletar um perfil', async () => {
       const perfil = await prisma.perfil.create({
         data: { nome: 'Deletable' },
       });
@@ -213,7 +213,7 @@ describe('PerfisController (e2e)', () => {
         .expect(204);
     });
 
-    it('should return 404 if perfil not found', () => {
+    it('deve retornar 404 se o perfil não for encontrado', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .delete('/perfis/99999')
@@ -223,7 +223,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('GET /perfis/nome/:nome', () => {
-    it('should return a single perfil by name', async () => {
+    it('deve retornar um único perfil pelo nome', async () => {
       const perfil = await prisma.perfil.create({
         data: { nome: 'Admin' },
       });
@@ -239,7 +239,7 @@ describe('PerfisController (e2e)', () => {
         });
     });
 
-    it('should return 404 if perfil not found by name', () => {
+    it('deve retornar 404 se o perfil não for encontrado pelo nome', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/perfis/nome/non-existent-perfil')

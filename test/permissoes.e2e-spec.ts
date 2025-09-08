@@ -21,7 +21,7 @@ describe('PermissoesController (e2e)', () => {
 
     await app.init();
 
-    // Create a test user
+    // Criar um usuário de teste
     const createUserDto = {
       email: 'test-permissao@example.com',
       senha: 'Password123!',
@@ -32,7 +32,7 @@ describe('PermissoesController (e2e)', () => {
       .send(createUserDto)
       .expect(201);
 
-    // Login to get a token
+    // Fazer login para obter um token
     const loginDto = {
       email: 'test-permissao@example.com',
       senha: 'Password123!',
@@ -63,7 +63,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('POST /permissoes', () => {
-    it('should create a permissao', async () => {
+    it('deve criar uma permissão', async () => {
       const createPermissaoDto = { nome: 'read:users' };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -78,7 +78,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
-    it('should return 400 if nome is missing', () => {
+    it('deve retornar 400 se o nome estiver faltando', () => {
       const createPermissaoDto = {};
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -90,7 +90,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('GET /permissoes', () => {
-    it('should return an array of permissoes', async () => {
+    it('deve retornar um array de permissões', async () => {
       await prisma.permissao.create({ data: { nome: 'write:users' } });
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -106,7 +106,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('GET /permissoes/:id', () => {
-    it('should return a single permissao', async () => {
+    it('deve retornar uma única permissão', async () => {
       const permissao = await prisma.permissao.create({
         data: { nome: 'delete:users' },
       });
@@ -122,7 +122,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
-    it('should return 404 if permissao not found', () => {
+    it('deve retornar 404 se a permissão não for encontrada', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/permissoes/99999')
@@ -132,7 +132,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('GET /permissoes/nome/:nome', () => {
-    it('should return a single permissao by name', async () => {
+    it('deve retornar uma única permissão pelo nome', async () => {
       const permissao = await prisma.permissao.create({
         data: { nome: 'read:roles' },
       });
@@ -148,7 +148,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
-    it('should return 404 if permissao not found by name', () => {
+    it('deve retornar 404 se a permissão não for encontrada pelo nome', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .get('/permissoes/nome/non-existent-permission')
@@ -158,7 +158,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('PATCH /permissoes/:id', () => {
-    it('should update a permissao', async () => {
+    it('deve atualizar uma permissão', async () => {
       const permissao = await prisma.permissao.create({
         data: { nome: 'update:users' },
       });
@@ -176,7 +176,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
-    it('should return 404 if permissao not found', () => {
+    it('deve retornar 404 se a permissão não for encontrada', () => {
       const updatePermissaoDto = { nome: 'Non Existent' }; // Define updatePermissaoDto here
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
@@ -188,7 +188,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('DELETE /permissoes/:id', () => {
-    it('should delete a permissao', async () => {
+    it('deve deletar uma permissão', async () => {
       const permissao = await prisma.permissao.create({
         data: { nome: 'delete:users' },
       });
@@ -199,7 +199,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(204);
     });
 
-    it('should return 404 if permissao not found', () => {
+    it('deve retornar 404 se a permissão não for encontrada', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return request(app.getHttpServer())
         .delete('/permissoes/99999')

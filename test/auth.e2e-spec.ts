@@ -41,8 +41,8 @@ describe('AuthController (e2e)', () => {
   });
 
   describe('POST /auth/login', () => {
-    it('should allow a user to login successfully and return JWT with profiles and permissions', async () => {
-      // Create permissions
+    it('deve permitir que um usuário faça login com sucesso e retorne JWT com perfis e permissões', async () => {
+      // Criar permissões
       const perm1 = await prisma.permissao.create({
         data: { nome: 'read:users' },
       });
@@ -50,7 +50,7 @@ describe('AuthController (e2e)', () => {
         data: { nome: 'write:users' },
       });
 
-      // Create a profile with permissions
+      // Criar um perfil com permissões
       const perfil = await prisma.perfil.create({
         data: {
           nome: 'Admin',
@@ -66,7 +66,7 @@ describe('AuthController (e2e)', () => {
         perfisIds: [perfil.id],
       };
 
-      // First, create a user with the profile
+      // Primeiro, criar um usuário com o perfil
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await request(app.getHttpServer())
         .post('/usuarios')
@@ -87,7 +87,7 @@ describe('AuthController (e2e)', () => {
           expect(res.body).toHaveProperty('access_token');
           expect(typeof res.body.access_token).toBe('string');
 
-          // Decode the JWT and assert its contents
+          // Decodificar o JWT e verificar seu conteúdo
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           const decodedJwt: any = jwtService.decode(res.body.access_token);
 
@@ -112,7 +112,7 @@ describe('AuthController (e2e)', () => {
         });
     });
 
-    it('should return 401 for invalid credentials', () => {
+    it('deve retornar 401 para credenciais inválidas', () => {
       const loginDto = {
         email: 'test@example.com',
         senha: 'wrongpassword',
@@ -125,7 +125,7 @@ describe('AuthController (e2e)', () => {
         .expect(401);
     });
 
-    it('should return 401 for non-existent user', () => {
+    it('deve retornar 401 para usuário inexistente', () => {
       const loginDto = {
         email: 'nonexistent@example.com',
         senha: 'Password123!',

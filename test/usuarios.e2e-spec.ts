@@ -37,7 +37,7 @@ describe('UsuariosController (e2e)', () => {
   });
 
   describe('POST /usuarios', () => {
-    it('should create a user and return 201', () => {
+    it('deve criar um usuário e retornar 201', () => {
       const createUserDto = {
         email: 'test@example.com',
         senha: 'Password123!',
@@ -57,23 +57,23 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
-    it('should return 409 if email already exists', async () => {
+    it('deve retornar 409 se o email já existir', async () => {
       const createUserDto = {
         email: 'test@example.com',
         senha: 'Password123!',
       };
 
-      // Create the first user
+      // Criar o primeiro usuário
       await prisma.usuario.create({ data: createUserDto });
 
-      // Attempt to create the second user with the same email
+      // Tentar criar o segundo usuário com o mesmo email
       return supertestRequest(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
         .expect(409);
     });
 
-    it('should return 400 if email is invalid', () => {
+    it('deve retornar 400 se o email for inválido', () => {
       const createUserDto = { email: 'invalid-email', senha: 'Password123!' };
 
       return supertestRequest(app.getHttpServer())
@@ -82,7 +82,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(400);
     });
 
-    it('should return 400 if password is too short', () => {
+    it('deve retornar 400 se a senha for muito curta', () => {
       const createUserDto = { email: 'test@example.com', senha: '123' };
 
       return supertestRequest(app.getHttpServer())
@@ -91,7 +91,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(400);
     });
 
-    it('should return 400 if password does not meet complexity requirements', () => {
+    it('deve retornar 400 se a senha não atender aos requisitos de complexidade', () => {
       const createUserDto = {
         email: 'test@example.com',
         senha: 'password',
