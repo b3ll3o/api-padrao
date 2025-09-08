@@ -62,6 +62,18 @@ export class PerfisController {
     return this.perfisService.findOne(+id);
   }
 
+  @Get('nome/:nome')
+  @ApiOperation({ summary: 'Buscar um perfil por nome' })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna o perfil com o nome especificado.',
+    type: Perfil,
+  })
+  @ApiResponse({ status: 404, description: 'Perfil não encontrado.' })
+  findByNome(@Param('nome') nome: string): Promise<Perfil> {
+    return this.perfisService.findByNome(nome);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar um perfil existente' })
   @ApiResponse({

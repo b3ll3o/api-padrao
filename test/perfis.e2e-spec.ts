@@ -214,4 +214,30 @@ describe('PerfisController (e2e)', () => {
         .expect(404);
     });
   });
+
+  describe('GET /perfis/nome/:nome', () => {
+    it('should return a single perfil by name', async () => {
+      const perfil = await prisma.perfil.create({
+        data: { nome: 'Admin' },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      return request(app.getHttpServer())
+        .get(`/perfis/nome/${perfil.nome}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('id', perfil.id);
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          expect(res.body.nome).toEqual(perfil.nome);
+        });
+    });
+
+    it('should return 404 if perfil not found by name', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      return request(app.getHttpServer())
+        .get('/perfis/nome/non-existent-perfil')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(404);
+    });
+  });
 });

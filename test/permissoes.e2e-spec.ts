@@ -131,6 +131,32 @@ describe('PermissoesController (e2e)', () => {
     });
   });
 
+  describe('GET /permissoes/nome/:nome', () => {
+    it('should return a single permissao by name', async () => {
+      const permissao = await prisma.permissao.create({
+        data: { nome: 'read:roles' },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      return request(app.getHttpServer())
+        .get(`/permissoes/nome/${permissao.nome}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('id', permissao.id);
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          expect(res.body.nome).toEqual(permissao.nome);
+        });
+    });
+
+    it('should return 404 if permissao not found by name', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      return request(app.getHttpServer())
+        .get('/permissoes/nome/non-existent-permission')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(404);
+    });
+  });
+
   describe('PATCH /permissoes/:id', () => {
     it('should update a permissao', async () => {
       const permissao = await prisma.permissao.create({

@@ -184,6 +184,32 @@ describe('PerfisService', () => {
     });
   });
 
+  describe('findByNome', () => {
+    it('should return a single perfil by nome', async () => {
+      const expectedPerfil = {
+        id: 1,
+        nome: 'Test Perfil',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockPerfilRepository.findByNome.mockResolvedValue(expectedPerfil);
+
+      const result = await service.findByNome('Test Perfil');
+
+      expect(result).toEqual(expectedPerfil);
+      expect(repository.findByNome).toHaveBeenCalledWith('Test Perfil');
+    });
+
+    it('should throw NotFoundException if perfil not found by nome', async () => {
+      mockPerfilRepository.findByNome.mockResolvedValue(null);
+
+      await expect(service.findByNome('Non Existent Perfil')).rejects.toThrowError(
+        "Perfil com nome 'Non Existent Perfil' não encontrado",
+      );
+      expect(repository.findByNome).toHaveBeenCalledWith('Non Existent Perfil');
+    });
+  });
+
   describe('update', () => {
     it('should update a perfil', async () => {
       const updatePerfilDto = { nome: 'Updated Perfil', permissoesIds: [1] };

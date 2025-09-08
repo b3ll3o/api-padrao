@@ -62,6 +62,18 @@ export class PermissoesController {
     return this.permissoesService.findOne(+id);
   }
 
+  @Get('nome/:nome')
+  @ApiOperation({ summary: 'Buscar uma permissão por nome' })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna a permissão com o nome especificado.',
+    type: Permissao,
+  })
+  @ApiResponse({ status: 404, description: 'Permissão não encontrada.' })
+  findByName(@Param('nome') nome: string): Promise<Permissao> {
+    return this.permissoesService.findByNome(nome);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar uma permissão existente' })
   @ApiResponse({

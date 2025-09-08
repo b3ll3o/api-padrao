@@ -30,6 +30,14 @@ export class PermissoesService {
     return permissao;
   }
 
+  async findByNome(nome: string): Promise<Permissao> {
+    const permissao = await this.permissaoRepository.findByNome(nome);
+    if (!permissao) {
+      throw new NotFoundException(`Permissão com nome '${nome}' não encontrada`);
+    }
+    return permissao;
+  }
+
   async update(
     id: number,
     updatePermissaoDto: UpdatePermissaoDto,

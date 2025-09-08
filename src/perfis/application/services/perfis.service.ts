@@ -42,6 +42,14 @@ export class PerfisService {
     return perfil;
   }
 
+  async findByNome(nome: string): Promise<Perfil> {
+    const perfil = await this.perfilRepository.findByNome(nome);
+    if (!perfil) {
+      throw new NotFoundException(`Perfil com nome '${nome}' não encontrado`);
+    }
+    return perfil;
+  }
+
   async update(id: number, updatePerfilDto: UpdatePerfilDto): Promise<Perfil> {
     if (updatePerfilDto.permissoesIds) {
       for (const permId of updatePerfilDto.permissoesIds) {

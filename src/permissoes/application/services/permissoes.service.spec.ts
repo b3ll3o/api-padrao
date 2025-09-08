@@ -136,6 +136,32 @@ describe('PermissoesService', () => {
     });
   });
 
+  describe('findByName', () => {
+    it('should return a single permissao by name', async () => {
+      const expectedPermissao = {
+        id: 1,
+        nome: 'Test Permissao',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockPermissaoRepository.findByNome.mockResolvedValue(expectedPermissao);
+
+      const result = await service.findByNome('Test Permissao');
+
+      expect(result).toEqual(expectedPermissao);
+      expect(repository.findByNome).toHaveBeenCalledWith('Test Permissao');
+    });
+
+    it('should throw NotFoundException if permissao not found by name', async () => {
+      mockPermissaoRepository.findByNome.mockResolvedValue(null);
+
+      await expect(service.findByNome('Non Existent Permissao')).rejects.toThrowError(
+        "Permissão com nome 'Non Existent Permissao' não encontrada",
+      );
+      expect(repository.findByNome).toHaveBeenCalledWith('Non Existent Permissao');
+    });
+  });
+
   describe('update', () => {
     it('should update a permissao', async () => {
       const updatePermissaoDto = { nome: 'Updated Permissao' };
