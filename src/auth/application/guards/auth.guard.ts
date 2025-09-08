@@ -1,7 +1,12 @@
-import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { JwtPayload } from '../../infrastructure/strategies/jwt.strategy';
 import { Request } from 'express';
 
 @Injectable()
@@ -23,8 +28,7 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
     const result = await super.canActivate(context);
 
     if (result) {
-      // @ts-expect-error: Property 'usuarioLogado' does not exist on type 'Request'. It is added dynamically.
-      request.usuarioLogado = request.user as any; // user is attached by AuthGuard
+      request.usuarioLogado = request.user as JwtPayload; // user is attached by AuthGuard
     }
     return result as boolean;
   }

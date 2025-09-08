@@ -72,6 +72,7 @@ describe('AuthService', () => {
       expect(
         mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
       ).toHaveBeenCalledWith('test@example.com');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockUser.comparePassword).toHaveBeenCalledWith('password123');
       expect(mockJwtService.sign).toHaveBeenCalledWith(
         {
@@ -120,7 +121,7 @@ describe('AuthService', () => {
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
-        comparePassword: jest.fn((password: string) => Promise.resolve(false)),
+        comparePassword: jest.fn(() => Promise.resolve(false)),
         perfis: [],
       };
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
@@ -135,6 +136,7 @@ describe('AuthService', () => {
       expect(
         mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
       ).toHaveBeenCalledWith('test@example.com');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockUser.comparePassword).toHaveBeenCalledWith('wrongPassword');
       expect(mockJwtService.sign).not.toHaveBeenCalled();
     });

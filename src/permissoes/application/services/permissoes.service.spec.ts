@@ -69,7 +69,9 @@ describe('PermissoesService', () => {
       expect(repository.findByNome).toHaveBeenCalledWith(
         createPermissaoDto.nome,
       );
-      expect(mockPermissaoRepository.create).toHaveBeenCalledWith(createPermissaoDto);
+      expect(mockPermissaoRepository.create).toHaveBeenCalledWith(
+        createPermissaoDto,
+      );
     });
 
     it('should throw ConflictException if permissao with same name already exists', async () => {
