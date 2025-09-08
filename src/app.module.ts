@@ -4,7 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-import { JwtAuthGuard } from './auth/application/guards/auth.guard';
+import { AuthGuard } from './auth/application/guards/auth.guard';
 import { PermissoesModule } from './permissoes/permissoes.module';
 import { PerfisModule } from './perfis/perfis.module';
 
@@ -20,7 +20,7 @@ import { PerfisModule } from './perfis/perfis.module';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard,
+      useClass: AuthGuard,
     },
   ],
 })

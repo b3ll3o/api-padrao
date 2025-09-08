@@ -55,7 +55,7 @@ describe('AuthService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         comparePassword: jest.fn().mockResolvedValue(true),
-        perfil: mockPerfil,
+        perfis: [mockPerfil],
       };
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(mockUser);
 
@@ -105,7 +105,7 @@ describe('AuthService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         comparePassword: jest.fn().mockResolvedValue(false),
-        perfil: undefined,
+        perfis: [],
       };
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(mockUser);
 

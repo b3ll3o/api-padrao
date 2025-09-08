@@ -25,8 +25,8 @@ export class UsuariosService {
     }
 
     // Assign perfilId if provided
-    if (createUsuarioDto.perfilId) {
-      newUsuario.perfilId = createUsuarioDto.perfilId;
+    if (createUsuarioDto.perfisIds) {
+      newUsuario.perfis = createUsuarioDto.perfisIds.map(id => ({ id } as any));
     }
 
     const usuario = await this.usuarioRepository.create(newUsuario);

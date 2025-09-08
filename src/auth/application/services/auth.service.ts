@@ -20,14 +20,14 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    const perfis = user.perfil ? [{
-      id: user.perfil.id,
-      nome: user.perfil.nome,
-      permissoes: user.perfil.permissoes?.map((permissao) => ({
+    const perfis = user.perfis?.map((perfil) => ({
+      id: perfil.id,
+      nome: perfil.nome,
+      permissoes: perfil.permissoes?.map((permissao) => ({
         id: permissao.id,
         nome: permissao.nome,
       })),
-    }] : [];
+    }));
 
     const payload = { email: user.email, sub: user.id, perfis };
     return {

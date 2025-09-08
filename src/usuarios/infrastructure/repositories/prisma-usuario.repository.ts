@@ -8,12 +8,14 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: Partial<Usuario>): Promise<Usuario> {
-    const { perfilId, email, senha } = data;
+    const { perfis, email, senha } = data;
     const usuario = await this.prisma.usuario.create({
       data: {
         email: email as string,
         senha: senha,
-        perfil: perfilId ? { connect: { id: perfilId } } : undefined,
+        perfis: {
+          connect: perfis?.map((perfil) => ({ id: perfil.id })),
+        },
       },
     });
     const newUsuario = new Usuario();
@@ -41,7 +43,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     const usuario = await this.prisma.usuario.findUnique({
       where: { email },
       include: {
-        perfil: {
+        perfis: {
           include: {
             permissoes: true,
           },
@@ -58,7 +60,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.updatedAt = usuario.updatedAt;
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    newUsuario.perfil = usuario.perfil;
+    newUsuario.perfis = usuario.perfis;
     return newUsuario;
   }
 }

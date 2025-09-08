@@ -7,8 +7,7 @@ export class Usuario {
   senha?: string;
   createdAt: Date;
   updatedAt: Date;
-  perfilId?: number;
-  perfil?: Perfil;
+  perfis?: Perfil[];
 
   async comparePassword(password: string): Promise<boolean> {
     if (!this.senha) {

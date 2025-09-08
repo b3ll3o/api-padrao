@@ -59,7 +59,7 @@ describe('AuthController (e2e)', () => {
       const createUserDto = {
         email: 'test@example.com',
         senha: 'Password123!',
-        perfilId: perfil.id,
+        perfisIds: [perfil.id],
       };
 
       // First, create a user with the profile
