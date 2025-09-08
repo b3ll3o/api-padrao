@@ -86,7 +86,10 @@ describe('UsuariosService', () => {
       };
       mockUsuarioRepository.findOne.mockResolvedValue(expectedUsuario);
 
-      const result = await service.findOne(1, { id: 1 });
+      const result = await service.findOne(1, {
+        userId: 1,
+        email: 'test@example.com',
+      });
 
       expect(result).toEqual(expectedUsuario);
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1);
@@ -101,7 +104,9 @@ describe('UsuariosService', () => {
       };
       mockUsuarioRepository.findOne.mockResolvedValue(usuario);
 
-      await expect(() => service.findOne(1, { id: 2 })).rejects.toThrow(
+      await expect(() =>
+        service.findOne(1, { userId: 2, email: 'other@example.com' }),
+      ).rejects.toThrow(
         'Você não tem permissão para acessar os dados deste usuário',
       );
     });
@@ -109,9 +114,9 @@ describe('UsuariosService', () => {
     it('should throw NotFoundException if usuario not found', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(undefined);
 
-      await expect(() => service.findOne(999, { id: 999 })).rejects.toThrow(
-        'Usuário com ID 999 não encontrado',
-      );
+      await expect(() =>
+        service.findOne(999, { userId: 999, email: 'test@example.com' }),
+      ).rejects.toThrow('Usuário com ID 999 não encontrado');
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(999);
     });
   });

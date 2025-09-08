@@ -16,7 +16,7 @@ type UsuarioLogado = JwtPayload;
 @Injectable()
 export class UsuariosService {
   constructor(private readonly usuarioRepository: UsuarioRepository) {}
-  
+
   async create(createUsuarioDto: CreateUsuarioDto) {
     const usuarioExistente = await this.usuarioRepository.findByEmail(
       createUsuarioDto.email,

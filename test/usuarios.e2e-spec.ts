@@ -109,7 +109,6 @@ describe('UsuariosController (e2e)', () => {
     let user1;
     let user2;
     let user1Token;
-    let user2Token;
 
     beforeEach(async () => {
       // Create two users
@@ -127,20 +126,11 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
-      // Create tokens for both users
+      // Create token for user1
       user1Token = jwtService.sign(
         {
           sub: user1.id,
           email: user1.email,
-          perfis: [],
-        },
-        { expiresIn: '1h' },
-      );
-
-      user2Token = jwtService.sign(
-        {
-          sub: user2.id,
-          email: user2.email,
           perfis: [],
         },
         { expiresIn: '1h' },
