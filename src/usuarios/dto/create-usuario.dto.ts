@@ -24,4 +24,8 @@ export class CreateUsuarioDto {
       'A senha deve conter pelo menos uma letra maiúscula, uma minúscula, um número ou um caractere especial',
   })
   senha?: string;
+
+  @ApiProperty({ description: 'ID do perfil associado ao usuário', type: Number, required: false })
+  @IsOptional()
+  perfilId?: number;
 }

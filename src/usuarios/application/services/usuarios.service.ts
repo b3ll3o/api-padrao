@@ -24,6 +24,11 @@ export class UsuariosService {
       newUsuario.senha = await bcrypt.hash(createUsuarioDto.senha, salt);
     }
 
+    // Assign perfilId if provided
+    if (createUsuarioDto.perfilId) {
+      newUsuario.perfilId = createUsuarioDto.perfilId;
+    }
+
     const usuario = await this.usuarioRepository.create(newUsuario);
 
     delete usuario.senha;

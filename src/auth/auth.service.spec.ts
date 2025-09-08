@@ -4,19 +4,14 @@ import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
 import { UsuarioRepository } from '../usuarios/domain/repositories/usuario.repository';
 import { Usuario } from 'src/usuarios/domain/entities/usuario.entity';
-
-interface UserWithoutSenha {
-  id: number;
-  email: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { Perfil } from 'src/perfis/domain/entities/perfil.entity';
+import { Permissao } from 'src/permissoes/domain/entities/permissao.entity';
 
 describe('AuthService', () => {
   let service: AuthService;
 
   const mockUsuarioRepository = {
-    findByEmail: jest.fn(),
+    findByEmailWithPerfisAndPermissoes: jest.fn(),
   };
 
   const mockJwtService = {
@@ -49,118 +44,78 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('validateUser', () => {
-    it('should return a user if credentials are valid', async () => {
-      const mockUser: Partial<Usuario> = {
+  describe('login', () => {
+    it('should return an access token with user, profiles, and permissions if login is successful', async () => {
+      const mockPermissao: Permissao = { id: 1, nome: 'read:users' };
+      const mockPerfil: Perfil = { id: 1, nome: 'Admin', permissoes: [mockPermissao] };
+      const mockUser: Usuario = {
         id: 1,
         email: 'test@example.com',
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
         comparePassword: jest.fn().mockResolvedValue(true),
+        perfil: mockPerfil,
       };
-      mockUsuarioRepository.findByEmail.mockResolvedValue(mockUser);
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(mockUser);
 
-      const result: UserWithoutSenha | null = await service.validateUser(
-        'test@example.com',
-        'password123',
-      );
+      const loginDto = { email: 'test@example.com', senha: 'password123' };
+      const result = await service.login(loginDto);
 
-      expect(result).toEqual({
-        id: 1,
-        email: 'test@example.com',
-        createdAt: mockUser.createdAt,
-        updatedAt: mockUser.updatedAt,
-      });
-      expect(mockUsuarioRepository.findByEmail).toHaveBeenCalledWith(
+      expect(result).toEqual({ access_token: 'mockAccessToken' });
+      expect(mockUsuarioRepository.findByEmailWithPerfisAndPermissoes).toHaveBeenCalledWith(
         'test@example.com',
       );
       expect(mockUser.comparePassword).toHaveBeenCalledWith('password123');
+      expect(mockJwtService.sign).toHaveBeenCalledWith({
+        email: mockUser.email,
+        sub: mockUser.id,
+        perfis: [
+          {
+            id: mockPerfil.id,
+            nome: mockPerfil.nome,
+            permissoes: [
+              {
+                id: mockPermissao.id,
+                nome: mockPermissao.nome,
+              },
+            ],
+          },
+        ],
+      });
     });
 
-    it('should return null if user does not exist', async () => {
-      mockUsuarioRepository.findByEmail.mockResolvedValue(null);
+    it('should throw UnauthorizedException if user does not exist', async () => {
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(null);
 
-      const result: UserWithoutSenha | null = await service.validateUser(
-        'nonexistent@example.com',
-        'password123',
-      );
+      const loginDto = { email: 'nonexistent@example.com', senha: 'password123' };
 
-      expect(result).toBeNull();
-      expect(mockUsuarioRepository.findByEmail).toHaveBeenCalledWith(
+      await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
+      expect(mockUsuarioRepository.findByEmailWithPerfisAndPermissoes).toHaveBeenCalledWith(
         'nonexistent@example.com',
       );
+      expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
 
-    it('should return null if password is invalid', async () => {
-      const mockUser: Partial<Usuario> = {
+    it('should throw UnauthorizedException if password is invalid', async () => {
+      const mockUser: Usuario = {
         id: 1,
         email: 'test@example.com',
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
         comparePassword: jest.fn().mockResolvedValue(false),
+        perfil: undefined,
       };
-      mockUsuarioRepository.findByEmail.mockResolvedValue(mockUser);
-
-      const result: UserWithoutSenha | null = await service.validateUser(
-        'test@example.com',
-        'wrongPassword',
-      );
-
-      expect(result).toBeNull();
-      expect(mockUsuarioRepository.findByEmail).toHaveBeenCalledWith(
-        'test@example.com',
-      );
-      expect(mockUser.comparePassword).toHaveBeenCalledWith('wrongPassword');
-    });
-  });
-
-  describe('login', () => {
-    it('should return an access token if login is successful', async () => {
-      const mockUser: UserWithoutSenha = {
-        id: 1,
-        email: 'test@example.com',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      const validateUserSpy = jest.spyOn(service, 'validateUser');
-      validateUserSpy.mockResolvedValue(
-        mockUser as {
-          id: number;
-          email: string;
-          createdAt: Date;
-          updatedAt: Date;
-        },
-      );
-
-      const loginDto = { email: 'test@example.com', senha: 'password123' };
-      const result = await service.login(loginDto);
-
-      expect(result).toEqual({ access_token: 'mockAccessToken' });
-      expect(validateUserSpy).toHaveBeenCalledWith(
-        'test@example.com',
-        'password123',
-      );
-      expect(mockJwtService.sign).toHaveBeenCalledWith({
-        email: mockUser.email,
-        sub: mockUser.id,
-      });
-    });
-
-    it('should throw UnauthorizedException if login fails', async () => {
-      const validateUserSpy = jest.spyOn(service, 'validateUser');
-      validateUserSpy.mockResolvedValue(null);
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(mockUser);
 
       const loginDto = { email: 'test@example.com', senha: 'wrongPassword' };
 
-      await expect(service.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      expect(validateUserSpy).toHaveBeenCalledWith(
+      await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
+      expect(mockUsuarioRepository.findByEmailWithPerfisAndPermissoes).toHaveBeenCalledWith(
         'test@example.com',
-        'wrongPassword',
       );
+      expect(mockUser.comparePassword).toHaveBeenCalledWith('wrongPassword');
       expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
   });

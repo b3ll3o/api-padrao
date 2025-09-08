@@ -7,8 +7,15 @@ import { UsuarioRepository } from '../../domain/repositories/usuario.repository'
 export class PrismaUsuarioRepository implements UsuarioRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: Usuario): Promise<Usuario> {
-    const usuario = await this.prisma.usuario.create({ data });
+  async create(data: Partial<Usuario>): Promise<Usuario> {
+    const { perfilId, email, senha } = data;
+    const usuario = await this.prisma.usuario.create({
+      data: {
+        email: email as string,
+        senha: senha,
+        perfil: perfilId ? { connect: { id: perfilId } } : undefined,
+      },
+    });
     const newUsuario = new Usuario();
     newUsuario.id = usuario.id;
     newUsuario.email = usuario.email;
@@ -27,6 +34,31 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
     newUsuario.createdAt = usuario.createdAt;
     newUsuario.updatedAt = usuario.updatedAt;
+    return newUsuario;
+  }
+
+  async findByEmailWithPerfisAndPermissoes(email: string): Promise<Usuario | null> {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email },
+      include: {
+        perfil: {
+          include: {
+            permissoes: true,
+          },
+        },
+      },
+    });
+    if (!usuario) return null;
+
+    const newUsuario = new Usuario();
+    newUsuario.id = usuario.id;
+    newUsuario.email = usuario.email;
+    newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
+    newUsuario.createdAt = usuario.createdAt;
+    newUsuario.updatedAt = usuario.updatedAt;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    newUsuario.perfil = usuario.perfil;
     return newUsuario;
   }
 }

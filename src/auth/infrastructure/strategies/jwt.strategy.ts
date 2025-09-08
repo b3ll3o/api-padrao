@@ -7,6 +7,14 @@ import { UsuariosService } from '../../../usuarios/application/services/usuarios
 interface JwtPayload {
   email: string;
   sub: number;
+  perfil?: {
+    id: number;
+    nome: string;
+    permissoes?: {
+      id: number;
+      nome: string;
+    }[];
+  };
 }
 
 @Injectable()
@@ -23,6 +31,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async validate(payload: JwtPayload) {
-    return { userId: payload.sub, email: payload.email };
+    return { userId: payload.sub, email: payload.email, perfil: payload.perfil };
   }
 }
