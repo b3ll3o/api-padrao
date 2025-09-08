@@ -16,7 +16,6 @@ declare module 'express' {
   }
 }
 
-
 @Injectable()
 export class AuthGuard extends PassportAuthGuard('jwt') {
   constructor(private reflector: Reflector) {
