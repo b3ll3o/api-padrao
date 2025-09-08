@@ -4,6 +4,15 @@
 
 Este projeto é uma API RESTful desenvolvida com NestJS, utilizando Prisma como ORM e PostgreSQL como banco de dados. A API inclui módulos de autenticação com JWT, gerenciamento de usuários, perfis e permissões.
 
+### Características Principais
+
+* Autenticação JWT com perfis e permissões
+* Gerenciamento de usuários com múltiplos perfis
+* Perfis com código único e descrição detalhada
+* Permissões com código único e descrição detalhada
+* Sistema de paginação para listagens
+* Documentação completa com Swagger/OpenAPI
+
 ## Tecnologias Utilizadas
 
 *   **Framework:** NestJS (v11.0)
@@ -216,6 +225,8 @@ Exemplo de resposta paginada:
         ```json
         {
           "nome": "Administrador",
+          "codigo": "ADMIN",
+          "descricao": "Perfil de administrador do sistema",
           "permissoesIds": [1, 2]
         }
         ```
@@ -224,9 +235,11 @@ Exemplo de resposta paginada:
         {
           "id": 1,
           "nome": "Administrador",
+          "codigo": "ADMIN",
+          "descricao": "Perfil de administrador do sistema",
           "permissoes": [
-            { "id": 1, "nome": "read:users" },
-            { "id": 2, "nome": "write:users" }
+            { "id": 1, "nome": "read:users", "codigo": "READ_USERS", "descricao": "Permissão para ler usuários" },
+            { "id": 2, "nome": "write:users", "codigo": "WRITE_USERS", "descricao": "Permissão para escrever usuários" }
           ]
         }
         ```
@@ -335,14 +348,18 @@ Exemplo de resposta paginada:
     *   **Request Body:**
         ```json
         {
-          "nome": "read:users"
+          "nome": "read:users",
+          "codigo": "READ_USERS",
+          "descricao": "Permissão para ler usuários"
         }
         ```
     *   **Response (Success - 201 Created):**
         ```json
         {
           "id": 1,
-          "nome": "read:users"
+          "nome": "read:users",
+          "codigo": "READ_USERS",
+          "descricao": "Permissão para ler usuários"
         }
         ```
     *   **Response (Failure - 400 Bad Request):**

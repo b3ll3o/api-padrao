@@ -13,11 +13,12 @@ async function bootstrap() {
       API RESTful desenvolvida com NestJS, utilizando Prisma como ORM e PostgreSQL como banco de dados.
       
       ## Recursos
-      - Autenticação JWT
-      - Gerenciamento de Usuários
-      - Gerenciamento de Perfis
-      - Gerenciamento de Permissões
+      - Autenticação JWT com perfis e permissões
+      - Gerenciamento de Usuários com múltiplos perfis
+      - Gerenciamento de Perfis com código único e descrição
+      - Gerenciamento de Permissões com código único e descrição
       - Paginação em todos os endpoints de listagem
+      - Documentação completa com Swagger/OpenAPI
       
       ## Configurações
       - Porta: ${process.env.PORT ?? 3000}
