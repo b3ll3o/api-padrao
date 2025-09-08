@@ -1,38 +1,7 @@
 import {
   ConflictException,
   Injectable,
-  No  async findOne(i  async findOne(id: number, usuarioLogado: JwtPayload): Promise<Usuario> {
-    const usuario = await this.usuarioRepository.findOne(id);
-    if (!usuario) {
-      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
-    }
-
-    if (usuario.id !== usuarioLogado.userId) {
-      throw new ForbiddenException(
-        'Você não tem permissão para acessar os dados deste usuário',
-      );
-    }
-
-    const { senha: _, perfis: __, ...usuarioSemDadosSensiveis } = usuario;
-    return usuarioSemDadosSensiveis;
-  }arioLogado: JwtPayload): Promise<Usuario> {
-    const usuario = await this.usuarioRepository.findOne(id);
-    if (!usuario) {
-      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
-    }
-
-    if (usuario.id !== usuarioLogado.userId) {
-      throw new ForbiddenException(
-        'Você não tem permissão para acessar os dados deste usuário',
-      );
-    }
-
-    // Remove sensitive data
-    delete usuario.senha;
-    delete usuario.perfis;
-    
-    return usuario;
-  }n,
+  NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
@@ -47,6 +16,7 @@ type UsuarioLogado = JwtPayload;
 @Injectable()
 export class UsuariosService {
   constructor(private readonly usuarioRepository: UsuarioRepository) {}
+  
   async create(createUsuarioDto: CreateUsuarioDto) {
     const usuarioExistente = await this.usuarioRepository.findByEmail(
       createUsuarioDto.email,
@@ -89,6 +59,9 @@ export class UsuariosService {
       );
     }
 
+    // Remove sensitive data
+    delete usuario.senha;
+    delete usuario.perfis;
     return usuario;
   }
 }
