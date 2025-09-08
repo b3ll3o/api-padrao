@@ -207,22 +207,36 @@ describe('PerfisService', () => {
         },
       ];
       const paginationDto = { page: 1, limit: 10 };
-      mockPerfilRepository.findByNomeContaining.mockResolvedValue([expectedPerfis, 2]);
+      mockPerfilRepository.findByNomeContaining.mockResolvedValue([
+        expectedPerfis,
+        2,
+      ]);
 
       const result = await service.findByNome('Test Perfil', paginationDto);
 
       expect(result).toEqual({ data: expectedPerfis, total: 2 });
-      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith('Test Perfil', 0, 10);
+      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith(
+        'Test Perfil',
+        0,
+        10,
+      );
     });
 
     it('should return an empty paginated list if no perfil is found by name', async () => {
       const paginationDto = { page: 1, limit: 10 };
       mockPerfilRepository.findByNomeContaining.mockResolvedValue([[], 0]);
 
-      const result = await service.findByNome('Non Existent Perfil', paginationDto);
+      const result = await service.findByNome(
+        'Non Existent Perfil',
+        paginationDto,
+      );
 
       expect(result).toEqual({ data: [], total: 0 });
-      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith('Non Existent Perfil', 0, 10);
+      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith(
+        'Non Existent Perfil',
+        0,
+        10,
+      );
     });
   });
 

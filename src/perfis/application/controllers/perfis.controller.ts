@@ -75,7 +75,10 @@ export class PerfisController {
     description: 'Retorna uma lista de perfis que contêm a string no nome.',
     type: PaginatedResponseDto,
   })
-  findByNome(@Param('nome') nome: string, @Query() paginationDto: PaginationDto): Promise<PaginatedResponseDto<Perfil>> {
+  findByNome(
+    @Param('nome') nome: string,
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<Perfil>> {
     return this.perfisService.findByNomeContaining(nome, paginationDto);
   }
 

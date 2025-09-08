@@ -61,7 +61,11 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     });
   }
 
-  async findByNomeContaining(nome: string, skip: number, take: number): Promise<[Permissao[], number]> {
+  async findByNomeContaining(
+    nome: string,
+    skip: number,
+    take: number,
+  ): Promise<[Permissao[], number]> {
     const data = await this.prisma.permissao.findMany({
       skip,
       take,

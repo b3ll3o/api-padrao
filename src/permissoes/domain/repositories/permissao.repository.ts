@@ -12,5 +12,9 @@ export abstract class PermissaoRepository {
   ): Promise<Permissao | undefined>;
   abstract remove(id: number): Promise<void>;
   abstract findByNome(nome: string): Promise<Permissao | null>;
-  abstract findByNomeContaining(nome: string, skip: number, take: number): Promise<[Permissao[], number]>;
+  abstract findByNomeContaining(
+    nome: string,
+    skip: number,
+    take: number,
+  ): Promise<[Permissao[], number]>;
 }

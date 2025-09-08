@@ -75,7 +75,10 @@ export class PermissoesController {
     description: 'Retorna uma lista de permissões que contêm a string no nome.',
     type: PaginatedResponseDto,
   })
-  findByName(@Param('nome') nome: string, @Query() paginationDto: PaginationDto): Promise<PaginatedResponseDto<Permissao>> {
+  findByName(
+    @Param('nome') nome: string,
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<Permissao>> {
     return this.permissoesService.findByNomeContaining(nome, paginationDto);
   }
 

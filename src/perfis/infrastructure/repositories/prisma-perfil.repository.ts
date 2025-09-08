@@ -82,7 +82,11 @@ export class PrismaPerfilRepository implements PerfilRepository {
     });
   }
 
-  async findByNomeContaining(nome: string, skip: number, take: number): Promise<[Perfil[], number]> {
+  async findByNomeContaining(
+    nome: string,
+    skip: number,
+    take: number,
+  ): Promise<[Perfil[], number]> {
     const data = await this.prisma.perfil.findMany({
       skip,
       take,

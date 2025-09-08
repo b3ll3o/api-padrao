@@ -12,5 +12,9 @@ export abstract class PerfilRepository {
   ): Promise<Perfil | undefined>;
   abstract remove(id: number): Promise<void>;
   abstract findByNome(nome: string): Promise<Perfil | null>;
-  abstract findByNomeContaining(nome: string, skip: number, take: number): Promise<[Perfil[], number]>;
+  abstract findByNomeContaining(
+    nome: string,
+    skip: number,
+    take: number,
+  ): Promise<[Perfil[], number]>;
 }
