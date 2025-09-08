@@ -9,6 +9,14 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { JwtPayload } from '../../infrastructure/strategies/jwt.strategy';
 import { Request } from 'express';
 
+declare module 'express' {
+  interface Request {
+    usuarioLogado?: JwtPayload;
+    user?: JwtPayload;
+  }
+}
+
+
 @Injectable()
 export class AuthGuard extends PassportAuthGuard('jwt') {
   constructor(private reflector: Reflector) {
@@ -16,6 +24,7 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<Request>();
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -24,11 +33,10 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
     const result = await super.canActivate(context);
 
     if (result) {
-      request.usuarioLogado = request.user as JwtPayload; // user is attached by AuthGuard
+      request.usuarioLogado = request.user; // user is attached by AuthGuard
     }
     return result as boolean;
   }

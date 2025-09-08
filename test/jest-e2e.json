@@ -4,7 +4,18 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": ["ts-jest", {
+      "tsconfig": {
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "noImplicitAny": false,
+        "strictNullChecks": true,
+        "strictBindCallApply": false,
+        "noFallthroughCasesInSwitch": false
+      }
+    }]
   },
   "moduleNameMapper": {
     "^src/(.*)$": "<rootDir>/src/$1"
