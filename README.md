@@ -2,45 +2,43 @@
 
 ## Descrição do Projeto
 
-Este projeto é uma API RESTful desenvolvida com NestJS, utilizando Prisma como ORM e PostgreSQL como banco de dados. A API inclui módulos de autenticação com JWT, gerenciamento de usuários, perfis e permissões.
+Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, utilizando Prisma como ORM e PostgreSQL como banco de dados. A arquitetura segue princípios de Clean Architecture, garantindo modularidade, testabilidade e fácil manutenção. A API inclui módulos essenciais para autenticação, gerenciamento de usuários, perfis e permissões, fornecendo uma base sólida para diversas aplicações.
 
 ### Características Principais
 
-* Autenticação JWT com perfis e permissões
-* Gerenciamento de usuários com múltiplos perfis
-* Perfis com código único e descrição detalhada
-* Permissões com código único e descrição detalhada
-* Sistema de paginação para listagens
-* Documentação completa com Swagger/OpenAPI
+*   **Autenticação Segura:** Implementação de autenticação JWT (JSON Web Tokens) para acesso seguro aos recursos da API.
+*   **Gerenciamento de Usuários:** Funcionalidades completas para criação, leitura, atualização e exclusão de usuários, com suporte a múltiplos perfis.
+*   **Perfis e Permissões:** Sistema granular de perfis e permissões, permitindo controle de acesso detalhado a diferentes funcionalidades da API.
+*   **Paginação:** Suporte a paginação em endpoints de listagem para otimização de desempenho e experiência do usuário.
+*   **Documentação Interativa:** Documentação completa e interativa da API gerada automaticamente com Swagger/OpenAPI.
 
 ## Tecnologias Utilizadas
 
-*   **Framework:** NestJS (v11.0)
-*   **Linguagem:** TypeScript (v5.7)
-*   **ORM:** Prisma (v6.15)
-*   **Banco de Dados:** PostgreSQL
-*   **Autenticação:** JWT (JSON Web Tokens)
-*   **Documentação:** Swagger/OpenAPI (v5.0)
-*   **Containerização:** Docker
-*   **Validação:** class-validator (v0.14)
-*   **Transformação:** class-transformer (v0.5)
+*   **Framework:** NestJS (v11.1.6)
+*   **Linguagem:** TypeScript (v5.6.2)
+*   **ORM:** Prisma (v6.15.0)
+*   **Banco de Dados:** PostgreSQL (via Docker)
+*   **Autenticação:** JWT (JSON Web Tokens), Passport.js, bcrypt
+*   **Validação:** class-validator, class-transformer
+*   **Testes:** Jest, Supertest
+*   **Estilo de Código:** ESLint, Prettier
 
-## Configuração do Ambiente
+## Primeiros Passos
 
 ### Pré-requisitos
 
 Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
 
-*   Node.js (versão 20.x ou superior)
-*   npm (gerenciador de pacotes do Node.js)
-*   Docker (para o banco de dados PostgreSQL)
-*   Git (para controle de versão)
+*   [Node.js](https://nodejs.org/en/) (versão 20.x ou superior)
+*   [npm](https://www.npmjs.com/) (gerenciador de pacotes do Node.js)
+*   [Docker](https://www.docker.com/) (para o banco de dados PostgreSQL e pgAdmin)
+*   [Git](https://git-scm.com/) (para controle de versão)
 
 ### Instalação
 
 1.  Clone o repositório:
     ```bash
-    git clone <URL_DO_REPOSITORIO>
+    git clone <URL_DO_REPOSITORIO> # Substitua pela URL real do seu repositório
     cd api-padrao
     ```
 2.  Instale as dependências do projeto:
@@ -61,7 +59,7 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
     ```
     *Nota: Você pode alterar os valores conforme sua preferência.*
 
-2.  Inicie o contêiner do PostgreSQL e pgAdmin (se estiver usando Docker/Podman Compose):
+2.  Inicie os contêineres do PostgreSQL e pgAdmin usando Docker Compose:
     ```bash
     docker-compose up -d
     ```
@@ -71,16 +69,16 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
     npx prisma migrate dev
     ```
 
-## Executando a Aplicação
+### Executando a Aplicação
 
-### Modo de Desenvolvimento
+#### Modo de Desenvolvimento
 
 ```bash
 npm run start:dev
 ```
 A aplicação estará disponível em `http://localhost:3000` (ou na porta configurada na variável de ambiente `PORT`).
 
-### Modo de Produção
+#### Modo de Produção
 
 ```bash
 npm run build
@@ -92,369 +90,9 @@ npm run start:prod
 A documentação interativa da API está disponível através do Swagger UI.
 Após iniciar a aplicação, acesse: `http://localhost:3000/swagger`
 
-## Executando Testes
+## Convenções de Desenvolvimento
 
-### Testes Unitários
-
-```bash
-npm run test
-```
-
-### Testes End-to-End (E2E)
-
-Os testes E2E são executados em um banco de dados separado (`api-padrao-test`).
-
-1.  Execute as migrações para o banco de dados de teste:
-    ```bash
-    npm run test:migrate
-    ```
-2.  Execute os testes E2E:
-    ```bash
-    npm run test:e2e
-    ```
-
-## Endpoints da API
-
-### Paginação
-
-Todos os endpoints de listagem suportam paginação através dos seguintes parâmetros de query:
-
-```typescript
-{
-  page?: number;    // Página atual (padrão: 1)
-  limit?: number;   // Itens por página (padrão: 10)
-  sort?: string;    // Campo para ordenação
-  order?: 'asc' | 'desc';  // Direção da ordenação (padrão: 'asc')
-}
-```
-
-Exemplo de resposta paginada:
-```json
-{
-  "items": [],      // Array com os itens da página atual
-  "meta": {
-    "page": 1,      // Página atual
-    "limit": 10,    // Itens por página
-    "total": 100,   // Total de itens
-    "pages": 10     // Total de páginas
-  }
-}
-```
-
-### Autenticação
-
-*   **`POST /auth/login`**: Autentica um usuário e retorna um JWT.
-    *   **Request Body:**
-        ```json
-        {
-          "email": "user@example.com",
-          "senha": "Password123!"
-        }
-        ```
-    *   **Response (Success):**
-        ```json
-        {
-          "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        }
-        ```
-    *   **Response (Failure - 401 Unauthorized):**
-        ```json
-        {
-          "statusCode": 401,
-          "message": "Credenciais inválidas",
-          "error": "Unauthorized"
-        }
-        ```
-
-### Usuários
-
-*   **`POST /usuarios`**: Cria um novo usuário.
-    *   **Request Body:**
-        ```json
-        {
-          "email": "newuser@example.com",
-          "senha": "Password123!",
-          "perfisIds": [1, 2]
-        }
-        ```
-    *   **Response (Success - 201 Created):**
-        ```json
-        {
-          "id": 1,
-          "email": "newuser@example.com",
-          "perfis": [
-            {
-              "id": 1,
-              "nome": "Admin"
-            },
-            {
-              "id": 2,
-              "nome": "Editor"
-            }
-          ],
-          "createdAt": "2025-09-08T10:00:00.000Z",
-          "updatedAt": "2025-09-08T10:00:00.000Z"
-        }
-        ```
-    *   **Response (Failure - 409 Conflict):**
-        ```json
-        {
-          "statusCode": 409,
-          "message": "Usuário com este email já cadastrado",
-          "error": "Conflict"
-        }
-        ```
-    *   **Response (Failure - 400 Bad Request):**
-        ```json
-        {
-          "statusCode": 400,
-          "message": [
-            "E-mail inválido",
-            "A senha deve ter no mínimo 8 caracteres",
-            "A senha deve conter pelo menos uma letra maiúscula, uma minúscula, um número ou um caractere especial"
-          ],
-          "error": "Bad Request"
-        }
-        ```
-
-### Perfis
-
-*   **`POST /perfis`**: Cria um novo perfil.
-    *   **Requer Autenticação (JWT)**
-    *   **Request Body:**
-        ```json
-        {
-          "nome": "Administrador",
-          "codigo": "ADMIN",
-          "descricao": "Perfil de administrador do sistema",
-          "permissoesIds": [1, 2]
-        }
-        ```
-    *   **Response (Success - 201 Created):**
-        ```json
-        {
-          "id": 1,
-          "nome": "Administrador",
-          "codigo": "ADMIN",
-          "descricao": "Perfil de administrador do sistema",
-          "permissoes": [
-            { "id": 1, "nome": "read:users", "codigo": "READ_USERS", "descricao": "Permissão para ler usuários" },
-            { "id": 2, "nome": "write:users", "codigo": "WRITE_USERS", "descricao": "Permissão para escrever usuários" }
-          ]
-        }
-        ```
-    *   **Response (Failure - 400 Bad Request):**
-        ```json
-        {
-          "statusCode": 400,
-          "message": "Nome é obrigatório",
-          "error": "Bad Request"
-        }
-        ```
-
-*   **`GET /perfis`**: Lista todos os perfis (com suporte a paginação).
-    *   **Requer Autenticação (JWT)**
-    *   **Query Parameters:**
-        ```typescript
-        {
-          page?: number;
-          limit?: number;
-          sort?: string;
-          order?: 'asc' | 'desc';
-        }
-        ```
-    *   **Response (Success - 200 OK):**
-        ```json
-        {
-          "items": [
-            {
-              "id": 1,
-              "nome": "Administrador",
-              "permissoes": []
-            }
-          ],
-          "meta": {
-            "page": 1,
-            "limit": 10,
-            "total": 1,
-            "pages": 1
-          }
-        }
-        ```
-
-*   **`GET /perfis/:id`**: Busca um perfil por ID.
-    *   **Requer Autenticação (JWT)**
-    *   **Response (Success - 200 OK):**
-        ```json
-        {
-          "id": 1,
-          "nome": "Administrador",
-          "permissoes": []
-        }
-        ```
-    *   **Response (Failure - 404 Not Found):**
-        ```json
-        {
-          "statusCode": 404,
-          "message": "Perfil com ID 999 não encontrado",
-          "error": "Not Found"
-        }
-        ```
-
-*   **`PATCH /perfis/:id`**: Atualiza um perfil existente.
-    *   **Requer Autenticação (JWT)**
-    *   **Request Body:**
-        ```json
-        {
-          "nome": "Editor",
-          "permissoesIds": [3]
-        }
-        ```
-    *   **Response (Success - 200 OK):**
-        ```json
-        {
-          "id": 1,
-          "nome": "Editor",
-          "permissoes": [
-            { "id": 3, "nome": "delete:users" }
-          ]
-        }
-        ```
-    *   **Response (Failure - 404 Not Found):**
-        ```json
-        {
-          "statusCode": 404,
-          "message": "Perfil com ID 999 não encontrado",
-          "error": "Not Found"
-        }
-        ```
-
-*   **`DELETE /perfis/:id`**: Remove um perfil por ID.
-    *   **Requer Autenticação (JWT)**
-    *   **Response (Success - 204 No Content)**
-    *   **Response (Failure - 404 Not Found):**
-        ```json
-        {
-          "statusCode": 404,
-          "message": "Perfil com ID 999 não encontrado",
-          "error": "Not Found"
-        }
-        ```
-
-### Permissões
-
-*   **`POST /permissoes`**: Cria uma nova permissão.
-    *   **Requer Autenticação (JWT)**
-    *   **Request Body:**
-        ```json
-        {
-          "nome": "read:users",
-          "codigo": "READ_USERS",
-          "descricao": "Permissão para ler usuários"
-        }
-        ```
-    *   **Response (Success - 201 Created):**
-        ```json
-        {
-          "id": 1,
-          "nome": "read:users",
-          "codigo": "READ_USERS",
-          "descricao": "Permissão para ler usuários"
-        }
-        ```
-    *   **Response (Failure - 400 Bad Request):**
-        ```json
-        {
-          "statusCode": 400,
-          "message": "Nome é obrigatório",
-          "error": "Bad Request"
-        }
-        ```
-
-*   **`GET /permissoes`**: Lista todas as permissões (com suporte a paginação).
-    *   **Requer Autenticação (JWT)**
-    *   **Query Parameters:**
-        ```typescript
-        {
-          page?: number;
-          limit?: number;
-          sort?: string;
-          order?: 'asc' | 'desc';
-        }
-        ```
-    *   **Response (Success - 200 OK):**
-        ```json
-        {
-          "items": [
-            {
-              "id": 1,
-              "nome": "read:users"
-            }
-          ],
-          "meta": {
-            "page": 1,
-            "limit": 10,
-            "total": 1,
-            "pages": 1
-          }
-        }
-        ```
-
-*   **`GET /permissoes/:id`**: Busca uma permissão por ID.
-    *   **Requer Autenticação (JWT)**
-    *   **Response (Success - 200 OK):**
-        ```json
-        {
-          "id": 1,
-          "nome": "read:users"
-        }
-        ```
-    *   **Response (Failure - 404 Not Found):**
-        ```json
-        {
-          "statusCode": 404,
-          "message": "Permissão com ID 999 não encontrada",
-          "error": "Not Found"
-        }
-        ```
-
-*   **`PATCH /permissoes/:id`**: Atualiza uma permissão existente.
-    *   **Requer Autenticação (JWT)**
-    *   **Request Body:**
-        ```json
-        {
-          "nome": "write:users"
-        }
-        ```
-    *   **Response (Success - 200 OK):**
-        ```json
-        {
-          "id": 1,
-          "nome": "write:users"
-        }
-        ```
-    *   **Response (Failure - 404 Not Found):**
-        ```json
-        {
-          "statusCode": 404,
-          "message": "Permissão com ID 999 não encontrada",
-          "error": "Not Found"
-        }
-        ```
-
-*   **`DELETE /permissoes/:id`**: Remove uma permissão por ID.
-    *   **Requer Autenticação (JWT)**
-    *   **Response (Success - 204 No Content)**
-    *   **Response (Failure - 404 Not Found):**
-        ```json
-        {
-          "statusCode": 404,
-          "message": "Permissão com ID 999 não encontrada",
-          "error": "Not Found"
-        }
-        ```
-
-## Estrutura do Projeto
+### Estrutura do Projeto
 
 O projeto segue uma arquitetura limpa (Clean Architecture) com a seguinte estrutura:
 
@@ -473,32 +111,31 @@ src/
 
 ### Camadas da Arquitetura
 
-* **Domain**: Contém as regras de negócio e entidades
-* **Application**: Implementa os casos de uso da aplicação
-* **Infrastructure**: Lida com aspectos técnicos e frameworks
-* **DTOs**: Define os objetos de transferência de dados
+*   **Domain**: Contém as regras de negócio e entidades.
+*   **Application**: Implementa os casos de uso da aplicação.
+*   **Infrastructure**: Lida com aspectos técnicos e frameworks.
+*   **DTOs**: Define os objetos de transferência de dados.
 
-## Testes
+### Testes
 
 O projeto inclui testes unitários e de integração (E2E). Os testes são executados em um banco de dados separado para garantir o isolamento.
 
-### Cobertura de Testes
+*   **Testes Unitários:**
+    ```bash
+    npm run test
+    ```
+*   **Cobertura de Testes:**
+    ```bash
+    npm run test:cov
+    ```
+*   **Testes End-to-End (E2E):**
+    ```bash
+    npm run test:e2e
+    ```
 
-Execute os testes com cobertura usando:
+### Estilo de Código
 
-```bash
-npm run test:cov
-```
-
-### Testes E2E
-
-Os testes E2E cobrem os principais fluxos da aplicação:
-
-* Autenticação e autorização
-* CRUD de usuários
-* CRUD de perfis
-* CRUD de permissões
-* Relacionamentos entre entidades
+O projeto utiliza ESLint para linting e Prettier para formatação de código. Os arquivos de configuração são `eslint.config.js` e `.prettierrc`.
 
 ## Licença
 
