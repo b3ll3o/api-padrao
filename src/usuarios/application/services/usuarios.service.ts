@@ -53,11 +53,12 @@ export class UsuariosService {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
 
-    const isAdmin = usuarioLogado.perfis?.some((perfil) =>
-      perfil.permissoes?.some((p) => p.codigo === 'READ_USERS'),
+    const isOwner = usuario.id === usuarioLogado.userId;
+    const isAdmin = usuarioLogado.perfis?.some(
+      (perfil) => perfil.codigo === 'ADMIN',
     );
 
-    if (usuario.id !== usuarioLogado.userId && !isAdmin) {
+    if (!isOwner && !isAdmin) {
       throw new ForbiddenException(
         'Você não tem permissão para acessar os dados deste usuário',
       );

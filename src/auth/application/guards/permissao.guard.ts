@@ -13,12 +13,11 @@ export class PermissaoGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredPermissaoCodigo = this.reflector.getAllAndOverride<string>( // Changed type to string
-      PERMISSAO_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredPermissoes = this.reflector.getAllAndOverride<
+      string | string[]
+    >(PERMISSAO_KEY, [context.getHandler(), context.getClass()]);
 
-    if (!requiredPermissaoCodigo) {
+    if (!requiredPermissoes) {
       return true; // No permissao required for this route
     }
 
@@ -31,9 +30,13 @@ export class PermissaoGuard implements CanActivate {
       );
     }
 
+    const requiredPermissoesArray = Array.isArray(requiredPermissoes)
+      ? requiredPermissoes
+      : [requiredPermissoes];
+
     const hasPermissao = user.perfis.some((perfil) =>
-      perfil.permissoes?.some(
-        (permissao) => permissao.codigo === requiredPermissaoCodigo, // Changed to permissao.codigo
+      perfil.permissoes?.some((permissao) =>
+        requiredPermissoesArray.includes(permissao.codigo),
       ),
     );
 

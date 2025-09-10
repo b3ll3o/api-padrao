@@ -177,6 +177,17 @@ describe('UsuariosController (e2e)', () => {
         where: { codigo: 'ADMIN' },
       });
 
+      if (adminProfile) {
+        await prisma.perfil.update({
+          where: { id: adminProfile.id },
+          data: {
+            permissoes: {
+              connect: { id: readUsuarioByIdPerm.id },
+            },
+          },
+        });
+      }
+
       // Create users
       user1 = await prisma.usuario.create({
         data: {
