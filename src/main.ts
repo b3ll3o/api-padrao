@@ -56,7 +56,9 @@ async function bootstrap() {
     .addTag('Permissões', 'Gerenciamento de permissões do sistema')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('swagger', app, document);
+  SwaggerModule.setup('swagger', app, document, {
+    jsonDocumentUrl: 'swagger-json',
+  });
 
   await app.listen(process.env.PORT ?? 3000);
 }
