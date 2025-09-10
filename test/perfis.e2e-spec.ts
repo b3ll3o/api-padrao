@@ -34,41 +34,52 @@ describe('PerfisController (e2e)', () => {
     await cleanDatabase(prisma);
 
     // Create permissions
-    const perm1 = await prisma.permissao.create({
-      data: {
+    const permissionsData = [
+      {
         nome: 'read:users',
         codigo: 'READ_USERS',
         descricao: 'Permissão para ler usuários',
       },
-    });
-    const perm2 = await prisma.permissao.create({
-      data: {
+      {
         nome: 'write:users',
         codigo: 'WRITE_USERS',
         descricao: 'Permissão para escrever usuários',
       },
-    });
-    const perm3 = await prisma.permissao.create({
-      data: {
+      {
+        nome: 'create:perfis',
+        codigo: 'CREATE_PERFIL',
+        descricao: 'Permissão para criar perfis',
+      },
+      {
         nome: 'read:perfis',
         codigo: 'READ_PERFIS',
         descricao: 'Permissão para ler perfis',
       },
-    });
-    const perm4 = await prisma.permissao.create({
-      data: {
-        nome: 'write:perfis',
-        codigo: 'WRITE_PERFIS',
-        descricao: 'Permissão para escrever perfis',
+      {
+        nome: 'read:perfis_by_id',
+        codigo: 'READ_PERFIL_BY_ID',
+        descricao: 'Permissão para ler perfis por id',
       },
-    });
-    const perm5 = await prisma.permissao.create({
-      data: {
+      {
+        nome: 'read:perfis_by_nome',
+        codigo: 'READ_PERFIL_BY_NOME',
+        descricao: 'Permissão para ler perfis por nome',
+      },
+      {
+        nome: 'update:perfis',
+        codigo: 'UPDATE_PERFIL',
+        descricao: 'Permissão para atualizar perfis',
+      },
+      {
         nome: 'delete:perfis',
-        codigo: 'DELETE_PERFIS',
+        codigo: 'DELETE_PERFIL',
         descricao: 'Permissão para deletar perfis',
       },
-    });
+    ];
+
+    const permissions = await Promise.all(
+      permissionsData.map((p) => prisma.permissao.create({ data: p })),
+    );
 
     // Create an admin profile with permissions
     let adminProfile = await prisma.perfil.create({
@@ -77,13 +88,7 @@ describe('PerfisController (e2e)', () => {
         codigo: 'ADMIN',
         descricao: 'Perfil de administrador',
         permissoes: {
-          connect: [
-            { id: perm1.id },
-            { id: perm2.id },
-            { id: perm3.id },
-            { id: perm4.id },
-            { id: perm5.id },
-          ],
+          connect: permissions.map((p) => ({ id: p.id })),
         },
       },
     });

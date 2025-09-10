@@ -149,15 +149,42 @@ describe('UsuariosController (e2e)', () => {
   describe('GET /usuarios/:id', () => {
     let user1;
     let user2;
+    let adminUser;
     let user1Token;
+    let adminToken;
 
     beforeEach(async () => {
-      // Create two users
+      // Create permissions
+      const readUsuarioByIdPerm = await prisma.permissao.create({
+        data: {
+          nome: 'read:usuario_by_id',
+          codigo: 'READ_USUARIO_BY_ID',
+          descricao: 'Permissão para ler usuários por ID',
+        },
+      });
+
+      // Create profiles
+      const userProfile = await prisma.perfil.create({
+        data: {
+          nome: 'User',
+          codigo: 'USER',
+          descricao: 'Perfil de usuário comum',
+          permissoes: { connect: { id: readUsuarioByIdPerm.id } },
+        },
+      });
+
+      const adminProfile = await prisma.perfil.findFirst({
+        where: { codigo: 'ADMIN' },
+      });
+
+      // Create users
       user1 = await prisma.usuario.create({
         data: {
           email: 'user1@example.com',
           senha: await bcrypt.hash('Password123!', 10),
+          perfis: { connect: { id: userProfile.id } },
         },
+        include: { perfis: { include: { permissoes: true } } },
       });
 
       user2 = await prisma.usuario.create({
@@ -167,30 +194,23 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
-      // Create token for user1
-      user1Token = jwtService.sign(
-        {
-          sub: user1.id,
-          email: user1.email,
-          perfis: [
-            {
-              id: 1,
-              nome: 'User',
-              codigo: 'USER',
-              descricao: 'Perfil de usuário comum',
-              permissoes: [
-                {
-                  id: 1,
-                  nome: 'read:users',
-                  codigo: 'READ_USERS',
-                  descricao: 'Permissão para ler usuários',
-                },
-              ],
-            },
-          ],
-        },
-        { expiresIn: '1h' },
-      );
+      adminUser = await prisma.usuario.findFirst({
+        where: { email: 'admin@example.com' },
+        include: { perfis: { include: { permissoes: true } } },
+      });
+
+      // Create tokens
+      user1Token = jwtService.sign({
+        sub: user1.id,
+        email: user1.email,
+        perfis: user1.perfis,
+      });
+
+      adminToken = jwtService.sign({
+        sub: adminUser.id,
+        email: adminUser.email,
+        perfis: adminUser.perfis,
+      });
     });
 
     it('deve permitir que um usuário acesse seus próprios dados', () => {
@@ -215,7 +235,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(403)
         .then((res) => {
           expect(res.body.message).toBe(
-            'Usuário não possui permissões suficientes para acessar este recurso.',
+            'Você não tem permissão para acessar os dados deste usuário',
           );
         });
     });
@@ -233,6 +253,21 @@ describe('UsuariosController (e2e)', () => {
         .expect(404)
         .then((res) => {
           expect(res.body.message).toBe('Usuário com ID 99999 não encontrado');
+        });
+    });
+
+    it('deve permitir que um admin acesse os dados de outro usuário', () => {
+      return supertestRequest(app.getHttpServer())
+        .get(`/usuarios/${user1.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200)
+        .then((res) => {
+          expect(res.body).toEqual({
+            id: user1.id,
+            email: user1.email,
+            createdAt: expect.any(String),
+            updatedAt: expect.any(String),
+          });
         });
     });
   });

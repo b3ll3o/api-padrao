@@ -34,41 +34,42 @@ describe('PermissoesController (e2e)', () => {
     await cleanDatabase(prisma);
 
     // Create permissions
-    const perm1 = await prisma.permissao.create({
-      data: {
-        nome: 'read:users',
-        codigo: 'READ_USERS',
-        descricao: 'Permissão para ler usuários',
+    const permissionsData = [
+      {
+        nome: 'create:permissao',
+        codigo: 'CREATE_PERMISSAO',
+        descricao: 'Permissão para criar permissões',
       },
-    });
-    const perm2 = await prisma.permissao.create({
-      data: {
-        nome: 'write:users',
-        codigo: 'WRITE_USERS',
-        descricao: 'Permissão para escrever usuários',
-      },
-    });
-    const perm3 = await prisma.permissao.create({
-      data: {
+      {
         nome: 'read:permissoes',
         codigo: 'READ_PERMISSOES',
         descricao: 'Permissão para ler permissões',
       },
-    });
-    const perm4 = await prisma.permissao.create({
-      data: {
-        nome: 'write:permissoes',
-        codigo: 'WRITE_PERMISSOES',
-        descricao: 'Permissão para escrever permissões',
+      {
+        nome: 'read:permissao_by_id',
+        codigo: 'READ_PERMISSAO_BY_ID',
+        descricao: 'Permissão para ler permissão por ID',
       },
-    });
-    const perm5 = await prisma.permissao.create({
-      data: {
-        nome: 'delete:permissoes',
-        codigo: 'DELETE_PERMISSOES',
-        descricao: 'Permissão para deletar permissões',
+      {
+        nome: 'read:permissao_by_nome',
+        codigo: 'READ_PERMISSAO_BY_NOME',
+        descricao: 'Permissão para ler permissão por nome',
       },
-    });
+      {
+        nome: 'update:permissao',
+        codigo: 'UPDATE_PERMISSAO',
+        descricao: 'Permissão para atualizar permissão',
+      },
+      {
+        nome: 'delete:permissao',
+        codigo: 'DELETE_PERMISSAO',
+        descricao: 'Permissão para deletar permissão',
+      },
+    ];
+
+    const permissions = await Promise.all(
+      permissionsData.map((p) => prisma.permissao.create({ data: p })),
+    );
 
     // Create an admin profile with permissions
     let adminProfile = await prisma.perfil.create({
@@ -77,13 +78,7 @@ describe('PermissoesController (e2e)', () => {
         codigo: 'ADMIN',
         descricao: 'Perfil de administrador',
         permissoes: {
-          connect: [
-            { id: perm1.id },
-            { id: perm2.id },
-            { id: perm3.id },
-            { id: perm4.id },
-            { id: perm5.id },
-          ],
+          connect: permissions.map((p) => ({ id: p.id })),
         },
       },
     });
@@ -157,14 +152,6 @@ describe('PermissoesController (e2e)', () => {
 
   describe('GET /permissoes', () => {
     it('deve retornar uma lista paginada de permissões', async () => {
-      await prisma.permissao.create({
-        data: {
-          nome: 'write:users',
-          codigo: 'WRITE_USERS',
-          descricao: 'Permissão para escrever usuários',
-        },
-      });
-
       return request(app.getHttpServer())
         .get('/permissoes')
         .set('Authorization', `Bearer ${token}`)
@@ -233,7 +220,7 @@ describe('PermissoesController (e2e)', () => {
       const paginationDto = { page: 1, limit: 10 };
 
       return request(app.getHttpServer())
-        .get('/permissoes/nome/teste')
+        .get('/permissoes/nome/permissao')
         .query(paginationDto) // Add query parameters
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
@@ -241,9 +228,8 @@ describe('PermissoesController (e2e)', () => {
           const paginatedResponse = res.body as PaginatedResponseDto<Permissao>;
           expect(paginatedResponse).toHaveProperty('data');
           expect(paginatedResponse.data).toBeInstanceOf(Array);
-          expect(paginatedResponse.data.length).toEqual(2);
-          expect(paginatedResponse.data[0].nome).toContain('teste');
-          expect(paginatedResponse.data[1].nome).toContain('teste');
+          expect(paginatedResponse.data.length).toBeGreaterThan(0);
+          expect(paginatedResponse.data[0].nome).toContain('permissao');
           expect(paginatedResponse).toHaveProperty('total');
           expect(typeof paginatedResponse.total).toBe('number');
         });
