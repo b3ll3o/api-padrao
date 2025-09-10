@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  console.log('NODE_ENV:', process.env.NODE_ENV); // Added this line
 
   // Swagger configuration
   const config = new DocumentBuilder()

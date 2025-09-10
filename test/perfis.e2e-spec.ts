@@ -5,6 +5,8 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { PaginatedResponseDto } from '../src/dto/paginated-response.dto';
 import { Perfil } from '../src/perfis/domain/entities/perfil.entity';
+import { cleanDatabase } from './e2e-utils';
+import * as bcrypt from 'bcrypt';
 
 describe('PerfisController (e2e)', () => {
   let app: INestApplication;
@@ -22,22 +24,92 @@ describe('PerfisController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
+  });
 
-    // Criar um usuário de teste
-    const createUserDto = {
-      email: 'test-perfil@example.com',
-      senha: 'Password123!',
-    };
+  afterAll(async () => {
+    await app.close();
+  });
 
-    await request(app.getHttpServer())
-      .post('/usuarios')
-      .send(createUserDto)
-      .expect(201);
+  beforeEach(async () => {
+    await cleanDatabase(prisma);
 
-    // Fazer login para obter um token
+    // Create permissions
+    const perm1 = await prisma.permissao.create({
+      data: {
+        nome: 'read:users',
+        codigo: 'READ_USERS',
+        descricao: 'Permissão para ler usuários',
+      },
+    });
+    const perm2 = await prisma.permissao.create({
+      data: {
+        nome: 'write:users',
+        codigo: 'WRITE_USERS',
+        descricao: 'Permissão para escrever usuários',
+      },
+    });
+    const perm3 = await prisma.permissao.create({
+      data: {
+        nome: 'read:perfis',
+        codigo: 'READ_PERFIS',
+        descricao: 'Permissão para ler perfis',
+      },
+    });
+    const perm4 = await prisma.permissao.create({
+      data: {
+        nome: 'write:perfis',
+        codigo: 'WRITE_PERFIS',
+        descricao: 'Permissão para escrever perfis',
+      },
+    });
+    const perm5 = await prisma.permissao.create({
+      data: {
+        nome: 'delete:perfis',
+        codigo: 'DELETE_PERFIS',
+        descricao: 'Permissão para deletar perfis',
+      },
+    });
+
+    // Create an admin profile with permissions
+    let adminProfile = await prisma.perfil.create({
+      data: {
+        nome: 'Admin',
+        codigo: 'ADMIN',
+        descricao: 'Perfil de administrador',
+        permissoes: {
+          connect: [
+            { id: perm1.id },
+            { id: perm2.id },
+            { id: perm3.id },
+            { id: perm4.id },
+            { id: perm5.id },
+          ],
+        },
+      },
+    });
+
+    // Fetch the admin profile with its permissions to ensure they are loaded
+    adminProfile = await prisma.perfil.findUniqueOrThrow({
+      where: { id: adminProfile.id },
+      include: { permissoes: true },
+    });
+
+    // Create an admin user
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    await prisma.usuario.create({
+      data: {
+        email: 'admin@example.com',
+        senha: hashedPassword,
+        perfis: {
+          connect: { id: adminProfile.id },
+        },
+      },
+    });
+
+    // Login as admin to get a token
     const loginDto = {
-      email: 'test-perfil@example.com',
-      senha: 'Password123!',
+      email: 'admin@example.com',
+      senha: 'admin123',
     };
 
     const res = await request(app.getHttpServer())
@@ -48,22 +120,8 @@ describe('PerfisController (e2e)', () => {
     token = res.body.access_token;
   });
 
-  afterAll(async () => {
-    await prisma.usuario.deleteMany({
-      where: { email: 'test-perfil@example.com' },
-    });
-    await app.close();
-    await prisma.$disconnect();
-  });
-
-  beforeEach(async () => {
-    await prisma.perfil.deleteMany();
-  });
-
   afterEach(async () => {
-    await prisma.permissao.deleteMany();
-    await prisma.perfil.deleteMany();
-    await prisma.usuario.deleteMany();
+    // Clean up data created by individual tests if necessary, but not global data
   });
 
   describe('POST /perfis', () => {

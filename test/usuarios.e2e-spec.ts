@@ -4,6 +4,8 @@ import supertestRequest from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { cleanDatabase } from './e2e-utils';
+import * as bcrypt from 'bcrypt';
 
 describe('UsuariosController (e2e)', () => {
   let app: INestApplication;
@@ -22,7 +24,6 @@ describe('UsuariosController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
-    await prisma.usuario.deleteMany();
   });
 
   afterAll(async () => {
@@ -30,11 +31,51 @@ describe('UsuariosController (e2e)', () => {
   });
 
   beforeEach(async () => {
-    await prisma.usuario.deleteMany();
+    await cleanDatabase(prisma);
+
+    // Create permissions
+    const perm1 = await prisma.permissao.create({
+      data: {
+        nome: 'read:users',
+        codigo: 'READ_USERS',
+        descricao: 'Permissão para ler usuários',
+      },
+    });
+    const perm2 = await prisma.permissao.create({
+      data: {
+        nome: 'write:users',
+        codigo: 'WRITE_USERS',
+        descricao: 'Permissão para escrever usuários',
+      },
+    });
+
+    // Create an admin profile with permissions
+    const adminProfile = await prisma.perfil.create({
+      data: {
+        nome: 'Admin',
+        codigo: 'ADMIN',
+        descricao: 'Perfil de administrador',
+        permissoes: {
+          connect: [{ id: perm1.id }, { id: perm2.id }],
+        },
+      },
+    });
+
+    // Create an admin user
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    await prisma.usuario.create({
+      data: {
+        email: 'admin@example.com',
+        senha: hashedPassword,
+        perfis: {
+          connect: { id: adminProfile.id },
+        },
+      },
+    });
   });
 
   afterEach(async () => {
-    await prisma.usuario.deleteMany();
+    // Clean up data created by individual tests if necessary, but not global data
   });
 
   describe('POST /usuarios', () => {
@@ -115,14 +156,14 @@ describe('UsuariosController (e2e)', () => {
       user1 = await prisma.usuario.create({
         data: {
           email: 'user1@example.com',
-          senha: 'Password123!',
+          senha: await bcrypt.hash('Password123!', 10),
         },
       });
 
       user2 = await prisma.usuario.create({
         data: {
           email: 'user2@example.com',
-          senha: 'Password123!',
+          senha: await bcrypt.hash('Password123!', 10),
         },
       });
 
@@ -131,7 +172,22 @@ describe('UsuariosController (e2e)', () => {
         {
           sub: user1.id,
           email: user1.email,
-          perfis: [],
+          perfis: [
+            {
+              id: 1,
+              nome: 'User',
+              codigo: 'USER',
+              descricao: 'Perfil de usuário comum',
+              permissoes: [
+                {
+                  id: 1,
+                  nome: 'read:users',
+                  codigo: 'READ_USERS',
+                  descricao: 'Permissão para ler usuários',
+                },
+              ],
+            },
+          ],
         },
         { expiresIn: '1h' },
       );
@@ -159,7 +215,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(403)
         .then((res) => {
           expect(res.body.message).toBe(
-            'Você não tem permissão para acessar os dados deste usuário',
+            'Usuário não possui permissões suficientes para acessar este recurso.',
           );
         });
     });

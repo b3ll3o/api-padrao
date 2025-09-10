@@ -21,6 +21,5 @@
   "moduleNameMapper": {
     "^src/(.*)$": "<rootDir>/src/$1"
   },
-  "maxWorkers": 1,
-  "globalSetup": "<rootDir>/test/setup-e2e.ts"
+  "maxWorkers": 1
 }

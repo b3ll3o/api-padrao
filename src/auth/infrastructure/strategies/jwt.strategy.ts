@@ -9,11 +9,9 @@ export interface JwtPayload {
   userId?: number;
   sub?: number;
   perfis?: {
-    id: number;
-    nome: string;
+    codigo: string;
     permissoes?: {
-      id: number;
-      nome: string;
+      codigo: string;
     }[];
   }[];
 }
@@ -32,7 +30,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.sub,
       email: payload.email,
-      perfis: payload.perfis,
+      perfis: payload.perfis?.map((perfil) => ({
+        codigo: perfil.codigo,
+        permissoes: perfil.permissoes?.map((permissao) => ({
+          codigo: permissao.codigo,
+        })),
+      })),
     };
   }
 }

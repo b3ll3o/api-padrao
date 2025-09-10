@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
+import { Perfil } from 'src/perfis/domain/entities/perfil.entity';
+import { Permissao } from 'src/permissoes/domain/entities/permissao.entity';
 
 @Injectable()
 export class PrismaUsuarioRepository implements UsuarioRepository {
@@ -79,9 +81,24 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
     newUsuario.createdAt = usuario.createdAt;
     newUsuario.updatedAt = usuario.updatedAt;
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    newUsuario.perfis = usuario.perfis;
+
+    newUsuario.perfis = usuario.perfis.map((perfil) => {
+      const newPerfil = new Perfil();
+      newPerfil.id = perfil.id;
+      newPerfil.nome = perfil.nome;
+      newPerfil.codigo = perfil.codigo;
+      newPerfil.descricao = perfil.descricao;
+      newPerfil.permissoes = perfil.permissoes.map((permissao) => {
+        const newPermissao = new Permissao();
+        newPermissao.id = permissao.id;
+        newPermissao.nome = permissao.nome;
+        newPermissao.codigo = permissao.codigo;
+        newPermissao.descricao = permissao.descricao;
+        return newPermissao;
+      });
+      return newPerfil;
+    });
+
     return newUsuario;
   }
 }

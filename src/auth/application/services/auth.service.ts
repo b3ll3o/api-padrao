@@ -24,9 +24,13 @@ export class AuthService {
     const perfis = user.perfis?.map((perfil) => ({
       id: perfil.id,
       nome: perfil.nome,
+      codigo: perfil.codigo,
+      descricao: perfil.descricao,
       permissoes: perfil.permissoes?.map((permissao) => ({
         id: permissao.id,
         nome: permissao.nome,
+        codigo: permissao.codigo,
+        descricao: permissao.descricao,
       })),
     }));
 

@@ -20,6 +20,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { PaginationDto } from '../../../dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
 
@@ -29,6 +30,7 @@ import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
 export class PermissoesController {
   constructor(private readonly permissoesService: PermissoesService) {}
 
+  @TemPermissao('CREATE_PERMISSAO')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Criar uma nova permissão' })
@@ -42,6 +44,7 @@ export class PermissoesController {
     return this.permissoesService.create(createPermissaoDto);
   }
 
+  @TemPermissao('READ_PERMISSOES')
   @Get()
   @ApiOperation({ summary: 'Listar todas as permissões' })
   @ApiResponse({
@@ -56,6 +59,7 @@ export class PermissoesController {
     return this.permissoesService.findAll(paginationDto);
   }
 
+  @TemPermissao('READ_PERMISSAO_BY_ID')
   @Get(':id')
   @ApiOperation({ summary: 'Buscar uma permissão por ID' })
   @ApiResponse({
@@ -68,6 +72,7 @@ export class PermissoesController {
     return this.permissoesService.findOne(+id);
   }
 
+  @TemPermissao('READ_PERMISSAO_BY_NOME')
   @Get('nome/:nome')
   @ApiOperation({ summary: 'Buscar permissões por nome contendo a string' })
   @ApiResponse({
@@ -82,6 +87,7 @@ export class PermissoesController {
     return this.permissoesService.findByNomeContaining(nome, paginationDto);
   }
 
+  @TemPermissao('UPDATE_PERMISSAO')
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar uma permissão existente' })
   @ApiResponse({
@@ -99,6 +105,7 @@ export class PermissoesController {
   }
 
   @Delete(':id')
+  @TemPermissao('DELETE_PERMISSAO')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remover uma permissão por ID' })
   @ApiResponse({

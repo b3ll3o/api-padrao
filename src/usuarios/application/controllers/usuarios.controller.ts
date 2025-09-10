@@ -9,12 +9,8 @@ import {
 } from '@nestjs/common';
 import { UsuariosService } from '../services/usuarios.service';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
-import {
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { Request } from 'express';
 import { Public } from '../../../auth/application/decorators/public.decorator';
 import { Usuario } from 'src/usuarios/domain/entities/usuario.entity';
@@ -60,7 +56,7 @@ export class UsuariosController {
     description:
       'Usuário não encontrado - O ID especificado não existe no sistema.',
   })
-  @ApiBearerAuth('JWT')
+  @TemPermissao('READ_USUARIO_BY_ID')
   findOne(@Param('id') id: string, @Req() req: Request): Promise<Usuario> {
     if (!req.usuarioLogado) {
       throw new ForbiddenException('Usuário não autenticado');

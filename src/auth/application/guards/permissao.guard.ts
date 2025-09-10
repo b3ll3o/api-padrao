@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSAO_KEY } from '../decorators/permissao.decorator';
+import { PERMISSAO_KEY } from '../decorators/temPermissao.decorator'; // Changed import path
 import { Request } from 'express';
 
 @Injectable()
@@ -13,12 +13,12 @@ export class PermissaoGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredPermissaoId = this.reflector.getAllAndOverride<number>(
+    const requiredPermissaoCodigo = this.reflector.getAllAndOverride<string>( // Changed type to string
       PERMISSAO_KEY,
       [context.getHandler(), context.getClass()],
     );
 
-    if (!requiredPermissaoId) {
+    if (!requiredPermissaoCodigo) {
       return true; // No permissao required for this route
     }
 
@@ -33,7 +33,7 @@ export class PermissaoGuard implements CanActivate {
 
     const hasPermissao = user.perfis.some((perfil) =>
       perfil.permissoes?.some(
-        (permissao) => permissao.id === requiredPermissaoId,
+        (permissao) => permissao.codigo === requiredPermissaoCodigo, // Changed to permissao.codigo
       ),
     );
 

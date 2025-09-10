@@ -5,6 +5,7 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "type": "module",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -17,8 +18,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/api-padrao-test\" jest --config ./test/jest-e2e.json",
-    "test:migrate": "DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/api-padrao-test\" npx prisma migrate dev"
+    "test:e2e": "NODE_ENV=test DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/api-padrao-test\" jest --config ./test/jest-e2e.json",
+    "test:migrate": "DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/api-padrao-test\" npx prisma migrate deploy"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

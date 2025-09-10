@@ -46,10 +46,17 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('should return an access token with user, profiles, and permissions if login is successful', async () => {
-      const mockPermissao: Permissao = { id: 1, nome: 'read:users' };
+      const mockPermissao: Permissao = {
+        id: 1,
+        nome: 'read:users',
+        codigo: 'READ_USERS',
+        descricao: 'Permite ler usuários',
+      };
       const mockPerfil: Perfil = {
         id: 1,
         nome: 'Admin',
+        codigo: 'ADMIN',
+        descricao: 'Perfil de administrador',
         permissoes: [mockPermissao],
       };
       const mockUser: Usuario = {
@@ -82,10 +89,14 @@ describe('AuthService', () => {
             {
               id: mockPerfil.id,
               nome: mockPerfil.nome,
+              codigo: mockPerfil.codigo,
+              descricao: mockPerfil.descricao,
               permissoes: [
                 {
                   id: mockPermissao.id,
                   nome: mockPermissao.nome,
+                  codigo: mockPermissao.codigo,
+                  descricao: mockPermissao.descricao,
                 },
               ],
             },

@@ -34,12 +34,6 @@ describe('AuthController (e2e)', () => {
     await prisma.permissao.deleteMany();
   });
 
-  afterEach(async () => {
-    await prisma.usuario.deleteMany();
-    await prisma.perfil.deleteMany();
-    await prisma.permissao.deleteMany();
-  });
-
   describe('POST /auth/login', () => {
     it('deve permitir que um usuário faça login com sucesso e retorne JWT com perfis e permissões', async () => {
       // Criar permissões
@@ -77,7 +71,6 @@ describe('AuthController (e2e)', () => {
       };
 
       // Primeiro, criar um usuário com o perfil
-
       await request(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
@@ -97,26 +90,38 @@ describe('AuthController (e2e)', () => {
           expect(typeof res.body.access_token).toBe('string');
 
           // Decodificar o JWT e verificar seu conteúdo
-
           const decodedJwt: any = jwtService.decode(res.body.access_token);
 
           expect(decodedJwt.email).toEqual(createUserDto.email);
-
           expect(decodedJwt.sub).toBeDefined();
-
           expect(decodedJwt.perfis).toBeInstanceOf(Array);
-
           expect(decodedJwt.perfis.length).toEqual(1);
 
+          // Check profile properties
           expect(decodedJwt.perfis[0].nome).toEqual(perfil.nome);
+          expect(decodedJwt.perfis[0].codigo).toEqual(perfil.codigo);
+          expect(decodedJwt.perfis[0].descricao).toEqual(perfil.descricao);
 
+          // Check permissions properties
           expect(decodedJwt.perfis[0].permissoes).toBeInstanceOf(Array);
-
           expect(decodedJwt.perfis[0].permissoes.length).toEqual(2);
 
+          // Verify each permission
           expect(decodedJwt.perfis[0].permissoes[0].nome).toEqual(perm1.nome);
+          expect(decodedJwt.perfis[0].permissoes[0].codigo).toEqual(
+            perm1.codigo,
+          );
+          expect(decodedJwt.perfis[0].permissoes[0].descricao).toEqual(
+            perm1.descricao,
+          );
 
           expect(decodedJwt.perfis[0].permissoes[1].nome).toEqual(perm2.nome);
+          expect(decodedJwt.perfis[0].permissoes[1].codigo).toEqual(
+            perm2.codigo,
+          );
+          expect(decodedJwt.perfis[0].permissoes[1].descricao).toEqual(
+            perm2.descricao,
+          );
         });
     });
 

@@ -8,6 +8,15 @@ export class Perfil {
   @ApiProperty({ description: 'Nome do perfil', example: 'Administrador' })
   nome: string;
 
+  @ApiProperty({ description: 'Código do perfil', example: 'ADMIN' })
+  codigo: string;
+
+  @ApiProperty({
+    description: 'Descrição do perfil',
+    example: 'Perfil com acesso total ao sistema',
+  })
+  descricao: string;
+
   @ApiProperty({
     description: 'Permissões associadas ao perfil',
     type: [Permissao],

@@ -20,6 +20,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { PaginationDto } from '../../../dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
 
@@ -29,6 +30,7 @@ import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
 export class PerfisController {
   constructor(private readonly perfisService: PerfisService) {}
 
+  @TemPermissao('CREATE_PERFIL')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Criar um novo perfil' })
@@ -42,6 +44,7 @@ export class PerfisController {
     return this.perfisService.create(createPerfilDto);
   }
 
+  @TemPermissao('READ_PERFIS')
   @Get()
   @ApiOperation({ summary: 'Listar todos os perfis' })
   @ApiResponse({
@@ -56,6 +59,7 @@ export class PerfisController {
     return this.perfisService.findAll(paginationDto);
   }
 
+  @TemPermissao('READ_PERFIL_BY_ID')
   @Get(':id')
   @ApiOperation({ summary: 'Buscar um perfil por ID' })
   @ApiResponse({
@@ -68,6 +72,7 @@ export class PerfisController {
     return this.perfisService.findOne(+id);
   }
 
+  @TemPermissao('READ_PERFIL_BY_NOME')
   @Get('nome/:nome')
   @ApiOperation({ summary: 'Buscar perfis por nome contendo a string' })
   @ApiResponse({
@@ -82,6 +87,7 @@ export class PerfisController {
     return this.perfisService.findByNomeContaining(nome, paginationDto);
   }
 
+  @TemPermissao('UPDATE_PERFIL')
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar um perfil existente' })
   @ApiResponse({
@@ -98,6 +104,7 @@ export class PerfisController {
     return this.perfisService.update(+id, updatePerfilDto);
   }
 
+  @TemPermissao('DELETE_PERFIL')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remover um perfil por ID' })
