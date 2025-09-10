@@ -37,24 +37,28 @@ export class UsuariosController {
   @Get(':id')
   @ApiOperation({
     summary: 'Buscar um usuário por ID',
-    description: 'Retorna os dados do usuário. Requer autenticação e só permite que o usuário acesse seus próprios dados.'
+    description:
+      'Retorna os dados do usuário. Requer autenticação e só permite que o usuário acesse seus próprios dados.',
   })
   @ApiResponse({
     status: 200,
-    description: 'Retorna o usuário com o ID especificado, excluindo dados sensíveis como senha e perfis.',
+    description:
+      'Retorna o usuário com o ID especificado, excluindo dados sensíveis como senha e perfis.',
     type: Usuario,
   })
-  @ApiResponse({ 
-    status: 401, 
-    description: 'Não autorizado - Token JWT ausente ou inválido.' 
+  @ApiResponse({
+    status: 401,
+    description: 'Não autorizado - Token JWT ausente ou inválido.',
   })
-  @ApiResponse({ 
-    status: 403, 
-    description: 'Acesso negado - O usuário autenticado não tem permissão para acessar os dados de outro usuário.' 
+  @ApiResponse({
+    status: 403,
+    description:
+      'Acesso negado - O usuário autenticado não tem permissão para acessar os dados de outro usuário.',
   })
-  @ApiResponse({ 
-    status: 404, 
-    description: 'Usuário não encontrado - O ID especificado não existe no sistema.' 
+  @ApiResponse({
+    status: 404,
+    description:
+      'Usuário não encontrado - O ID especificado não existe no sistema.',
   })
   @ApiBearerAuth('JWT')
   findOne(@Param('id') id: string, @Req() req: Request): Promise<Usuario> {

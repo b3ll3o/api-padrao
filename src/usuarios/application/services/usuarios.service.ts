@@ -23,7 +23,7 @@ export class UsuariosService {
     );
 
     if (usuarioExistente) {
-      throw new ConflictException('Usuário com este email já cadastrado');
+      throw new ConflictException('Usuário com este e-mail já cadastrado.');
     }
 
     const newUsuario = new Usuario();

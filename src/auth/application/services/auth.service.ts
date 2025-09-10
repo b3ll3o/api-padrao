@@ -18,7 +18,7 @@ export class AuthService {
       );
 
     if (!user || !(await user.comparePassword(loginUsuarioDto.senha))) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException('Credenciais inválidas.');
     }
 
     const perfis = user.perfis?.map((perfil) => ({

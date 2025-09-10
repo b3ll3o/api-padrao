@@ -5,38 +5,38 @@ import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
 export class Usuario {
   @ApiProperty({
     description: 'ID único do usuário',
-    example: 1
+    example: 1,
   })
   id: number;
 
   @ApiProperty({
     description: 'Email do usuário',
-    example: 'usuario@exemplo.com'
+    example: 'usuario@exemplo.com',
   })
   email: string;
 
   @ApiPropertyOptional({
     description: 'Senha do usuário (não retornada nas consultas)',
     example: 'senha123',
-    writeOnly: true
+    writeOnly: true,
   })
   senha?: string;
 
   @ApiProperty({
     description: 'Data de criação do registro',
-    example: '2025-09-08T10:00:00Z'
+    example: '2025-09-08T10:00:00Z',
   })
   createdAt: Date;
 
   @ApiProperty({
     description: 'Data da última atualização do registro',
-    example: '2025-09-08T10:00:00Z'
+    example: '2025-09-08T10:00:00Z',
   })
   updatedAt: Date;
 
   @ApiPropertyOptional({
     description: 'Lista de perfis associados ao usuário',
-    type: () => [Perfil]
+    type: () => [Perfil],
   })
   perfis?: Perfil[];
 

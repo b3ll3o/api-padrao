@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/application/guards/auth.guard';
 import { PermissoesModule } from './permissoes/permissoes.module';
 import { PerfisModule } from './perfis/perfis.module';
+import { PermissaoGuard } from './auth/application/guards/permissao.guard';
 
 @Module({
   imports: [
@@ -21,6 +22,10 @@ import { PerfisModule } from './perfis/perfis.module';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissaoGuard,
     },
   ],
 })

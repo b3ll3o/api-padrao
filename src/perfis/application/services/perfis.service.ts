@@ -59,7 +59,7 @@ export class PerfisService {
   async findOne(id: number): Promise<Perfil> {
     const perfil = await this.perfilRepository.findOne(id);
     if (!perfil) {
-      throw new NotFoundException(`Perfil com ID ${id} não encontrado`);
+      throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }
     return perfil;
   }
@@ -102,7 +102,7 @@ export class PerfisService {
     }
     const perfil = await this.perfilRepository.update(id, updatePerfilDto);
     if (!perfil) {
-      throw new NotFoundException(`Perfil com ID ${id} não encontrado`);
+      throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }
     return perfil;
   }
@@ -110,7 +110,7 @@ export class PerfisService {
   async remove(id: number): Promise<void> {
     const perfil = await this.perfilRepository.findOne(id);
     if (!perfil) {
-      throw new NotFoundException(`Perfil com ID ${id} não encontrado`);
+      throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }
     await this.perfilRepository.remove(id);
   }

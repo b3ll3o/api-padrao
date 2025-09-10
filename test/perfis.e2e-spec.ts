@@ -139,7 +139,7 @@ describe('PerfisController (e2e)', () => {
         .expect(404)
         .expect((res) => {
           expect(res.body.message).toEqual(
-            'Permissão com ID 99999 não encontrada',
+            'Permissão com ID 99999 não encontrada.',
           );
         });
     });

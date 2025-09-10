@@ -47,7 +47,7 @@ export class PermissoesService {
   async findOne(id: number): Promise<Permissao> {
     const permissao = await this.permissaoRepository.findOne(id);
     if (!permissao) {
-      throw new NotFoundException(`Permissão com ID ${id} não encontrada`);
+      throw new NotFoundException(`Permissão com ID ${id} não encontrada.`);
     }
     return permissao;
   }
@@ -91,7 +91,7 @@ export class PermissoesService {
       updatePermissaoDto,
     );
     if (!permissao) {
-      throw new NotFoundException(`Permissão com ID ${id} não encontrada`);
+      throw new NotFoundException(`Permissão com ID ${id} não encontrada.`);
     }
     return permissao;
   }
@@ -99,7 +99,7 @@ export class PermissoesService {
   async remove(id: number): Promise<void> {
     const permissao = await this.permissaoRepository.findOne(id);
     if (!permissao) {
-      throw new NotFoundException(`Permissão com ID ${id} não encontrada`);
+      throw new NotFoundException(`Permissão com ID ${id} não encontrada.`);
     }
     await this.permissaoRepository.remove(id);
   }
