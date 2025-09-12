@@ -1,3 +1,6 @@
+// IMPORTANT: This MUST be the very first import in your application!
+import './tracing';
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
