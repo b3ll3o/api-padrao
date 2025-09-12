@@ -63,3 +63,4 @@ To ensure code quality, maintainability, and adherence to best practices, the fo
 *   **Pre-Commit Checks:**
     *   **Passing Tests:** No code should be committed if any tests (unit or E2E) are failing. All tests must pass before committing.
     *   **Linting:** The linter must be run and pass without errors or warnings before every commit.
+    *   **Documentation Update:** Always update the project documentation (Swagger annotations and `README.md`) before committing.
