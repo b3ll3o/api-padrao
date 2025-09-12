@@ -71,7 +71,10 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
         return undefined; // Or throw NotFoundException
       }
 
-      const permissao = await this.prisma.permissao.update({ where: { id }, data });
+      const permissao = await this.prisma.permissao.update({
+        where: { id },
+        data,
+      });
       return this.toDomain(permissao);
     } catch (error) {
       if (error.code === 'P2025') {

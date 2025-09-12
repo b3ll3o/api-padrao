@@ -120,6 +120,7 @@ describe('UsuariosController (e2e)', () => {
             email: 'test@example.com',
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
+            deletedAt: null,
             perfis: [], // Added expected perfis array
           });
         });
@@ -150,6 +151,7 @@ describe('UsuariosController (e2e)', () => {
             email: 'user_with_profile@example.com',
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
+            deletedAt: null,
             perfis: expect.arrayContaining([
               expect.objectContaining({
                 id: profile.id,
@@ -231,6 +233,7 @@ describe('UsuariosController (e2e)', () => {
             email: 'no_password@example.com',
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
+            deletedAt: null,
             perfis: [], // Added expected perfis array
           });
           expect(res.body).not.toHaveProperty('senha');
@@ -372,6 +375,7 @@ describe('UsuariosController (e2e)', () => {
             email: user1.email,
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
+            deletedAt: null,
           });
         });
     });
@@ -415,6 +419,7 @@ describe('UsuariosController (e2e)', () => {
             email: user1.email,
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
+            deletedAt: null,
           });
         });
     });
@@ -449,6 +454,13 @@ describe('UsuariosController (e2e)', () => {
           descricao: 'Permissão para atualizar usuários',
         },
       });
+      const readUsuarioByIdPerm = await prisma.permissao.create({
+        data: {
+          nome: 'read:usuario_by_id',
+          codigo: 'READ_USUARIO_BY_ID',
+          descricao: 'Permissão para ler usuários por ID',
+        },
+      });
       restoreUsuarioPerm = await prisma.permissao.create({
         data: {
           nome: 'restore:usuario',
@@ -467,6 +479,7 @@ describe('UsuariosController (e2e)', () => {
             connect: [
               { id: updateUsuarioPerm.id },
               { id: restoreUsuarioPerm.id },
+              { id: readUsuarioByIdPerm.id },
             ],
           },
         },
@@ -618,6 +631,13 @@ describe('UsuariosController (e2e)', () => {
           descricao: 'Permissão para deletar usuários',
         },
       });
+      const readUsuarioByIdPerm = await prisma.permissao.create({
+        data: {
+          nome: 'read:usuario_by_id',
+          codigo: 'READ_USUARIO_BY_ID',
+          descricao: 'Permissão para ler usuários por ID',
+        },
+      });
       restoreUsuarioPerm = await prisma.permissao.create({
         data: {
           nome: 'restore:usuario',
@@ -636,6 +656,7 @@ describe('UsuariosController (e2e)', () => {
             connect: [
               { id: deleteUsuarioPerm.id },
               { id: restoreUsuarioPerm.id },
+              { id: readUsuarioByIdPerm.id },
             ],
           },
         },

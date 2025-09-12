@@ -62,7 +62,9 @@ describe('PermissoesService', () => {
         deletedAt: null, // Added
       } as Permissao;
       (mockPermissaoRepository.findByNome as jest.Mock).mockResolvedValue(null);
-      (mockPermissaoRepository.create as jest.Mock).mockResolvedValue(expectedPermissao);
+      (mockPermissaoRepository.create as jest.Mock).mockResolvedValue(
+        expectedPermissao,
+      );
 
       const result = await service.create(createPermissaoDto);
 
@@ -160,7 +162,9 @@ describe('PermissoesService', () => {
     } as Permissao;
 
     it('should return a single permissao (not deleted) by default', async () => {
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(expectedPermissao);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        expectedPermissao,
+      );
 
       const result = await service.findOne(1);
 
@@ -170,7 +174,9 @@ describe('PermissoesService', () => {
 
     it('should return a single permissao including deleted', async () => {
       const deletedPermissao = { ...expectedPermissao, deletedAt: new Date() };
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(deletedPermissao);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        deletedPermissao,
+      );
 
       const result = await service.findOne(1, true); // Pass true for includeDeleted
 
@@ -206,10 +212,9 @@ describe('PermissoesService', () => {
 
     it('should return a paginated list of non-deleted permissoes containing the name by default', async () => {
       const paginationDto = { page: 1, limit: 10 };
-      (mockPermissaoRepository.findByNomeContaining as jest.Mock).mockResolvedValue([
-        [expectedPermissoes[0]],
-        1,
-      ]);
+      (
+        mockPermissaoRepository.findByNomeContaining as jest.Mock
+      ).mockResolvedValue([[expectedPermissoes[0]], 1]);
 
       const result = await service.findByNome('Test Permissao', paginationDto);
 
@@ -224,10 +229,9 @@ describe('PermissoesService', () => {
 
     it('should return a paginated list of all permissoes containing the name including deleted', async () => {
       const paginationDto = { page: 1, limit: 10 };
-      (mockPermissaoRepository.findByNomeContaining as jest.Mock).mockResolvedValue([
-        expectedPermissoes,
-        2,
-      ]);
+      (
+        mockPermissaoRepository.findByNomeContaining as jest.Mock
+      ).mockResolvedValue([expectedPermissoes, 2]);
 
       const result = await service.findByNome(
         'Test Permissao',
@@ -265,8 +269,12 @@ describe('PermissoesService', () => {
         ...updatePermissaoDto,
       } as Permissao;
 
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(existingPermissao); // For the findOne call inside update
-      (mockPermissaoRepository.update as jest.Mock).mockResolvedValue(expectedPermissao);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        existingPermissao,
+      ); // For the findOne call inside update
+      (mockPermissaoRepository.update as jest.Mock).mockResolvedValue(
+        expectedPermissao,
+      );
 
       const result = await service.update(1, updatePermissaoDto);
 
@@ -316,8 +324,12 @@ describe('PermissoesService', () => {
 
     it('should soft delete a permissao if admin', async () => {
       const softDeletedPermissao = { ...mockPermissao, deletedAt: new Date() };
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(mockPermissao); // Find only non-deleted
-      (mockPermissaoRepository.remove as jest.Mock).mockResolvedValue(softDeletedPermissao);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        mockPermissao,
+      ); // Find only non-deleted
+      (mockPermissaoRepository.remove as jest.Mock).mockResolvedValue(
+        softDeletedPermissao,
+      );
 
       const result = await service.remove(1, mockAdminUsuarioLogado);
 
@@ -337,7 +349,9 @@ describe('PermissoesService', () => {
     });
 
     it('should throw ForbiddenException if not admin', async () => {
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(mockPermissao);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        mockPermissao,
+      );
 
       await expect(service.remove(1, mockUserUsuarioLogado)).rejects.toThrow(
         ForbiddenException,
@@ -370,8 +384,12 @@ describe('PermissoesService', () => {
 
     it('should restore a soft-deleted permissao if admin', async () => {
       const restoredPermissao = { ...mockPermissao, deletedAt: null };
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(mockPermissao); // Find soft-deleted permissao
-      (mockPermissaoRepository.restore as jest.Mock).mockResolvedValue(restoredPermissao);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        mockPermissao,
+      ); // Find soft-deleted permissao
+      (mockPermissaoRepository.restore as jest.Mock).mockResolvedValue(
+        restoredPermissao,
+      );
 
       const result = await service.restore(1, mockAdminUsuarioLogado);
 
@@ -392,7 +410,9 @@ describe('PermissoesService', () => {
 
     it('should throw ConflictException if permissao is not soft-deleted', async () => {
       const nonDeletedPermissao = { ...mockPermissao, deletedAt: null };
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPermissao);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedPermissao,
+      );
 
       await expect(service.restore(1, mockAdminUsuarioLogado)).rejects.toThrow(
         ConflictException,
@@ -402,7 +422,9 @@ describe('PermissoesService', () => {
     });
 
     it('should throw ForbiddenException if not admin', async () => {
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(mockPermissao);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        mockPermissao,
+      );
 
       await expect(service.restore(1, mockUserUsuarioLogado)).rejects.toThrow(
         ForbiddenException,

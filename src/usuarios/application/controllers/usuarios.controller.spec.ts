@@ -57,7 +57,9 @@ describe('UsuariosController', () => {
     it('should return a user', async () => {
       const user = new Usuario();
       mockUsuariosService.findOne.mockResolvedValue(user);
-      const req = { usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] } } as unknown as Request;
+      const req = {
+        usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] },
+      } as unknown as Request;
 
       const result = await controller.findOne('1', req);
 
@@ -71,12 +73,18 @@ describe('UsuariosController', () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
       const updatedUser = new Usuario();
       mockUsuariosService.update.mockResolvedValue(updatedUser);
-      const req = { usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] } } as unknown as Request;
+      const req = {
+        usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] },
+      } as unknown as Request;
 
       const result = await controller.update('1', updateDto, req);
 
       expect(result).toEqual(updatedUser);
-      expect(service.update).toHaveBeenCalledWith(1, updateDto, req.usuarioLogado);
+      expect(service.update).toHaveBeenCalledWith(
+        1,
+        updateDto,
+        req.usuarioLogado,
+      );
     });
   });
 
@@ -84,7 +92,9 @@ describe('UsuariosController', () => {
     it('should remove a user', async () => {
       const user = new Usuario();
       mockUsuariosService.remove.mockResolvedValue(user);
-      const req = { usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] } } as unknown as Request;
+      const req = {
+        usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] },
+      } as unknown as Request;
 
       const result = await controller.remove('1', req);
 
@@ -97,7 +107,9 @@ describe('UsuariosController', () => {
     it('should restore a user', async () => {
       const user = new Usuario();
       mockUsuariosService.restore.mockResolvedValue(user);
-      const req = { usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] } } as unknown as Request;
+      const req = {
+        usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] },
+      } as unknown as Request;
 
       const result = await controller.restore('1', req);
 

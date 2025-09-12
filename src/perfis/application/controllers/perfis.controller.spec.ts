@@ -92,7 +92,9 @@ describe('PerfisController', () => {
         limit: 10,
         totalPages: 1,
       };
-      (mockPerfisService.findAll as jest.Mock).mockResolvedValue(expectedResponse);
+      (mockPerfisService.findAll as jest.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const result = await controller.findAll(paginationDto);
       expect(result).toEqual(expectedResponse);
@@ -110,7 +112,9 @@ describe('PerfisController', () => {
         descricao: 'Description',
         deletedAt: null,
       } as Perfil; // Added deletedAt
-      (mockPerfisService.findOne as jest.Mock).mockResolvedValue(expectedPerfil);
+      (mockPerfisService.findOne as jest.Mock).mockResolvedValue(
+        expectedPerfil,
+      );
 
       const result = await controller.findOne(id);
       expect(result).toEqual(expectedPerfil);
@@ -183,7 +187,9 @@ describe('PerfisController', () => {
     } as Perfil;
 
     it('should soft delete a perfil', async () => {
-      (mockPerfisService.remove as jest.Mock).mockResolvedValue(softDeletedPerfil);
+      (mockPerfisService.remove as jest.Mock).mockResolvedValue(
+        softDeletedPerfil,
+      );
       const req = mockRequest(true); // Admin user
 
       const result = await controller.remove('1', req);
@@ -193,10 +199,14 @@ describe('PerfisController', () => {
 
     it('should throw ForbiddenException if user is not authenticated', async () => {
       const req: Partial<Request> = { usuarioLogado: undefined };
-      await expect(controller.remove('1', req as Request)).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(service.remove).not.toHaveBeenCalled();
+      let error: any;
+      try {
+        await controller.remove('1', req as Request);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect(error.message).toBe('Usuário não autenticado');
     });
   });
 
@@ -211,7 +221,9 @@ describe('PerfisController', () => {
     const restoredPerfil = { ...mockPerfil, deletedAt: null } as Perfil;
 
     it('should restore a perfil', async () => {
-      (mockPerfisService.restore as jest.Mock).mockResolvedValue(restoredPerfil);
+      (mockPerfisService.restore as jest.Mock).mockResolvedValue(
+        restoredPerfil,
+      );
       const req = mockRequest(true); // Admin user
 
       const result = await controller.restore('1', req);
@@ -221,10 +233,14 @@ describe('PerfisController', () => {
 
     it('should throw ForbiddenException if user is not authenticated', async () => {
       const req: Partial<Request> = { usuarioLogado: undefined };
-      await expect(controller.restore('1', req as Request)).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(service.restore).not.toHaveBeenCalled();
+      let error: any;
+      try {
+        await controller.restore('1', req as Request);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect(error.message).toBe('Usuário não autenticado');
     });
   });
 });

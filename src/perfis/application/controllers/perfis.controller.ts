@@ -56,12 +56,11 @@ export class PerfisController {
   @ApiResponse({
     status: 200,
     description: 'Retorna todos os perfis.',
-    type: PaginatedResponseDto, // Change type here
+    type: PaginatedResponseDto,
   })
   findAll(
     @Query() paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<Perfil>> {
-    // Change return type here
     return this.perfisService.findAll(paginationDto);
   }
 

@@ -209,7 +209,9 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       newUsuario.id = softDeletedUsuario.id;
       newUsuario.email = softDeletedUsuario.email;
       newUsuario.senha =
-        softDeletedUsuario.senha === null ? undefined : softDeletedUsuario.senha;
+        softDeletedUsuario.senha === null
+          ? undefined
+          : softDeletedUsuario.senha;
       newUsuario.createdAt = softDeletedUsuario.createdAt;
       newUsuario.updatedAt = softDeletedUsuario.updatedAt;
       newUsuario.deletedAt = softDeletedUsuario.deletedAt;

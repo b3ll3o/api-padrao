@@ -88,6 +88,7 @@ export class PermissoesService {
       nome,
       skip,
       take,
+      includeDeleted,
     );
     const totalPages = Math.ceil(total / limit);
     return {
@@ -113,7 +114,9 @@ export class PermissoesService {
       updatePermissaoDto,
     );
     if (!updatedPermissao) {
-      throw new NotFoundException(`Permissão com ID ${id} não encontrada após atualização.`);
+      throw new NotFoundException(
+        `Permissão com ID ${id} não encontrada após atualização.`,
+      );
     }
     return updatedPermissao;
   }

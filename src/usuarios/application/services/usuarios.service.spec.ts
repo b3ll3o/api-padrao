@@ -16,7 +16,10 @@ describe('UsuariosService', () => {
   let mockUsuarioRepository: {
     create: jest.Mock<Promise<Usuario>, [Partial<Usuario>]>;
     findByEmail: jest.Mock<Promise<Usuario | null>, [string]>;
-    findOne: jest.Mock<Promise<Usuario | undefined>, [number, boolean | undefined]>;
+    findOne: jest.Mock<
+      Promise<Usuario | undefined>,
+      [number, boolean | undefined]
+    >;
     update: jest.Mock<Promise<Usuario>, [number, Partial<Usuario>]>;
     remove: jest.Mock<Promise<Usuario>, [number]>;
     restore: jest.Mock<Promise<Usuario>, [number]>;
@@ -62,7 +65,9 @@ describe('UsuariosService', () => {
       createdUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
       (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(null);
-      (mockUsuarioRepository.create as jest.Mock).mockResolvedValue(createdUser);
+      (mockUsuarioRepository.create as jest.Mock).mockResolvedValue(
+        createdUser,
+      );
 
       const result = await service.create(createDto);
 
@@ -81,7 +86,9 @@ describe('UsuariosService', () => {
       const existingUser = new Usuario();
       existingUser.deletedAt = null; // Added
       existingUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
-      (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(existingUser);
+      (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(
+        existingUser,
+      );
 
       await expect(service.create(createDto)).rejects.toThrow(
         ConflictException,
@@ -140,7 +147,9 @@ describe('UsuariosService', () => {
 
     it('should return a user if found and includeDeleted is true', async () => {
       const deletedUser = { ...mockUser, deletedAt: new Date() };
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(deletedUser);
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        deletedUser,
+      );
 
       const result = await service.findOne(1, mockAdminUsuarioLogado, true); // Pass true for includeDeleted
 
@@ -162,7 +171,9 @@ describe('UsuariosService', () => {
       anotherUser.email = 'another@example.com';
       anotherUser.deletedAt = null; // Added
       anotherUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(anotherUser);
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        anotherUser,
+      );
 
       await expect(service.findOne(3, mockUsuarioLogado)).rejects.toThrow(
         ForbiddenException,
@@ -207,7 +218,9 @@ describe('UsuariosService', () => {
 
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
       (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(null);
-      (mockUsuarioRepository.update as jest.Mock).mockResolvedValue(updatedUser);
+      (mockUsuarioRepository.update as jest.Mock).mockResolvedValue(
+        updatedUser,
+      );
 
       const result = await service.update(1, updateDto, mockUsuarioLogado);
 
@@ -227,7 +240,9 @@ describe('UsuariosService', () => {
 
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
       (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(null);
-      (mockUsuarioRepository.update as jest.Mock).mockResolvedValue(updatedUser);
+      (mockUsuarioRepository.update as jest.Mock).mockResolvedValue(
+        updatedUser,
+      );
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
 
@@ -255,7 +270,9 @@ describe('UsuariosService', () => {
       anotherUser.email = 'another@example.com';
       anotherUser.deletedAt = null; // Added
       anotherUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(anotherUser);
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        anotherUser,
+      );
 
       await expect(
         service.update(3, updateDto, mockUsuarioLogado),
@@ -271,7 +288,9 @@ describe('UsuariosService', () => {
       existingUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser); // User to update
-      (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(existingUser); // Another user with same email
+      (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(
+        existingUser,
+      ); // Another user with same email
 
       await expect(
         service.update(1, updateDto, mockUsuarioLogado),
@@ -322,7 +341,9 @@ describe('UsuariosService', () => {
     it('should soft delete a user if found and is owner', async () => {
       const softDeletedUser = { ...mockUser, deletedAt: new Date() };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
-      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(softDeletedUser);
+      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(
+        softDeletedUser,
+      );
 
       const result = await service.remove(1, mockUsuarioLogado);
 
@@ -334,7 +355,9 @@ describe('UsuariosService', () => {
     it('should soft delete a user if found and is admin', async () => {
       const softDeletedUser = { ...mockUser, deletedAt: new Date() };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
-      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(softDeletedUser);
+      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(
+        softDeletedUser,
+      );
 
       const result = await service.remove(1, mockAdminUsuarioLogado);
 
@@ -357,7 +380,9 @@ describe('UsuariosService', () => {
       anotherUser.email = 'another@example.com';
       anotherUser.deletedAt = null; // Added
       anotherUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(anotherUser);
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        anotherUser,
+      );
 
       await expect(service.remove(3, mockUsuarioLogado)).rejects.toThrow(
         ForbiddenException,
@@ -384,7 +409,9 @@ describe('UsuariosService', () => {
     it('should restore a soft-deleted user if admin', async () => {
       const restoredUser = { ...mockUser, deletedAt: null };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser); // Find soft-deleted user
-      (mockUsuarioRepository.restore as jest.Mock).mockResolvedValue(restoredUser);
+      (mockUsuarioRepository.restore as jest.Mock).mockResolvedValue(
+        restoredUser,
+      );
 
       const result = await service.restore(1, mockAdminUsuarioLogado);
 
@@ -407,7 +434,9 @@ describe('UsuariosService', () => {
       nonDeletedUser.email = 'test@example.com';
       nonDeletedUser.deletedAt = null; // Added
       nonDeletedUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedUser);
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedUser,
+      );
 
       await expect(service.restore(1, mockAdminUsuarioLogado)).rejects.toThrow(
         ConflictException,

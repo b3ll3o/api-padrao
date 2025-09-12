@@ -122,7 +122,9 @@ export class PerfisService {
       updatePerfilDto,
     );
     if (!updatedPerfil) {
-      throw new NotFoundException(`Perfil com ID ${id} não encontrado após atualização.`);
+      throw new NotFoundException(
+        `Perfil com ID ${id} não encontrado após atualização.`,
+      );
     }
     return updatedPerfil;
   }

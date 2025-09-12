@@ -63,7 +63,9 @@ describe('PermissoesController', () => {
         descricao: 'Description',
       };
       const expectedPermissao = { id: 1, ...createPermissaoDto } as Permissao;
-      (mockPermissoesService.create as jest.Mock).mockResolvedValue(expectedPermissao);
+      (mockPermissoesService.create as jest.Mock).mockResolvedValue(
+        expectedPermissao,
+      );
 
       const result = await controller.create(createPermissaoDto);
       expect(result).toEqual(expectedPermissao);
@@ -81,7 +83,9 @@ describe('PermissoesController', () => {
         limit: 10,
         totalPages: 1,
       };
-      (mockPermissoesService.findAll as jest.Mock).mockResolvedValue(expectedResponse);
+      (mockPermissoesService.findAll as jest.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const result = await controller.findAll(paginationDto);
       expect(result).toEqual(expectedResponse);
@@ -93,7 +97,9 @@ describe('PermissoesController', () => {
     it('should return a single permissao by ID', async () => {
       const id = '1';
       const expectedPermissao = { id: 1, nome: 'Test Permissao' } as Permissao;
-      (mockPermissoesService.findOne as jest.Mock).mockResolvedValue(expectedPermissao);
+      (mockPermissoesService.findOne as jest.Mock).mockResolvedValue(
+        expectedPermissao,
+      );
 
       const result = await controller.findOne(id);
       expect(result).toEqual(expectedPermissao);
@@ -112,11 +118,11 @@ describe('PermissoesController', () => {
         limit: 10,
         totalPages: 1,
       };
-      (mockPermissoesService.findByNomeContaining as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (
+        mockPermissoesService.findByNomeContaining as jest.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      const result = await controller.findByName(nome, paginationDto);
+      const result = await controller.findByNome(nome, paginationDto);
       expect(result).toEqual(expectedResponse);
       expect(service.findByNomeContaining).toHaveBeenCalledWith(
         nome,
@@ -132,7 +138,9 @@ describe('PermissoesController', () => {
         nome: 'Updated Permissao',
       };
       const expectedPermissao = { id: 1, ...updatePermissaoDto } as Permissao;
-      (mockPermissoesService.update as jest.Mock).mockResolvedValue(expectedPermissao);
+      (mockPermissoesService.update as jest.Mock).mockResolvedValue(
+        expectedPermissao,
+      );
 
       const result = await controller.update(id, updatePermissaoDto);
       expect(result).toEqual(expectedPermissao);
@@ -154,7 +162,9 @@ describe('PermissoesController', () => {
     } as Permissao;
 
     it('should soft delete a permissao', async () => {
-      (mockPermissoesService.remove as jest.Mock).mockResolvedValue(softDeletedPermissao);
+      (mockPermissoesService.remove as jest.Mock).mockResolvedValue(
+        softDeletedPermissao,
+      );
       const req = mockRequest(true); // Admin user
 
       const result = await controller.remove('1', req);
@@ -164,10 +174,14 @@ describe('PermissoesController', () => {
 
     it('should throw ForbiddenException if user is not authenticated', async () => {
       const req: Partial<Request> = { usuarioLogado: undefined };
-      await expect(controller.remove('1', req as Request)).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(service.remove).not.toHaveBeenCalled();
+      let error: any;
+      try {
+        await controller.remove('1', req as Request);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect(error.message).toBe('Usuário não autenticado');
     });
   });
 
@@ -185,7 +199,9 @@ describe('PermissoesController', () => {
     } as Permissao;
 
     it('should restore a permissao', async () => {
-      (mockPermissoesService.restore as jest.Mock).mockResolvedValue(restoredPermissao);
+      (mockPermissoesService.restore as jest.Mock).mockResolvedValue(
+        restoredPermissao,
+      );
       const req = mockRequest(true); // Admin user
 
       const result = await controller.restore('1', req);
@@ -195,10 +211,14 @@ describe('PermissoesController', () => {
 
     it('should throw ForbiddenException if user is not authenticated', async () => {
       const req: Partial<Request> = { usuarioLogado: undefined };
-      await expect(controller.restore('1', req as Request)).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(service.restore).not.toHaveBeenCalled();
+      let error: any;
+      try {
+        await controller.restore('1', req as Request);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect(error.message).toBe('Usuário não autenticado');
     });
   });
 });
