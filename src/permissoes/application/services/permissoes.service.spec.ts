@@ -102,7 +102,7 @@ describe('PermissoesService', () => {
   });
 
   describe('findAll', () => {
-    it('should return a paginated list of permissoes', async () => {
+    it('should return a paginated list of permissoes with default pagination', async () => {
       const expectedPermissoes = [
         {
           id: 1,
@@ -117,7 +117,8 @@ describe('PermissoesService', () => {
           updatedAt: new Date(),
         },
       ];
-      const paginationDto = { page: 1, limit: 10 };
+      // Test with undefined page and limit to cover default values
+      const paginationDto = { page: undefined, limit: undefined };
       mockPermissaoRepository.findAll.mockResolvedValue([
         expectedPermissoes,
         2,
@@ -133,6 +134,33 @@ describe('PermissoesService', () => {
         totalPages: 1,
       });
       expect(repository.findAll).toHaveBeenCalledWith(0, 10);
+    });
+
+    it('should return a paginated list of permissoes with custom pagination', async () => {
+      const expectedPermissoes = [
+        {
+          id: 1,
+          nome: 'Permissao 1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      const paginationDto = { page: 2, limit: 1 };
+      mockPermissaoRepository.findAll.mockResolvedValue([
+        expectedPermissoes,
+        2,
+      ]);
+
+      const result = await service.findAll(paginationDto);
+
+      expect(result).toEqual({
+        data: expectedPermissoes,
+        total: 2,
+        page: 2,
+        limit: 1,
+        totalPages: 2,
+      });
+      expect(repository.findAll).toHaveBeenCalledWith(1, 1);
     });
   });
 
@@ -163,7 +191,7 @@ describe('PermissoesService', () => {
   });
 
   describe('findByName', () => {
-    it('should return a paginated list of permissoes containing the name', async () => {
+    it('should return a paginated list of permissoes containing the name with default pagination', async () => {
       const expectedPermissoes = [
         {
           id: 1,
@@ -178,7 +206,8 @@ describe('PermissoesService', () => {
           updatedAt: new Date(),
         },
       ];
-      const paginationDto = { page: 1, limit: 10 };
+      // Test with undefined page and limit to cover default values
+      const paginationDto = { page: undefined, limit: undefined };
       mockPermissaoRepository.findByNomeContaining.mockResolvedValue([
         expectedPermissoes,
         2,
@@ -197,6 +226,37 @@ describe('PermissoesService', () => {
         'Test Permissao',
         0,
         10,
+      );
+    });
+
+    it('should return a paginated list of permissoes containing the name with custom pagination', async () => {
+      const expectedPermissoes = [
+        {
+          id: 1,
+          nome: 'Test Permissao 1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      const paginationDto = { page: 2, limit: 1 };
+      mockPermissaoRepository.findByNomeContaining.mockResolvedValue([
+        expectedPermissoes,
+        2,
+      ]);
+
+      const result = await service.findByNome('Test Permissao', paginationDto);
+
+      expect(result).toEqual({
+        data: expectedPermissoes,
+        total: 2,
+        page: 2,
+        limit: 1,
+        totalPages: 2,
+      });
+      expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith(
+        'Test Permissao',
+        1,
+        1,
       );
     });
 

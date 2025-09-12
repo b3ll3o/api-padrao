@@ -42,9 +42,15 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
     newUsuario.createdAt = usuario.createdAt;
     newUsuario.updatedAt = usuario.updatedAt;
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    newUsuario.perfis = usuario.perfis;
+    // Map profiles to Perfil instances
+    newUsuario.perfis = usuario.perfis?.map((perfil) => {
+      const newPerfil = new Perfil();
+      newPerfil.id = perfil.id;
+      newPerfil.nome = perfil.nome;
+      newPerfil.codigo = perfil.codigo;
+      newPerfil.descricao = perfil.descricao;
+      return newPerfil;
+    });
     return newUsuario;
   }
 

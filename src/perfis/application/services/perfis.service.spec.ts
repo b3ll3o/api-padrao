@@ -153,7 +153,7 @@ describe('PerfisService', () => {
   });
 
   describe('findAll', () => {
-    it('should return a paginated list of perfis', async () => {
+    it('should return a paginated list of perfis with default pagination', async () => {
       const expectedPerfis = [
         {
           id: 1,
@@ -168,7 +168,8 @@ describe('PerfisService', () => {
           updatedAt: new Date(),
         },
       ];
-      const paginationDto = { page: 1, limit: 10 };
+      // Test with undefined page and limit to cover default values
+      const paginationDto = { page: undefined, limit: undefined };
       mockPerfilRepository.findAll.mockResolvedValue([expectedPerfis, 2]);
 
       const result = await service.findAll(paginationDto);
@@ -181,6 +182,30 @@ describe('PerfisService', () => {
         totalPages: 1,
       });
       expect(repository.findAll).toHaveBeenCalledWith(0, 10);
+    });
+
+    it('should return a paginated list of perfis with custom pagination', async () => {
+      const expectedPerfis = [
+        {
+          id: 1,
+          nome: 'Perfil 1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      const paginationDto = { page: 2, limit: 1 };
+      mockPerfilRepository.findAll.mockResolvedValue([expectedPerfis, 2]);
+
+      const result = await service.findAll(paginationDto);
+
+      expect(result).toEqual({
+        data: expectedPerfis,
+        total: 2,
+        page: 2,
+        limit: 1,
+        totalPages: 2,
+      });
+      expect(repository.findAll).toHaveBeenCalledWith(1, 1);
     });
   });
 
@@ -204,14 +229,14 @@ describe('PerfisService', () => {
       mockPerfilRepository.findOne.mockResolvedValue(null);
 
       await expect(() => service.findOne(999)).rejects.toThrow(
-        'Perfil com ID 999 não encontrado',
+        'Perfil com ID 999 não encontrado.',
       );
       expect(repository.findOne).toHaveBeenCalledWith(999);
     });
   });
 
   describe('findByNome', () => {
-    it('should return a paginated list of perfis containing the name', async () => {
+    it('should return a paginated list of perfis containing the name with default pagination', async () => {
       const expectedPerfis = [
         {
           id: 1,
@@ -226,7 +251,8 @@ describe('PerfisService', () => {
           updatedAt: new Date(),
         },
       ];
-      const paginationDto = { page: 1, limit: 10 };
+      // Test with undefined page and limit to cover default values
+      const paginationDto = { page: undefined, limit: undefined };
       mockPerfilRepository.findByNomeContaining.mockResolvedValue([
         expectedPerfis,
         2,
@@ -245,6 +271,37 @@ describe('PerfisService', () => {
         'Test Perfil',
         0,
         10,
+      );
+    });
+
+    it('should return a paginated list of perfis containing the name with custom pagination', async () => {
+      const expectedPerfis = [
+        {
+          id: 1,
+          nome: 'Test Perfil 1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      const paginationDto = { page: 2, limit: 1 };
+      mockPerfilRepository.findByNomeContaining.mockResolvedValue([
+        expectedPerfis,
+        2,
+      ]);
+
+      const result = await service.findByNome('Test Perfil', paginationDto);
+
+      expect(result).toEqual({
+        data: expectedPerfis,
+        total: 2,
+        page: 2,
+        limit: 1,
+        totalPages: 2,
+      });
+      expect(mockPerfilRepository.findByNomeContaining).toHaveBeenCalledWith(
+        'Test Perfil',
+        1,
+        1,
       );
     });
 
@@ -345,7 +402,7 @@ describe('PerfisService', () => {
           codigo: 'NON_EXISTENT',
           descricao: 'Perfil inexistente',
         }),
-      ).rejects.toThrow('Perfil com ID 999 não encontrado');
+      ).rejects.toThrow('Perfil com ID 999 não encontrado.');
       expect(repository.update).toHaveBeenCalledWith(999, {
         nome: 'Non Existent',
         codigo: 'NON_EXISTENT',
@@ -376,7 +433,7 @@ describe('PerfisService', () => {
       mockPerfilRepository.findOne.mockResolvedValue(null);
 
       await expect(() => service.remove(999)).rejects.toThrow(
-        'Perfil com ID 999 não encontrado',
+        'Perfil com ID 999 não encontrado.',
       );
       expect(repository.findOne).toHaveBeenCalledWith(999);
       expect(repository.remove).not.toHaveBeenCalled();

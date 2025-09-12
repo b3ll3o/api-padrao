@@ -28,6 +28,7 @@ export class UsuariosService {
 
     const newUsuario = new Usuario();
     newUsuario.email = createUsuarioDto.email;
+    newUsuario.senha = undefined; // Initialize senha to undefined
 
     if (createUsuarioDto.senha) {
       const salt = await bcrypt.genSalt();
