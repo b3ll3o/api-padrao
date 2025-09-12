@@ -6,6 +6,8 @@ import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';
 import { Permissao } from '../../domain/entities/permissao.entity';
 import { PaginationDto } from '../../../dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
+import { Request } from 'express'; // Import Request
+import { ForbiddenException } from '@nestjs/common'; // Import ForbiddenException
 
 describe('PermissoesController', () => {
   let controller: PermissoesController;
@@ -18,9 +20,23 @@ describe('PermissoesController', () => {
     findByNomeContaining: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    restore: jest.fn(), // Added
+  };
+
+  // Mock Request object for @Req()
+  const mockRequest = (isAdmin: boolean = false, userId?: number) => {
+    const req: Partial<Request> = {
+      usuarioLogado: {
+        userId: userId || 1,
+        email: 'test@example.com',
+        perfis: isAdmin ? [{ codigo: 'ADMIN' }] : [], // Corrected perfis structure
+      },
+    };
+    return req as Request;
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PermissoesController],
       providers: [
@@ -47,7 +63,7 @@ describe('PermissoesController', () => {
         descricao: 'Description',
       };
       const expectedPermissao = { id: 1, ...createPermissaoDto } as Permissao;
-      mockPermissoesService.create.mockResolvedValue(expectedPermissao);
+      (mockPermissoesService.create as jest.Mock).mockResolvedValue(expectedPermissao);
 
       const result = await controller.create(createPermissaoDto);
       expect(result).toEqual(expectedPermissao);
@@ -65,7 +81,7 @@ describe('PermissoesController', () => {
         limit: 10,
         totalPages: 1,
       };
-      mockPermissoesService.findAll.mockResolvedValue(expectedResponse);
+      (mockPermissoesService.findAll as jest.Mock).mockResolvedValue(expectedResponse);
 
       const result = await controller.findAll(paginationDto);
       expect(result).toEqual(expectedResponse);
@@ -77,7 +93,7 @@ describe('PermissoesController', () => {
     it('should return a single permissao by ID', async () => {
       const id = '1';
       const expectedPermissao = { id: 1, nome: 'Test Permissao' } as Permissao;
-      mockPermissoesService.findOne.mockResolvedValue(expectedPermissao);
+      (mockPermissoesService.findOne as jest.Mock).mockResolvedValue(expectedPermissao);
 
       const result = await controller.findOne(id);
       expect(result).toEqual(expectedPermissao);
@@ -96,7 +112,7 @@ describe('PermissoesController', () => {
         limit: 10,
         totalPages: 1,
       };
-      mockPermissoesService.findByNomeContaining.mockResolvedValue(
+      (mockPermissoesService.findByNomeContaining as jest.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -116,7 +132,7 @@ describe('PermissoesController', () => {
         nome: 'Updated Permissao',
       };
       const expectedPermissao = { id: 1, ...updatePermissaoDto } as Permissao;
-      mockPermissoesService.update.mockResolvedValue(expectedPermissao);
+      (mockPermissoesService.update as jest.Mock).mockResolvedValue(expectedPermissao);
 
       const result = await controller.update(id, updatePermissaoDto);
       expect(result).toEqual(expectedPermissao);
@@ -125,12 +141,64 @@ describe('PermissoesController', () => {
   });
 
   describe('remove', () => {
-    it('should remove a permissao', async () => {
-      const id = '1';
-      mockPermissoesService.remove.mockResolvedValue(undefined);
+    const mockPermissao = {
+      id: 1,
+      nome: 'Test Permissao',
+      codigo: 'TEST_PERMISSAO',
+      descricao: 'Description',
+      deletedAt: null,
+    } as Permissao; // Corrected
+    const softDeletedPermissao = {
+      ...mockPermissao,
+      deletedAt: new Date(),
+    } as Permissao;
 
-      await controller.remove(id);
-      expect(service.remove).toHaveBeenCalledWith(+id);
+    it('should soft delete a permissao', async () => {
+      (mockPermissoesService.remove as jest.Mock).mockResolvedValue(softDeletedPermissao);
+      const req = mockRequest(true); // Admin user
+
+      const result = await controller.remove('1', req);
+      expect(result).toEqual(softDeletedPermissao);
+      expect(service.remove).toHaveBeenCalledWith(1, req.usuarioLogado);
+    });
+
+    it('should throw ForbiddenException if user is not authenticated', async () => {
+      const req: Partial<Request> = { usuarioLogado: undefined };
+      await expect(controller.remove('1', req as Request)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(service.remove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('restore', () => {
+    const mockPermissao = {
+      id: 1,
+      nome: 'Test Permissao',
+      codigo: 'TEST_PERMISSAO',
+      descricao: 'Description',
+      deletedAt: new Date(),
+    } as Permissao; // Corrected
+    const restoredPermissao = {
+      ...mockPermissao,
+      deletedAt: null,
+    } as Permissao;
+
+    it('should restore a permissao', async () => {
+      (mockPermissoesService.restore as jest.Mock).mockResolvedValue(restoredPermissao);
+      const req = mockRequest(true); // Admin user
+
+      const result = await controller.restore('1', req);
+      expect(result).toEqual(restoredPermissao);
+      expect(service.restore).toHaveBeenCalledWith(1, req.usuarioLogado);
+    });
+
+    it('should throw ForbiddenException if user is not authenticated', async () => {
+      const req: Partial<Request> = { usuarioLogado: undefined };
+      await expect(controller.restore('1', req as Request)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(service.restore).not.toHaveBeenCalled();
     });
   });
 });

@@ -19,6 +19,7 @@ model Usuario {
   senha     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // Added for soft delete
   perfis    Perfil[]
 }
 
@@ -29,6 +30,7 @@ model Perfil {
   descricao   String
   usuarios    Usuario[]
   permissoes  Permissao[]
+  deletedAt   DateTime? // Added for soft delete
 }
 
 model Permissao {
@@ -37,4 +39,5 @@ model Permissao {
   codigo      String   @unique
   descricao   String
   perfis      Perfil[]
+  deletedAt   DateTime? // Added for soft delete
 }

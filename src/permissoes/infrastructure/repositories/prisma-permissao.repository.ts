@@ -9,22 +9,53 @@ import { PrismaService } from '../../../prisma/prisma.service';
 export class PrismaPermissaoRepository implements PermissaoRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: CreatePermissaoDto): Promise<Permissao> {
-    return this.prisma.permissao.create({ data });
+  private toDomain(permissao: any): Permissao {
+    const newPermissao = new Permissao();
+    newPermissao.id = permissao.id;
+    newPermissao.nome = permissao.nome;
+    newPermissao.codigo = permissao.codigo;
+    newPermissao.descricao = permissao.descricao;
+    newPermissao.deletedAt = permissao.deletedAt;
+    return newPermissao;
   }
 
-  async findAll(skip: number, take: number): Promise<[Permissao[], number]> {
+  async create(data: CreatePermissaoDto): Promise<Permissao> {
+    const permissao = await this.prisma.permissao.create({ data });
+    return this.toDomain(permissao);
+  }
+
+  async findAll(
+    skip: number,
+    take: number,
+    includeDeleted: boolean = false,
+  ): Promise<[Permissao[], number]> {
+    const whereClause: any = {};
+    if (!includeDeleted) {
+      whereClause.deletedAt = null;
+    }
+
     const data = await this.prisma.permissao.findMany({
       skip,
       take,
+      where: whereClause,
     });
-    const total = await this.prisma.permissao.count();
-    return [data, total];
+    const total = await this.prisma.permissao.count({ where: whereClause });
+    return [data.map((p) => this.toDomain(p)), total];
   }
 
-  async findOne(id: number): Promise<Permissao | undefined> {
-    const permissao = await this.prisma.permissao.findUnique({ where: { id } });
-    return permissao || undefined;
+  async findOne(
+    id: number,
+    includeDeleted: boolean = false,
+  ): Promise<Permissao | undefined> {
+    const whereClause: any = { id };
+    if (!includeDeleted) {
+      whereClause.deletedAt = null;
+    }
+
+    const permissao = await this.prisma.permissao.findUnique({
+      where: whereClause,
+    });
+    return permissao ? this.toDomain(permissao) : undefined;
   }
 
   async update(
@@ -32,7 +63,16 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     data: UpdatePermissaoDto,
   ): Promise<Permissao | undefined> {
     try {
-      return await this.prisma.permissao.update({ where: { id }, data });
+      // Allow updating soft-deleted permissions
+      const existingPermissao = await this.prisma.permissao.findUnique({
+        where: { id },
+      });
+      if (!existingPermissao) {
+        return undefined; // Or throw NotFoundException
+      }
+
+      const permissao = await this.prisma.permissao.update({ where: { id }, data });
+      return this.toDomain(permissao);
     } catch (error) {
       if (error.code === 'P2025') {
         return undefined;
@@ -41,47 +81,74 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     }
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<Permissao> {
     try {
-      await this.prisma.permissao.delete({ where: { id } });
+      const softDeletedPermissao = await this.prisma.permissao.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      return this.toDomain(softDeletedPermissao);
     } catch (error) {
       if (error.code === 'P2025') {
-        // If the record to delete is not found, do nothing, as the goal is to ensure it's removed.
-        return;
+        throw new Error(`Permissão com ID ${id} não encontrada.`); // Or throw NotFoundException
       }
       throw error;
     }
   }
 
-  async findByNome(nome: string): Promise<Permissao | null> {
-    return this.prisma.permissao.findUnique({
-      where: { nome },
+  async restore(id: number): Promise<Permissao> {
+    try {
+      const restoredPermissao = await this.prisma.permissao.update({
+        where: { id },
+        data: { deletedAt: null },
+      });
+      return this.toDomain(restoredPermissao);
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new Error(`Permissão com ID ${id} não encontrada.`); // Or throw NotFoundException
+      }
+      throw error;
+    }
+  }
+
+  async findByNome(
+    nome: string,
+    includeDeleted: boolean = false,
+  ): Promise<Permissao | null> {
+    const whereClause: any = { nome };
+    if (!includeDeleted) {
+      whereClause.deletedAt = null;
+    }
+    const permissao = await this.prisma.permissao.findUnique({
+      where: whereClause,
     });
+    return permissao ? this.toDomain(permissao) : null;
   }
 
   async findByNomeContaining(
     nome: string,
     skip: number,
     take: number,
+    includeDeleted: boolean = false,
   ): Promise<[Permissao[], number]> {
+    const whereClause: any = {
+      nome: {
+        contains: nome,
+        mode: 'insensitive',
+      },
+    };
+    if (!includeDeleted) {
+      whereClause.deletedAt = null;
+    }
+
     const data = await this.prisma.permissao.findMany({
       skip,
       take,
-      where: {
-        nome: {
-          contains: nome,
-          mode: 'insensitive',
-        },
-      },
+      where: whereClause,
     });
     const total = await this.prisma.permissao.count({
-      where: {
-        nome: {
-          contains: nome,
-          mode: 'insensitive',
-        },
-      },
+      where: whereClause,
     });
-    return [data, total];
+    return [data.map((p) => this.toDomain(p)), total];
   }
 }

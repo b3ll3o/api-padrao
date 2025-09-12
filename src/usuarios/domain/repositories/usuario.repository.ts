@@ -6,7 +6,16 @@ export abstract class UsuarioRepository {
   abstract findByEmailWithPerfisAndPermissoes(
     email: string,
   ): Promise<Usuario | null>;
-  abstract findOne(id: number): Promise<Usuario | undefined>;
-  abstract update(id: number, data: Partial<Usuario>): Promise<Usuario>; // Added
-  abstract remove(id: number): Promise<void>; // Added
+  // Modified findOne to include an optional includeDeleted parameter
+  abstract findOne(
+    id: number,
+    includeDeleted?: boolean,
+  ): Promise<Usuario | undefined>;
+  // Added findAll with an optional includeDeleted parameter
+  abstract findAll(includeDeleted?: boolean): Promise<Usuario[]>;
+  abstract update(id: number, data: Partial<Usuario>): Promise<Usuario>;
+  // Modified remove to return Usuario (the soft-deleted entity)
+  abstract remove(id: number): Promise<Usuario>;
+  // Added restore method
+  abstract restore(id: number): Promise<Usuario>;
 }

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'; // Added ApiPropertyOptional
 
 export class Permissao {
   @ApiProperty({ description: 'ID da permissão', example: 1 })
@@ -15,4 +15,11 @@ export class Permissao {
     example: 'Permite ler usuários',
   })
   descricao: string;
+
+  @ApiPropertyOptional({
+    description: 'Data de deleção lógica do registro',
+    example: '2025-09-08T10:00:00Z',
+    nullable: true,
+  })
+  deletedAt?: Date | null; // Added
 }

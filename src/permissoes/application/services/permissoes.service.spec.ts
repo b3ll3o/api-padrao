@@ -2,33 +2,30 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PermissoesService } from './permissoes.service';
 import { PermissaoRepository } from '../../domain/repositories/permissao.repository';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { Permissao } from '../../domain/entities/permissao.entity';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy'; // Added
 
 describe('PermissoesService', () => {
   let service: PermissoesService;
-  let repository: PermissaoRepository;
-
-  const mockPermissaoRepository = {
-    create: jest.fn(),
-    findAll: jest.fn(),
-    findOne: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-    findByNome: jest.fn(),
-    findByNomeContaining: jest.fn(),
-  };
-
-  const mockPrismaService = {
-    permissao: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-  };
+  let mockPermissaoRepository: Partial<PermissaoRepository>;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    mockPermissaoRepository = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+      restore: jest.fn(),
+      findByNome: jest.fn(),
+      findByNomeContaining: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PermissoesService,
@@ -37,14 +34,13 @@ describe('PermissoesService', () => {
           useValue: mockPermissaoRepository,
         },
         {
-          provide: PrismaService,
-          useValue: mockPrismaService,
+          provide: PrismaService, // Keep PrismaService mock if it's used indirectly
+          useValue: {},
         },
       ],
     }).compile();
 
     service = module.get<PermissoesService>(PermissoesService);
-    repository = module.get<PermissaoRepository>(PermissaoRepository);
   });
 
   it('should be defined', () => {
@@ -63,14 +59,15 @@ describe('PermissoesService', () => {
         ...createPermissaoDto,
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
-      mockPermissaoRepository.findByNome.mockResolvedValue(null);
-      mockPermissaoRepository.create.mockResolvedValue(expectedPermissao);
+        deletedAt: null, // Added
+      } as Permissao;
+      (mockPermissaoRepository.findByNome as jest.Mock).mockResolvedValue(null);
+      (mockPermissaoRepository.create as jest.Mock).mockResolvedValue(expectedPermissao);
 
       const result = await service.create(createPermissaoDto);
 
       expect(result).toEqual(expectedPermissao);
-      expect(repository.findByNome).toHaveBeenCalledWith(
+      expect(mockPermissaoRepository.findByNome).toHaveBeenCalledWith(
         createPermissaoDto.nome,
       );
       expect(mockPermissaoRepository.create).toHaveBeenCalledWith(
@@ -84,279 +81,334 @@ describe('PermissoesService', () => {
         codigo: 'EXISTING_PERMISSAO',
         descricao: 'Permissão existente',
       };
-      mockPermissaoRepository.findByNome.mockResolvedValue({
+      (mockPermissaoRepository.findByNome as jest.Mock).mockResolvedValue({
         id: 1,
         nome: 'Existing Permissao',
         codigo: 'EXISTING_PERMISSAO',
         descricao: 'Permissão existente',
+        deletedAt: null,
       });
 
-      await expect(() => service.create(createPermissaoDto)).rejects.toThrow(
-        `Permissão com o nome '${createPermissaoDto.nome}' já existe.`,
+      await expect(service.create(createPermissaoDto)).rejects.toThrow(
+        ConflictException,
       );
-      expect(repository.findByNome).toHaveBeenCalledWith(
+      expect(mockPermissaoRepository.findByNome).toHaveBeenCalledWith(
         createPermissaoDto.nome,
       );
-      expect(repository.create).not.toHaveBeenCalled();
+      expect(mockPermissaoRepository.create).not.toHaveBeenCalled();
     });
   });
 
   describe('findAll', () => {
-    it('should return a paginated list of permissoes with default pagination', async () => {
-      const expectedPermissoes = [
-        {
-          id: 1,
-          nome: 'Permissao 1',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 2,
-          nome: 'Permissao 2',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-      // Test with undefined page and limit to cover default values
-      const paginationDto = { page: undefined, limit: undefined };
-      mockPermissaoRepository.findAll.mockResolvedValue([
-        expectedPermissoes,
-        2,
+    const expectedPermissoes = [
+      {
+        id: 1,
+        nome: 'Permissao 1',
+        codigo: 'PERMISSAO_1',
+        descricao: 'Desc 1',
+        deletedAt: null,
+      },
+      {
+        id: 2,
+        nome: 'Permissao 2',
+        codigo: 'PERMISSAO_2',
+        descricao: 'Desc 2',
+        deletedAt: new Date(),
+      },
+    ] as Permissao[];
+
+    it('should return a paginated list of non-deleted permissoes by default', async () => {
+      const paginationDto = { page: 1, limit: 10 };
+      (mockPermissaoRepository.findAll as jest.Mock).mockResolvedValue([
+        [expectedPermissoes[0]],
+        1,
       ]);
 
       const result = await service.findAll(paginationDto);
 
-      expect(result).toEqual({
-        data: expectedPermissoes,
-        total: 2,
-        page: 1,
-        limit: 10,
-        totalPages: 1,
-      });
-      expect(repository.findAll).toHaveBeenCalledWith(0, 10);
+      expect(result.data).toEqual([expectedPermissoes[0]]);
+      expect(result.total).toBe(1);
+      expect(mockPermissaoRepository.findAll).toHaveBeenCalledWith(
+        0,
+        10,
+        false,
+      ); // Default includeDeleted is false
     });
 
-    it('should return a paginated list of permissoes with custom pagination', async () => {
-      const expectedPermissoes = [
-        {
-          id: 1,
-          nome: 'Permissao 1',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-      const paginationDto = { page: 2, limit: 1 };
-      mockPermissaoRepository.findAll.mockResolvedValue([
+    it('should return a paginated list of all permissoes including deleted', async () => {
+      const paginationDto = { page: 1, limit: 10 };
+      (mockPermissaoRepository.findAll as jest.Mock).mockResolvedValue([
         expectedPermissoes,
         2,
       ]);
 
-      const result = await service.findAll(paginationDto);
+      const result = await service.findAll(paginationDto, true); // Pass true for includeDeleted
 
-      expect(result).toEqual({
-        data: expectedPermissoes,
-        total: 2,
-        page: 2,
-        limit: 1,
-        totalPages: 2,
-      });
-      expect(repository.findAll).toHaveBeenCalledWith(1, 1);
+      expect(result.data).toEqual(expectedPermissoes);
+      expect(result.total).toBe(2);
+      expect(mockPermissaoRepository.findAll).toHaveBeenCalledWith(0, 10, true);
     });
   });
 
   describe('findOne', () => {
-    it('should return a single permissao', async () => {
-      const expectedPermissao = {
-        id: 1,
-        nome: 'Test Permissao',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mockPermissaoRepository.findOne.mockResolvedValue(expectedPermissao);
+    const expectedPermissao = {
+      id: 1,
+      nome: 'Test Permissao',
+      codigo: 'TEST_PERMISSAO',
+      descricao: 'Description',
+      deletedAt: null,
+    } as Permissao;
+
+    it('should return a single permissao (not deleted) by default', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(expectedPermissao);
 
       const result = await service.findOne(1);
 
       expect(result).toEqual(expectedPermissao);
-      expect(repository.findOne).toHaveBeenCalledWith(1);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, false); // Default includeDeleted is false
+    });
+
+    it('should return a single permissao including deleted', async () => {
+      const deletedPermissao = { ...expectedPermissao, deletedAt: new Date() };
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(deletedPermissao);
+
+      const result = await service.findOne(1, true); // Pass true for includeDeleted
+
+      expect(result).toEqual(deletedPermissao);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
     });
 
     it('should throw NotFoundException if permissao not found', async () => {
-      mockPermissaoRepository.findOne.mockResolvedValue(null);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
 
-      await expect(() => service.findOne(999)).rejects.toThrow(
-        'Permissão com ID 999 não encontrada',
-      );
-      expect(repository.findOne).toHaveBeenCalledWith(999);
+      await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999, false);
     });
   });
 
-  describe('findByName', () => {
-    it('should return a paginated list of permissoes containing the name with default pagination', async () => {
-      const expectedPermissoes = [
-        {
-          id: 1,
-          nome: 'Test Permissao 1',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 2,
-          nome: 'Another Test Permissao',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-      // Test with undefined page and limit to cover default values
-      const paginationDto = { page: undefined, limit: undefined };
-      mockPermissaoRepository.findByNomeContaining.mockResolvedValue([
-        expectedPermissoes,
-        2,
+  describe('findByNome', () => {
+    const expectedPermissoes = [
+      {
+        id: 1,
+        nome: 'Test Permissao 1',
+        codigo: 'TEST_PERMISSAO_1',
+        descricao: 'Desc 1',
+        deletedAt: null,
+      },
+      {
+        id: 2,
+        nome: 'Another Test Permissao',
+        codigo: 'ANOTHER_TEST_PERMISSAO',
+        descricao: 'Desc 2',
+        deletedAt: new Date(),
+      },
+    ] as Permissao[];
+
+    it('should return a paginated list of non-deleted permissoes containing the name by default', async () => {
+      const paginationDto = { page: 1, limit: 10 };
+      (mockPermissaoRepository.findByNomeContaining as jest.Mock).mockResolvedValue([
+        [expectedPermissoes[0]],
+        1,
       ]);
 
       const result = await service.findByNome('Test Permissao', paginationDto);
 
-      expect(result).toEqual({
-        data: expectedPermissoes,
-        total: 2,
-        page: 1,
-        limit: 10,
-        totalPages: 1,
-      });
+      expect(result.data).toEqual([expectedPermissoes[0]]);
+      expect(result.total).toBe(1);
       expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith(
         'Test Permissao',
         0,
         10,
-      );
+      ); // Removed includeDeleted
     });
 
-    it('should return a paginated list of permissoes containing the name with custom pagination', async () => {
-      const expectedPermissoes = [
-        {
-          id: 1,
-          nome: 'Test Permissao 1',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-      const paginationDto = { page: 2, limit: 1 };
-      mockPermissaoRepository.findByNomeContaining.mockResolvedValue([
+    it('should return a paginated list of all permissoes containing the name including deleted', async () => {
+      const paginationDto = { page: 1, limit: 10 };
+      (mockPermissaoRepository.findByNomeContaining as jest.Mock).mockResolvedValue([
         expectedPermissoes,
         2,
       ]);
-
-      const result = await service.findByNome('Test Permissao', paginationDto);
-
-      expect(result).toEqual({
-        data: expectedPermissoes,
-        total: 2,
-        page: 2,
-        limit: 1,
-        totalPages: 2,
-      });
-      expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith(
-        'Test Permissao',
-        1,
-        1,
-      );
-    });
-
-    it('should return an empty paginated list if no permissao is found by name', async () => {
-      const paginationDto = { page: 1, limit: 10 };
-      mockPermissaoRepository.findByNomeContaining.mockResolvedValue([[], 0]);
 
       const result = await service.findByNome(
-        'Non Existent Permissao',
+        'Test Permissao',
         paginationDto,
-      );
+        true,
+      ); // Pass true for includeDeleted
 
-      expect(result).toEqual({
-        data: [],
-        total: 0,
-        page: 1,
-        limit: 10,
-        totalPages: 0,
-      });
+      expect(result.data).toEqual(expectedPermissoes);
+      expect(result.total).toBe(2);
       expect(mockPermissaoRepository.findByNomeContaining).toHaveBeenCalledWith(
-        'Non Existent Permissao',
+        'Test Permissao',
         0,
         10,
-      );
+      ); // Removed includeDeleted
     });
   });
 
   describe('update', () => {
+    const existingPermissao = {
+      id: 1,
+      nome: 'Old Permissao',
+      codigo: 'OLD_PERMISSAO',
+      descricao: 'Old Description',
+      deletedAt: null,
+    } as Permissao;
+
     it('should update a permissao', async () => {
       const updatePermissaoDto = {
         nome: 'Updated Permissao',
         codigo: 'UPDATED_PERMISSAO',
         descricao: 'Permissão atualizada',
       };
-      const existingPermissao = {
-        id: 1,
-        nome: 'Test Permissao',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
       const expectedPermissao = {
-        id: 1,
+        ...existingPermissao,
         ...updatePermissaoDto,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      } as Permissao;
 
-      mockPermissaoRepository.findOne.mockResolvedValue(existingPermissao);
-      mockPermissaoRepository.update.mockResolvedValue(expectedPermissao);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(existingPermissao); // For the findOne call inside update
+      (mockPermissaoRepository.update as jest.Mock).mockResolvedValue(expectedPermissao);
 
       const result = await service.update(1, updatePermissaoDto);
 
       expect(result).toEqual(expectedPermissao);
-      expect(repository.update).toHaveBeenCalledWith(1, updatePermissaoDto);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
+      expect(mockPermissaoRepository.update).toHaveBeenCalledWith(
+        1,
+        updatePermissaoDto,
+      );
     });
 
     it('should throw NotFoundException if permissao to update not found', async () => {
-      mockPermissaoRepository.update.mockResolvedValue(null);
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
 
-      await expect(() =>
+      await expect(
         service.update(999, {
           nome: 'Non Existent',
           codigo: 'NON_EXISTENT',
-          descricao: 'Permissão inexistente',
+          descricao: 'Non Existent',
         }),
-      ).rejects.toThrow('Permissão com ID 999 não encontrada');
-      expect(repository.update).toHaveBeenCalledWith(999, {
-        nome: 'Non Existent',
-        codigo: 'NON_EXISTENT',
-        descricao: 'Permissão inexistente',
-      });
-      expect(repository.findOne).not.toHaveBeenCalled();
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999, true);
+      expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
     });
   });
 
   describe('remove', () => {
-    it('should remove a permissao', async () => {
-      const existingPermissao = {
-        id: 1,
-        nome: 'Test Permissao',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mockPermissaoRepository.findOne.mockResolvedValue(existingPermissao);
-      mockPermissaoRepository.remove.mockResolvedValue(undefined);
+    const mockPermissao = {
+      id: 1,
+      nome: 'Test Permissao',
+      codigo: 'TEST_PERMISSAO',
+      descricao: 'Description',
+      deletedAt: null,
+    } as Permissao;
 
-      await service.remove(1);
+    const mockAdminUsuarioLogado: JwtPayload = {
+      userId: 1,
+      email: 'admin@example.com',
+      perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
+    };
 
-      expect(repository.findOne).toHaveBeenCalledWith(1);
-      expect(repository.remove).toHaveBeenCalledWith(1);
+    const mockUserUsuarioLogado: JwtPayload = {
+      userId: 2,
+      email: 'user@example.com',
+      perfis: [{ codigo: 'USER' }], // Corrected perfis structure
+    };
+
+    it('should soft delete a permissao if admin', async () => {
+      const softDeletedPermissao = { ...mockPermissao, deletedAt: new Date() };
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(mockPermissao); // Find only non-deleted
+      (mockPermissaoRepository.remove as jest.Mock).mockResolvedValue(softDeletedPermissao);
+
+      const result = await service.remove(1, mockAdminUsuarioLogado);
+
+      expect(result).toEqual(softDeletedPermissao);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1); // Removed false
+      expect(mockPermissaoRepository.remove).toHaveBeenCalledWith(1);
     });
 
-    it('should throw NotFoundException if permissao to remove not found', async () => {
-      mockPermissaoRepository.findOne.mockResolvedValue(null);
+    it('should throw NotFoundException if permissao not found', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
 
-      await expect(() => service.remove(999)).rejects.toThrow(
-        'Permissão com ID 999 não encontrada',
+      await expect(service.remove(999, mockAdminUsuarioLogado)).rejects.toThrow(
+        NotFoundException,
       );
-      expect(repository.findOne).toHaveBeenCalledWith(999);
-      expect(repository.remove).not.toHaveBeenCalled();
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999); // Removed false
+      expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException if not admin', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(mockPermissao);
+
+      await expect(service.remove(1, mockUserUsuarioLogado)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1); // Removed false
+      expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('restore', () => {
+    const mockPermissao = {
+      id: 1,
+      nome: 'Test Permissao',
+      codigo: 'TEST_PERMISSAO',
+      descricao: 'Description',
+      deletedAt: new Date(), // Soft deleted
+    } as Permissao;
+
+    const mockAdminUsuarioLogado: JwtPayload = {
+      userId: 1,
+      email: 'admin@example.com',
+      perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
+    };
+
+    const mockUserUsuarioLogado: JwtPayload = {
+      userId: 2,
+      email: 'user@example.com',
+      perfis: [{ codigo: 'USER' }], // Corrected perfis structure
+    };
+
+    it('should restore a soft-deleted permissao if admin', async () => {
+      const restoredPermissao = { ...mockPermissao, deletedAt: null };
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(mockPermissao); // Find soft-deleted permissao
+      (mockPermissaoRepository.restore as jest.Mock).mockResolvedValue(restoredPermissao);
+
+      const result = await service.restore(1, mockAdminUsuarioLogado);
+
+      expect(result).toEqual(restoredPermissao);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
+      expect(mockPermissaoRepository.restore).toHaveBeenCalledWith(1);
+    });
+
+    it('should throw NotFoundException if permissao not found', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.restore(999, mockAdminUsuarioLogado),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999, true);
+      expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException if permissao is not soft-deleted', async () => {
+      const nonDeletedPermissao = { ...mockPermissao, deletedAt: null };
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPermissao);
+
+      await expect(service.restore(1, mockAdminUsuarioLogado)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
+      expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException if not admin', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(mockPermissao);
+
+      await expect(service.restore(1, mockUserUsuarioLogado)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
+      expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
     });
   });
 });

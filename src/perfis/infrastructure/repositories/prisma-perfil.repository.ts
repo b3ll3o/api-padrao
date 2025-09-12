@@ -4,14 +4,33 @@ import { Perfil } from '../../domain/entities/perfil.entity';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
 import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { Permissao } from '../../../permissoes/domain/entities/permissao.entity';
 
 @Injectable()
 export class PrismaPerfilRepository implements PerfilRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private toDomain(perfil: any): Perfil {
+    const newPerfil = new Perfil();
+    newPerfil.id = perfil.id;
+    newPerfil.nome = perfil.nome;
+    newPerfil.codigo = perfil.codigo;
+    newPerfil.descricao = perfil.descricao;
+    newPerfil.deletedAt = perfil.deletedAt;
+    newPerfil.permissoes = perfil.permissoes?.map((p) => {
+      const newPermissao = new Permissao();
+      newPermissao.id = p.id;
+      newPermissao.nome = p.nome;
+      newPermissao.codigo = p.codigo;
+      newPermissao.descricao = p.descricao;
+      return newPermissao;
+    });
+    return newPerfil;
+  }
+
   async create(data: CreatePerfilDto): Promise<Perfil> {
     const { permissoesIds, ...perfilData } = data;
-    return this.prisma.perfil.create({
+    const perfil = await this.prisma.perfil.create({
       data: {
         ...perfilData,
         permissoes: {
@@ -20,30 +39,57 @@ export class PrismaPerfilRepository implements PerfilRepository {
       },
       include: { permissoes: true },
     });
+    return this.toDomain(perfil);
   }
 
-  async findAll(skip: number, take: number): Promise<[Perfil[], number]> {
+  async findAll(
+    skip: number,
+    take: number,
+    includeDeleted: boolean = false,
+  ): Promise<[Perfil[], number]> {
+    const whereClause: any = {};
+    if (!includeDeleted) {
+      whereClause.deletedAt = null;
+    }
+
     const data = await this.prisma.perfil.findMany({
       skip,
       take,
+      where: whereClause,
       include: { permissoes: true },
     });
-    const total = await this.prisma.perfil.count();
-    return [data, total];
+    const total = await this.prisma.perfil.count({ where: whereClause });
+    return [data.map((p) => this.toDomain(p)), total];
   }
 
-  async findOne(id: number): Promise<Perfil | undefined> {
+  async findOne(
+    id: number,
+    includeDeleted: boolean = false,
+  ): Promise<Perfil | undefined> {
+    const whereClause: any = { id };
+    if (!includeDeleted) {
+      whereClause.deletedAt = null;
+    }
+
     const perfil = await this.prisma.perfil.findUnique({
-      where: { id },
+      where: whereClause,
       include: { permissoes: true },
     });
-    return perfil || undefined;
+    return perfil ? this.toDomain(perfil) : undefined;
   }
 
   async update(id: number, data: UpdatePerfilDto): Promise<Perfil | undefined> {
     const { permissoesIds, ...perfilData } = data;
     try {
-      return await this.prisma.perfil.update({
+      // Allow updating soft-deleted profiles
+      const existingPerfil = await this.prisma.perfil.findUnique({
+        where: { id },
+      });
+      if (!existingPerfil) {
+        return undefined; // Or throw NotFoundException
+      }
+
+      const perfil = await this.prisma.perfil.update({
         where: { id },
         data: {
           ...perfilData,
@@ -53,6 +99,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
         },
         include: { permissoes: true },
       });
+      return this.toDomain(perfil);
     } catch (error) {
       if (error.code === 'P2025') {
         return undefined;
@@ -61,49 +108,78 @@ export class PrismaPerfilRepository implements PerfilRepository {
     }
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<Perfil> {
     try {
-      await this.prisma.perfil.delete({ where: { id } });
+      const softDeletedPerfil = await this.prisma.perfil.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+        include: { permissoes: true },
+      });
+      return this.toDomain(softDeletedPerfil);
     } catch (error) {
       if (error.code === 'P2025') {
-        // If the record to delete is not found, do nothing, as the goal is to ensure it's removed.
-        return;
+        throw new Error(`Perfil com ID ${id} não encontrado.`); // Or throw NotFoundException
       }
       throw error;
     }
   }
 
-  async findByNome(nome: string): Promise<Perfil | null> {
-    return this.prisma.perfil.findUnique({
-      where: { nome },
+  async restore(id: number): Promise<Perfil> {
+    try {
+      const restoredPerfil = await this.prisma.perfil.update({
+        where: { id },
+        data: { deletedAt: null },
+        include: { permissoes: true },
+      });
+      return this.toDomain(restoredPerfil);
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new Error(`Perfil com ID ${id} não encontrado.`); // Or throw NotFoundException
+      }
+      throw error;
+    }
+  }
+
+  async findByNome(
+    nome: string,
+    includeDeleted: boolean = false,
+  ): Promise<Perfil | null> {
+    const whereClause: any = { nome };
+    if (!includeDeleted) {
+      whereClause.deletedAt = null;
+    }
+    const perfil = await this.prisma.perfil.findUnique({
+      where: whereClause,
       include: { permissoes: true },
     });
+    return perfil ? this.toDomain(perfil) : null;
   }
 
   async findByNomeContaining(
     nome: string,
     skip: number,
     take: number,
+    includeDeleted: boolean = false,
   ): Promise<[Perfil[], number]> {
+    const whereClause: any = {
+      nome: {
+        contains: nome,
+        mode: 'insensitive',
+      },
+    };
+    if (!includeDeleted) {
+      whereClause.deletedAt = null;
+    }
+
     const data = await this.prisma.perfil.findMany({
       skip,
       take,
-      where: {
-        nome: {
-          contains: nome,
-          mode: 'insensitive',
-        },
-      },
+      where: whereClause,
       include: { permissoes: true },
     });
     const total = await this.prisma.perfil.count({
-      where: {
-        nome: {
-          contains: nome,
-          mode: 'insensitive',
-        },
-      },
+      where: whereClause,
     });
-    return [data, total];
+    return [data.map((p) => this.toDomain(p)), total];
   }
 }

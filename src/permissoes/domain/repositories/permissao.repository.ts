@@ -4,14 +4,31 @@ import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';
 
 export abstract class PermissaoRepository {
   abstract create(data: CreatePermissaoDto): Promise<Permissao>;
-  abstract findAll(skip: number, take: number): Promise<[Permissao[], number]>;
-  abstract findOne(id: number): Promise<Permissao | undefined>;
+  // Modified findAll to include an optional includeDeleted parameter
+  abstract findAll(
+    skip: number,
+    take: number,
+    includeDeleted?: boolean,
+  ): Promise<[Permissao[], number]>;
+  // Modified findOne to include an optional includeDeleted parameter
+  abstract findOne(
+    id: number,
+    includeDeleted?: boolean,
+  ): Promise<Permissao | undefined>;
   abstract update(
     id: number,
     data: UpdatePermissaoDto,
   ): Promise<Permissao | undefined>;
-  abstract remove(id: number): Promise<void>;
-  abstract findByNome(nome: string): Promise<Permissao | null>;
+  // Modified remove to return Permissao (the soft-deleted entity)
+  abstract remove(id: number): Promise<Permissao>;
+  // Added restore method
+  abstract restore(id: number): Promise<Permissao>;
+  // Modified findByNome to include an optional includeDeleted parameter
+  abstract findByNome(
+    nome: string,
+    includeDeleted?: boolean,
+  ): Promise<Permissao | null>;
+  // Modified findByNomeContaining to include an optional includeDeleted parameter
   abstract findByNomeContaining(
     nome: string,
     skip: number,

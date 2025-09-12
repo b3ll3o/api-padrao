@@ -274,6 +274,7 @@ describe('UsuariosController (e2e)', () => {
     let user1;
     let user2;
     let user1Token;
+    let deletedUser;
 
     beforeEach(async () => {
       await cleanDatabase(prisma); // Clean database before each test in this describe block
@@ -286,6 +287,13 @@ describe('UsuariosController (e2e)', () => {
           descricao: 'Permissão para ler usuários por ID',
         },
       });
+      const deleteUsuarioPerm = await prisma.permissao.create({
+        data: {
+          nome: 'delete:usuario',
+          codigo: 'DELETE_USUARIO',
+          descricao: 'Permissão para deletar usuários',
+        },
+      });
 
       // Create an admin profile with permissions
       const adminProfile = await prisma.perfil.create({
@@ -293,7 +301,12 @@ describe('UsuariosController (e2e)', () => {
           nome: 'Admin',
           codigo: 'ADMIN',
           descricao: 'Perfil de administrador',
-          permissoes: { connect: { id: readUsuarioByIdPerm.id } },
+          permissoes: {
+            connect: [
+              { id: readUsuarioByIdPerm.id },
+              { id: deleteUsuarioPerm.id },
+            ],
+          },
         },
       });
 
@@ -329,6 +342,14 @@ describe('UsuariosController (e2e)', () => {
         data: {
           email: 'user2@example.com',
           senha: await bcrypt.hash('Password123!', 10),
+        },
+      });
+
+      deletedUser = await prisma.usuario.create({
+        data: {
+          email: 'deleted@example.com',
+          senha: await bcrypt.hash('Password123!', 10),
+          deletedAt: new Date(),
         },
       });
 
@@ -397,11 +418,25 @@ describe('UsuariosController (e2e)', () => {
           });
         });
     });
+
+    it('deve retornar 404 para um usuário deletado por padrão', () => {
+      return supertestRequest(app.getHttpServer())
+        .get(`/usuarios/${deletedUser.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404)
+        .then((res) => {
+          expect(res.body.message).toBe(
+            `Usuário com ID ${deletedUser.id} não encontrado`,
+          );
+        });
+    });
   });
 
   describe('PATCH /usuarios/:id', () => {
     let userToUpdate;
     let userToken;
+    let userToSoftDelete;
+    let restoreUsuarioPerm;
 
     beforeEach(async () => {
       await cleanDatabase(prisma); // Clean database before each test in this describe block
@@ -414,6 +449,13 @@ describe('UsuariosController (e2e)', () => {
           descricao: 'Permissão para atualizar usuários',
         },
       });
+      restoreUsuarioPerm = await prisma.permissao.create({
+        data: {
+          nome: 'restore:usuario',
+          codigo: 'RESTORE_USUARIO',
+          descricao: 'Permissão para restaurar usuários',
+        },
+      });
 
       // Create an admin profile with permissions
       const adminProfile = await prisma.perfil.create({
@@ -421,7 +463,12 @@ describe('UsuariosController (e2e)', () => {
           nome: 'Admin',
           codigo: 'ADMIN',
           descricao: 'Perfil de administrador',
-          permissoes: { connect: { id: updateUsuarioPerm.id } },
+          permissoes: {
+            connect: [
+              { id: updateUsuarioPerm.id },
+              { id: restoreUsuarioPerm.id },
+            ],
+          },
         },
       });
 
@@ -451,6 +498,14 @@ describe('UsuariosController (e2e)', () => {
           perfis: { connect: { id: userProfile.id } },
         },
         include: { perfis: { include: { permissoes: true } } },
+      });
+
+      userToSoftDelete = await prisma.usuario.create({
+        data: {
+          email: 'soft_deleted@example.com',
+          senha: await bcrypt.hash('Password123!', 10),
+          deletedAt: new Date(), // Already soft-deleted
+        },
       });
 
       // Create tokens
@@ -509,11 +564,48 @@ describe('UsuariosController (e2e)', () => {
         .send(updateDto)
         .expect(404);
     });
+
+    it('deve restaurar um usuário deletado', async () => {
+      const restoreDto = {}; // No body needed for restore
+      return supertestRequest(app.getHttpServer())
+        .patch(`/usuarios/${userToSoftDelete.id}/restore`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(restoreDto)
+        .expect(200)
+        .then(async (res) => {
+          expect(res.body.id).toBe(userToSoftDelete.id);
+          expect(res.body.deletedAt).toBeNull();
+          // Verify it's now accessible via normal GET
+          await supertestRequest(app.getHttpServer())
+            .get(`/usuarios/${userToSoftDelete.id}`)
+            .set('Authorization', `Bearer ${adminToken}`)
+            .expect(200);
+        });
+    });
+
+    it('deve retornar 403 se não for admin ao tentar restaurar', async () => {
+      const restoreDto = {};
+      return supertestRequest(app.getHttpServer())
+        .patch(`/usuarios/${userToSoftDelete.id}/restore`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send(restoreDto)
+        .expect(403);
+    });
+
+    it('deve retornar 409 se tentar restaurar um usuário não deletado', async () => {
+      const restoreDto = {};
+      return supertestRequest(app.getHttpServer())
+        .patch(`/usuarios/${userToUpdate.id}/restore`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(restoreDto)
+        .expect(409);
+    });
   });
 
   describe('DELETE /usuarios/:id', () => {
     let userToDelete;
     let userToken;
+    let restoreUsuarioPerm;
 
     beforeEach(async () => {
       await cleanDatabase(prisma); // Clean database before each test in this describe block
@@ -526,6 +618,13 @@ describe('UsuariosController (e2e)', () => {
           descricao: 'Permissão para deletar usuários',
         },
       });
+      restoreUsuarioPerm = await prisma.permissao.create({
+        data: {
+          nome: 'restore:usuario',
+          codigo: 'RESTORE_USUARIO',
+          descricao: 'Permissão para restaurar usuários',
+        },
+      });
 
       // Create an admin profile with permissions
       const adminProfile = await prisma.perfil.create({
@@ -533,7 +632,12 @@ describe('UsuariosController (e2e)', () => {
           nome: 'Admin',
           codigo: 'ADMIN',
           descricao: 'Perfil de administrador',
-          permissoes: { connect: { id: deleteUsuarioPerm.id } },
+          permissoes: {
+            connect: [
+              { id: deleteUsuarioPerm.id },
+              { id: restoreUsuarioPerm.id },
+            ],
+          },
         },
       });
 
@@ -573,24 +677,46 @@ describe('UsuariosController (e2e)', () => {
       });
     });
 
-    it('deve permitir que um usuário delete seus próprios dados', () => {
-      return supertestRequest(app.getHttpServer())
+    it('deve permitir que um usuário delete seus próprios dados (soft delete)', async () => {
+      await supertestRequest(app.getHttpServer())
         .delete(`/usuarios/${userToDelete.id}`)
         .set('Authorization', `Bearer ${userToken}`)
-        .expect(204);
+        .expect(204); // Expect 204 No Content
+
+      // Verify soft deletion: user should not be found by default GET
+      await supertestRequest(app.getHttpServer())
+        .get(`/usuarios/${userToDelete.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
+
+      // Verify soft deletion: user should still exist in DB with deletedAt set
+      const deletedUserInDb = await prisma.usuario.findUnique({
+        where: { id: userToDelete.id },
+        include: { perfis: true },
+      });
+      expect(deletedUserInDb).not.toBeNull();
+      expect(deletedUserInDb?.deletedAt).not.toBeNull();
     });
 
-    it('deve permitir que um admin delete os dados de outro usuário', async () => {
+    it('deve permitir que um admin delete os dados de outro usuário (soft delete)', async () => {
       const anotherUser = await prisma.usuario.create({
         data: {
           email: 'another_user_to_delete@example.com',
           senha: await bcrypt.hash('Password123!', 10),
         },
       });
-      return supertestRequest(app.getHttpServer())
+      await supertestRequest(app.getHttpServer())
         .delete(`/usuarios/${anotherUser.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(204);
+
+      // Verify soft deletion
+      const deletedUserInDb = await prisma.usuario.findUnique({
+        where: { id: anotherUser.id },
+        include: { perfis: true },
+      });
+      expect(deletedUserInDb).not.toBeNull();
+      expect(deletedUserInDb?.deletedAt).not.toBeNull();
     });
 
     it('deve retornar 403 quando um usuário tenta deletar dados de outro usuário', async () => {

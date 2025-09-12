@@ -35,6 +35,13 @@ export class Usuario {
   updatedAt: Date;
 
   @ApiPropertyOptional({
+    description: 'Data de deleção lógica do registro',
+    example: '2025-09-08T10:00:00Z',
+    nullable: true,
+  })
+  deletedAt?: Date | null; // Added
+
+  @ApiPropertyOptional({
     description: 'Lista de perfis associados ao usuário',
     type: () => [Perfil],
   })

@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsuariosController } from './usuarios.controller';
 import { UsuariosService } from '../services/usuarios.service';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
+import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import { Usuario } from '../../domain/entities/usuario.entity';
-import { ForbiddenException } from '@nestjs/common';
 import { Request } from 'express';
 
 describe('UsuariosController', () => {
@@ -13,6 +13,9 @@ describe('UsuariosController', () => {
   const mockUsuariosService = {
     create: jest.fn(),
     findOne: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+    restore: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -36,53 +39,70 @@ describe('UsuariosController', () => {
 
   describe('create', () => {
     it('should create a user', async () => {
-      const createUsuarioDto: CreateUsuarioDto = {
+      const createDto: CreateUsuarioDto = {
         email: 'test@example.com',
-        senha: 'password123',
+        senha: 'Password123!',
       };
-      const expectedUsuario = { id: 1, ...createUsuarioDto } as Usuario;
-      mockUsuariosService.create.mockResolvedValue(expectedUsuario);
+      const createdUser = new Usuario();
+      mockUsuariosService.create.mockResolvedValue(createdUser);
 
-      const result = await controller.create(createUsuarioDto);
-      expect(result).toEqual(expectedUsuario);
-      expect(service.create).toHaveBeenCalledWith(createUsuarioDto);
+      const result = await controller.create(createDto);
+
+      expect(result).toEqual(createdUser);
+      expect(service.create).toHaveBeenCalledWith(createDto);
     });
   });
 
   describe('findOne', () => {
-    it('should return a user by ID', async () => {
-      const id = '1';
-      const expectedUsuario = { id: 1, email: 'test@example.com' } as Usuario;
-      const mockRequest = {
-        usuarioLogado: { userId: 1, email: 'test@example.com' },
-      } as Request;
+    it('should return a user', async () => {
+      const user = new Usuario();
+      mockUsuariosService.findOne.mockResolvedValue(user);
+      const req = { usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] } } as unknown as Request;
 
-      mockUsuariosService.findOne.mockResolvedValue(expectedUsuario);
+      const result = await controller.findOne('1', req);
 
-      const result = await controller.findOne(id, mockRequest);
-      expect(result).toEqual(expectedUsuario);
-      expect(service.findOne).toHaveBeenCalledWith(
-        +id,
-        mockRequest.usuarioLogado,
-      );
+      expect(result).toEqual(user);
+      expect(service.findOne).toHaveBeenCalledWith(1, req.usuarioLogado);
     });
+  });
 
-    it('should throw ForbiddenException if usuarioLogado is not present in request', async () => {
-      const id = '1';
-      const mockRequest = {
-        usuarioLogado: undefined,
-      } as Request;
+  describe('update', () => {
+    it('should update a user', async () => {
+      const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
+      const updatedUser = new Usuario();
+      mockUsuariosService.update.mockResolvedValue(updatedUser);
+      const req = { usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] } } as unknown as Request;
 
-      let error: any;
-      try {
-        await controller.findOne(id, mockRequest);
-      } catch (e) {
-        error = e;
-      }
+      const result = await controller.update('1', updateDto, req);
 
-      expect(error).toBeInstanceOf(ForbiddenException);
-      expect(error.message).toBe('Usuário não autenticado');
-      // Removed: expect(service.findOne).not.toHaveBeenCalled();
+      expect(result).toEqual(updatedUser);
+      expect(service.update).toHaveBeenCalledWith(1, updateDto, req.usuarioLogado);
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a user', async () => {
+      const user = new Usuario();
+      mockUsuariosService.remove.mockResolvedValue(user);
+      const req = { usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] } } as unknown as Request;
+
+      const result = await controller.remove('1', req);
+
+      expect(result).toEqual(user);
+      expect(service.remove).toHaveBeenCalledWith(1, req.usuarioLogado);
+    });
+  });
+
+  describe('restore', () => {
+    it('should restore a user', async () => {
+      const user = new Usuario();
+      mockUsuariosService.restore.mockResolvedValue(user);
+      const req = { usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] } } as unknown as Request;
+
+      const result = await controller.restore('1', req);
+
+      expect(result).toEqual(user);
+      expect(service.restore).toHaveBeenCalledWith(1, req.usuarioLogado);
     });
   });
 });

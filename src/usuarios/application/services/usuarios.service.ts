@@ -49,8 +49,12 @@ export class UsuariosService {
     return usuario;
   }
 
-  async findOne(id: number, usuarioLogado: UsuarioLogado): Promise<Usuario> {
-    const usuario = await this.usuarioRepository.findOne(id);
+  async findOne(
+    id: number,
+    usuarioLogado: UsuarioLogado,
+    includeDeleted: boolean = false,
+  ): Promise<Usuario> {
+    const usuario = await this.usuarioRepository.findOne(id, includeDeleted); // Pass includeDeleted
     if (!usuario) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
@@ -77,7 +81,7 @@ export class UsuariosService {
     updateUsuarioDto: UpdateUsuarioDto,
     usuarioLogado: UsuarioLogado,
   ): Promise<Usuario> {
-    const usuario = await this.usuarioRepository.findOne(id);
+    const usuario = await this.usuarioRepository.findOne(id, true); // Find including deleted to allow update on soft-deleted
     if (!usuario) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
@@ -132,8 +136,9 @@ export class UsuariosService {
     return updatedUsuario;
   }
 
-  async remove(id: number, usuarioLogado: UsuarioLogado): Promise<void> {
-    const usuario = await this.usuarioRepository.findOne(id);
+  async remove(id: number, usuarioLogado: UsuarioLogado): Promise<Usuario> {
+    // Changed return type to Usuario
+    const usuario = await this.usuarioRepository.findOne(id); // Find only non-deleted
     if (!usuario) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
@@ -154,6 +159,34 @@ export class UsuariosService {
     // for now, just allow admin to delete any user, and user to delete self)
     // Consider adding a check if the user is trying to delete the last admin account.
 
-    await this.usuarioRepository.remove(id);
+    const softDeletedUsuario = await this.usuarioRepository.remove(id); // Call repository's soft delete
+    delete softDeletedUsuario.senha;
+    return softDeletedUsuario;
+  }
+
+  async restore(id: number, usuarioLogado: UsuarioLogado): Promise<Usuario> {
+    // New restore method
+    const usuario = await this.usuarioRepository.findOne(id, true); // Find including deleted
+    if (!usuario) {
+      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+
+    if (usuario.deletedAt === null) {
+      throw new ConflictException(`Usuário com ID ${id} não está deletado.`);
+    }
+
+    const isAdmin = usuarioLogado.perfis?.some(
+      (perfil) => perfil.codigo === 'ADMIN',
+    );
+
+    if (!isAdmin) {
+      throw new ForbiddenException(
+        'Você não tem permissão para restaurar este usuário',
+      );
+    }
+
+    const restoredUsuario = await this.usuarioRepository.restore(id); // Call repository's restore
+    delete restoredUsuario.senha;
+    return restoredUsuario;
   }
 }

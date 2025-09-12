@@ -7,8 +7,8 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 ### Características Principais
 
 *   **Autenticação Segura:** Implementação de autenticação JWT (JSON Web Tokens) para acesso seguro aos recursos da API.
-*   **Gerenciamento de Usuários:** Funcionalidades completas para criação, leitura, atualização e exclusão de usuários, com suporte a múltiplos perfis.
-*   **Perfis e Permissões:** Sistema granular de perfis e permissões, permitindo controle de acesso detalhado a diferentes funcionalidades da API.
+*   **Gerenciamento de Usuários:** Funcionalidades completas para criação, leitura, atualização, **deleção lógica (soft delete) e restauração** de usuários, com suporte a múltiplos perfis.
+*   **Perfis e Permissões:** Sistema granular de perfis e permissões, permitindo controle de acesso detalhado a diferentes funcionalidades da API, **incluindo deleção lógica (soft delete) e restauração de perfis e permissões**.
 *   **Paginação:** Suporte a paginação em endpoints de listagem para otimização de desempenho e experiência do usuário.
 *   **Documentação Interativa:** Documentação completa e interativa da API gerada automaticamente com Swagger/OpenAPI.
 *   **Observabilidade (OpenTelemetry):** Instrumentação com OpenTelemetry para rastreamento distribuído (distributed tracing), facilitando a depuração e monitoramento da aplicação.

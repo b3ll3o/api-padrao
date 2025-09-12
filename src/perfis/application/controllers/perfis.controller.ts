@@ -9,6 +9,8 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PerfisService } from '../services/perfis.service';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
@@ -23,6 +25,7 @@ import {
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { PaginationDto } from '../../../dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
+import { Request } from 'express';
 
 @ApiTags('Perfis')
 @ApiBearerAuth()
@@ -46,7 +49,10 @@ export class PerfisController {
 
   @TemPermissao('READ_PERFIS')
   @Get()
-  @ApiOperation({ summary: 'Listar todos os perfis' })
+  @ApiOperation({
+    summary: 'Listar todos os perfis',
+    description: 'Retorna todos os perfis não deletados por padrão.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Retorna todos os perfis.',
@@ -61,20 +67,31 @@ export class PerfisController {
 
   @TemPermissao('READ_PERFIL_BY_ID')
   @Get(':id')
-  @ApiOperation({ summary: 'Buscar um perfil por ID' })
+  @ApiOperation({
+    summary: 'Buscar um perfil por ID',
+    description:
+      'Retorna o perfil com o ID especificado. Não retorna perfis deletados por padrão.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Retorna o perfil com o ID especificado.',
     type: Perfil,
   })
-  @ApiResponse({ status: 404, description: 'Perfil não encontrado.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Perfil não encontrado ou deletado.',
+  })
   findOne(@Param('id') id: string): Promise<Perfil> {
     return this.perfisService.findOne(+id);
   }
 
   @TemPermissao('READ_PERFIL_BY_NOME')
   @Get('nome/:nome')
-  @ApiOperation({ summary: 'Buscar perfis por nome contendo a string' })
+  @ApiOperation({
+    summary: 'Buscar perfis por nome contendo a string',
+    description:
+      'Retorna uma lista de perfis não deletados que contêm a string no nome.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Retorna uma lista de perfis que contêm a string no nome.',
@@ -89,7 +106,11 @@ export class PerfisController {
 
   @TemPermissao('UPDATE_PERFIL')
   @Patch(':id')
-  @ApiOperation({ summary: 'Atualizar um perfil existente' })
+  @ApiOperation({
+    summary: 'Atualizar um perfil existente',
+    description:
+      'Atualiza um perfil existente. Pode atualizar perfis deletados.',
+  })
   @ApiResponse({
     status: 200,
     description: 'O perfil foi atualizado com sucesso.',
@@ -107,13 +128,46 @@ export class PerfisController {
   @TemPermissao('DELETE_PERFIL')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remover um perfil por ID' })
+  @ApiOperation({
+    summary: 'Deletar (soft delete) um perfil por ID',
+    description: 'Marca um perfil como deletado (soft delete).',
+  })
   @ApiResponse({
     status: 204,
-    description: 'O perfil foi removido com sucesso.',
+    description: 'O perfil foi deletado com sucesso.',
   })
   @ApiResponse({ status: 404, description: 'Perfil não encontrado.' })
-  remove(@Param('id') id: string): Promise<void> {
-    return this.perfisService.remove(+id);
+  remove(@Param('id') id: string, @Req() req: Request): Promise<Perfil> {
+    // Changed return type and added Req
+    if (!req.usuarioLogado) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
+    return this.perfisService.remove(+id, req.usuarioLogado);
+  }
+
+  @TemPermissao('RESTORE_PERFIL') // Assuming a new permission for restore
+  @Patch(':id/restore')
+  @ApiOperation({
+    summary: 'Restaurar um perfil deletado por ID',
+    description: 'Restaura um perfil previamente deletado (soft delete).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'O perfil foi restaurado com sucesso.',
+    type: Perfil,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Perfil não encontrado ou não está deletado.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado - Sem permissão para restaurar este perfil.',
+  })
+  restore(@Param('id') id: string, @Req() req: Request): Promise<Perfil> {
+    if (!req.usuarioLogado) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
+    return this.perfisService.restore(+id, req.usuarioLogado);
   }
 }

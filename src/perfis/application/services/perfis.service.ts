@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
 import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
@@ -10,6 +11,9 @@ import { Perfil } from '../../domain/entities/perfil.entity';
 import { PermissoesService } from '../../../permissoes/application/services/permissoes.service';
 import { PaginationDto } from '../../../dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
+import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+
+type UsuarioLogado = JwtPayload;
 
 @Injectable()
 export class PerfisService {
@@ -40,12 +44,17 @@ export class PerfisService {
 
   async findAll(
     paginationDto: PaginationDto,
+    includeDeleted: boolean = false,
   ): Promise<PaginatedResponseDto<Perfil>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
     const skip = (page - 1) * limit;
     const take = limit;
-    const [data, total] = await this.perfilRepository.findAll(skip, take);
+    const [data, total] = await this.perfilRepository.findAll(
+      skip,
+      take,
+      includeDeleted,
+    );
     const totalPages = Math.ceil(total / limit);
     return {
       data,
@@ -56,8 +65,8 @@ export class PerfisService {
     };
   }
 
-  async findOne(id: number): Promise<Perfil> {
-    const perfil = await this.perfilRepository.findOne(id);
+  async findOne(id: number, includeDeleted: boolean = false): Promise<Perfil> {
+    const perfil = await this.perfilRepository.findOne(id, includeDeleted);
     if (!perfil) {
       throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }
@@ -67,13 +76,15 @@ export class PerfisService {
   async findByNome(
     nome: string,
     paginationDto: PaginationDto,
+    includeDeleted: boolean = false,
   ): Promise<PaginatedResponseDto<Perfil>> {
-    return this.findByNomeContaining(nome, paginationDto);
+    return this.findByNomeContaining(nome, paginationDto, includeDeleted);
   }
 
   async findByNomeContaining(
     nome: string,
     paginationDto: PaginationDto,
+    includeDeleted: boolean = false,
   ): Promise<PaginatedResponseDto<Perfil>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
@@ -83,6 +94,7 @@ export class PerfisService {
       nome,
       skip,
       take,
+      includeDeleted,
     );
     const totalPages = Math.ceil(total / limit);
     return {
@@ -100,18 +112,58 @@ export class PerfisService {
         await this.permissoesService.findOne(permId); // Validate if permission exists
       }
     }
-    const perfil = await this.perfilRepository.update(id, updatePerfilDto);
+    // Find including deleted to allow update on soft-deleted
+    const perfil = await this.perfilRepository.findOne(id, true);
     if (!perfil) {
       throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }
-    return perfil;
+    const updatedPerfil = await this.perfilRepository.update(
+      id,
+      updatePerfilDto,
+    );
+    if (!updatedPerfil) {
+      throw new NotFoundException(`Perfil com ID ${id} não encontrado após atualização.`);
+    }
+    return updatedPerfil;
   }
 
-  async remove(id: number): Promise<void> {
-    const perfil = await this.perfilRepository.findOne(id);
+  async remove(id: number, usuarioLogado: UsuarioLogado): Promise<Perfil> {
+    const perfil = await this.perfilRepository.findOne(id); // Find only non-deleted
     if (!perfil) {
       throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }
-    await this.perfilRepository.remove(id);
+
+    const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
+
+    if (!isAdmin) {
+      throw new ForbiddenException(
+        'Você não tem permissão para deletar este perfil',
+      );
+    }
+
+    const softDeletedPerfil = await this.perfilRepository.remove(id);
+    return softDeletedPerfil;
+  }
+
+  async restore(id: number, usuarioLogado: UsuarioLogado): Promise<Perfil> {
+    const perfil = await this.perfilRepository.findOne(id, true); // Find including deleted
+    if (!perfil) {
+      throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
+    }
+
+    if (perfil.deletedAt === null) {
+      throw new ConflictException(`Perfil com ID ${id} não está deletado.`);
+    }
+
+    const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
+
+    if (!isAdmin) {
+      throw new ForbiddenException(
+        'Você não tem permissão para restaurar este perfil',
+      );
+    }
+
+    const restoredPerfil = await this.perfilRepository.restore(id);
+    return restoredPerfil;
   }
 }

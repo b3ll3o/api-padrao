@@ -39,7 +39,7 @@ export class UsuariosController {
   @ApiOperation({
     summary: 'Buscar um usuário por ID',
     description:
-      'Retorna os dados do usuário. Requer autenticação e só permite que o usuário acesse seus próprios dados.',
+      'Retorna os dados do usuário. Requer autenticação e só permite que o usuário acesse seus próprios dados. Não retorna usuários deletados.',
   })
   @ApiResponse({
     status: 200,
@@ -54,12 +54,12 @@ export class UsuariosController {
   @ApiResponse({
     status: 403,
     description:
-      'Acesso negado - O usuário autenticado não tem permissão para acessar os dados de outro usuário.',
+      'Acesso negado - O usuário autenticado não tem permissão para acessar os dados deste usuário.',
   })
   @ApiResponse({
     status: 404,
     description:
-      'Usuário não encontrado - O ID especificado não existe no sistema.',
+      'Usuário não encontrado - O ID especificado não existe no sistema ou está deletado.',
   })
   @TemPermissao('READ_USUARIO_BY_ID')
   findOne(@Param('id') id: string, @Req() req: Request): Promise<Usuario> {
@@ -73,7 +73,7 @@ export class UsuariosController {
   @ApiOperation({
     summary: 'Atualiza um usuário por ID',
     description:
-      'Atualiza os dados de um usuário. Requer autenticação e permissão. Um usuário pode atualizar seus próprios dados. Um administrador pode atualizar os dados de qualquer usuário.',
+      'Atualiza os dados de um usuário. Requer autenticação e permissão. Um usuário pode atualizar seus próprios dados. Um administrador pode atualizar os dados de qualquer usuário. Pode atualizar usuários deletados.',
   })
   @ApiResponse({ status: 200, description: 'Usuário atualizado com sucesso.' })
   @ApiResponse({
@@ -107,9 +107,9 @@ export class UsuariosController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT) // Returns 204 No Content on success
   @ApiOperation({
-    summary: 'Deleta um usuário por ID',
+    summary: 'Deleta (soft delete) um usuário por ID',
     description:
-      'Deleta um usuário. Requer autenticação e permissão. Um usuário pode deletar sua própria conta. Um administrador pode deletar qualquer usuário.',
+      'Marca um usuário como deletado (soft delete). Requer autenticação e permissão. Um usuário pode deletar sua própria conta. Um administrador pode deletar qualquer usuário.',
   })
   @ApiResponse({ status: 204, description: 'Usuário deletado com sucesso.' })
   @ApiResponse({
@@ -125,10 +125,43 @@ export class UsuariosController {
     description: 'Usuário não encontrado - O ID especificado não existe.',
   })
   @TemPermissao('DELETE_USUARIO')
-  remove(@Param('id') id: string, @Req() req: Request): Promise<void> {
+  remove(@Param('id') id: string, @Req() req: Request): Promise<Usuario> {
+    // Changed return type
     if (!req.usuarioLogado) {
       throw new ForbiddenException('Usuário não autenticado');
     }
     return this.usuariosService.remove(+id, req.usuarioLogado);
+  }
+
+  @Patch(':id/restore') // New endpoint for restoring
+  @ApiOperation({
+    summary: 'Restaura um usuário deletado por ID',
+    description:
+      'Restaura um usuário previamente deletado (soft delete). Requer autenticação e permissão de administrador.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuário restaurado com sucesso.',
+    type: Usuario,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Não autorizado - Token JWT ausente ou inválido.',
+  })
+  @ApiResponse({
+    status: 403,
+    description:
+      'Acesso negado - Sem permissão para restaurar este usuário ou usuário não está deletado.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Usuário não encontrado - O ID especificado não existe.',
+  })
+  @TemPermissao('RESTORE_USUARIO') // Assuming a new permission for restore
+  restore(@Param('id') id: string, @Req() req: Request): Promise<Usuario> {
+    if (!req.usuarioLogado) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
+    return this.usuariosService.restore(+id, req.usuarioLogado);
   }
 }

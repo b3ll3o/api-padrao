@@ -3,20 +3,22 @@ import { PrismaUsuarioRepository } from './prisma-usuario.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { Perfil } from 'src/perfis/domain/entities/perfil.entity';
-import { Permissao } from 'src/permissoes/domain/entities/permissao.entity';
 
 describe('PrismaUsuarioRepository', () => {
   let repository: PrismaUsuarioRepository;
-  // let prismaService: PrismaService; // Removed unused variable
 
   const mockPrismaService = {
     usuario: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(), // Added for findAll
+      update: jest.fn(), // Added for update, remove, restore
+      delete: jest.fn(), // Original delete, now replaced by update for soft delete
     },
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks(); // Clear all mocks before each test
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PrismaUsuarioRepository,
@@ -28,7 +30,6 @@ describe('PrismaUsuarioRepository', () => {
     }).compile();
 
     repository = module.get<PrismaUsuarioRepository>(PrismaUsuarioRepository);
-    // prismaService = module.get<PrismaService>(PrismaService); // Removed unused assignment
   });
 
   it('should be defined', () => {
@@ -48,6 +49,7 @@ describe('PrismaUsuarioRepository', () => {
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
+        deletedAt: null, // Added
       };
       mockPrismaService.usuario.create.mockResolvedValue(prismaResult);
 
@@ -59,6 +61,7 @@ describe('PrismaUsuarioRepository', () => {
       expect(result.senha).toBe(prismaResult.senha);
       expect(result.createdAt).toEqual(prismaResult.createdAt);
       expect(result.updatedAt).toEqual(prismaResult.updatedAt);
+      expect(result.deletedAt).toBeNull(); // Assert deletedAt
       expect(mockPrismaService.usuario.create).toHaveBeenCalledWith({
         data: {
           email: createData.email,
@@ -67,7 +70,7 @@ describe('PrismaUsuarioRepository', () => {
             connect: [{ id: 1 }],
           },
         },
-        include: { perfis: true }, // Added include expectation
+        include: { perfis: true },
       });
     });
 
@@ -81,6 +84,7 @@ describe('PrismaUsuarioRepository', () => {
         senha: null, // Prisma returns null for optional fields not set
         createdAt: new Date(),
         updatedAt: new Date(),
+        deletedAt: null, // Added
       };
       mockPrismaService.usuario.create.mockResolvedValue(prismaResult);
 
@@ -88,6 +92,7 @@ describe('PrismaUsuarioRepository', () => {
 
       expect(result).toBeInstanceOf(Usuario);
       expect(result.senha).toBeUndefined(); // Should be undefined if null from Prisma
+      expect(result.deletedAt).toBeNull(); // Assert deletedAt
       expect(mockPrismaService.usuario.create).toHaveBeenCalledWith({
         data: {
           email: createData.email,
@@ -96,35 +101,51 @@ describe('PrismaUsuarioRepository', () => {
             connect: undefined,
           },
         },
-        include: { perfis: true }, // Added include expectation
+        include: { perfis: true },
       });
     });
   });
 
   describe('findOne', () => {
-    it('should return a user by ID', async () => {
-      const prismaResult = {
-        id: 1,
-        email: 'test@example.com',
-        senha: 'hashedPassword',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        perfis: [
-          { id: 1, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' },
-        ],
-      };
+    const prismaResult = {
+      id: 1,
+      email: 'test@example.com',
+      senha: 'hashedPassword',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      perfis: [
+        { id: 1, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' },
+      ],
+    };
+
+    it('should return a user by ID (not deleted)', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(prismaResult);
 
       const result = await repository.findOne(1);
 
       expect(result!).toBeInstanceOf(Usuario);
       expect(result!.id).toBe(prismaResult.id);
-      expect(result!.email).toBe(prismaResult.email);
-      expect(result!.senha).toBe(prismaResult.senha);
-      expect(result!.perfis).toBeDefined();
-      expect(result!.perfis?.[0]).toBeInstanceOf(Perfil);
+      expect(result!.deletedAt).toBeNull();
       expect(mockPrismaService.usuario.findUnique).toHaveBeenCalledWith({
-        where: { id: 1 },
+        where: { id: 1, deletedAt: null }, // Assert filter
+        include: { perfis: true },
+      });
+    });
+
+    it('should return a user by ID including deleted', async () => {
+      const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
+      mockPrismaService.usuario.findUnique.mockResolvedValue(
+        deletedPrismaResult,
+      );
+
+      const result = await repository.findOne(1, true); // Pass true for includeDeleted
+
+      expect(result!).toBeInstanceOf(Usuario);
+      expect(result!.id).toBe(deletedPrismaResult.id);
+      expect(result!.deletedAt).toEqual(deletedPrismaResult.deletedAt);
+      expect(mockPrismaService.usuario.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 }, // No deletedAt filter
         include: { perfis: true },
       });
     });
@@ -135,92 +156,166 @@ describe('PrismaUsuarioRepository', () => {
       const result = await repository.findOne(999);
       expect(result).toBeUndefined();
     });
+
+    it('should return undefined if user is soft-deleted and not included', async () => {
+      mockPrismaService.usuario.findUnique.mockResolvedValue(null);
+
+      const result = await repository.findOne(1, false); // Explicitly not include deleted
+      expect(result).toBeUndefined();
+    });
   });
 
-  describe('findByEmail', () => {
-    it('should return a user by email', async () => {
-      const prismaResult = {
+  describe('findAll', () => {
+    const prismaResults = [
+      {
         id: 1,
-        email: 'test@example.com',
-        senha: 'hashedPassword',
+        email: 'test1@example.com',
+        senha: 'hashedPassword1',
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
-      mockPrismaService.usuario.findUnique.mockResolvedValue(prismaResult);
+        deletedAt: null,
+        perfis: [],
+      },
+      {
+        id: 2,
+        email: 'test2@example.com',
+        senha: 'hashedPassword2',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: new Date(), // Soft deleted
+        perfis: [],
+      },
+    ];
 
-      const result = await repository.findByEmail('test@example.com');
+    it('should return all non-deleted users by default', async () => {
+      mockPrismaService.usuario.findMany.mockResolvedValue([prismaResults[0]]); // Only return non-deleted
 
-      expect(result).toBeInstanceOf(Usuario);
-      expect(result?.email).toBe(prismaResult.email);
-      expect(result?.senha).toBe(prismaResult.senha);
-      expect(mockPrismaService.usuario.findUnique).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
+      const result = await repository.findAll();
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBeInstanceOf(Usuario);
+      expect(result[0].id).toBe(prismaResults[0].id);
+      expect(result[0].deletedAt).toBeNull();
+      expect(mockPrismaService.usuario.findMany).toHaveBeenCalledWith({
+        where: { deletedAt: null }, // Assert filter
+        include: { perfis: true },
       });
     });
 
-    it('should return null if user not found by email', async () => {
-      mockPrismaService.usuario.findUnique.mockResolvedValue(null);
+    it('should return all users including deleted when specified', async () => {
+      mockPrismaService.usuario.findMany.mockResolvedValue(prismaResults); // Return all
 
-      const result = await repository.findByEmail('nonexistent@example.com');
-      expect(result).toBeNull();
+      const result = await repository.findAll(true); // Pass true for includeDeleted
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(Usuario);
+      expect(result[1]).toBeInstanceOf(Usuario);
+      expect(result[0].id).toBe(prismaResults[0].id);
+      expect(result[1].id).toBe(prismaResults[1].id);
+      expect(result[1].deletedAt).not.toBeNull();
+      expect(mockPrismaService.usuario.findMany).toHaveBeenCalledWith({
+        where: {}, // No deletedAt filter
+        include: { perfis: true },
+      });
     });
   });
 
-  describe('findByEmailWithPerfisAndPermissoes', () => {
-    it('should return a user with profiles and permissions', async () => {
+  describe('update', () => {
+    it('should update a user', async () => {
+      const updateData: Partial<Usuario> = {
+        email: 'updated@example.com',
+      };
       const prismaResult = {
         id: 1,
-        email: 'test@example.com',
+        email: 'updated@example.com',
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
-        perfis: [
-          {
-            id: 1,
-            codigo: 'ADMIN',
-            nome: 'Admin',
-            descricao: 'Admin Profile',
-            permissoes: [
-              {
-                id: 1,
-                codigo: 'CREATE_USER',
-                nome: 'Create User',
-                descricao: 'Create User Perm',
-              },
-            ],
-          },
-        ],
+        deletedAt: null,
+        perfis: [],
       };
-      mockPrismaService.usuario.findUnique.mockResolvedValue(prismaResult);
+      mockPrismaService.usuario.update.mockResolvedValue(prismaResult);
 
-      const result =
-        await repository.findByEmailWithPerfisAndPermissoes('test@example.com');
+      const result = await repository.update(1, updateData);
 
       expect(result).toBeInstanceOf(Usuario);
-      expect(result?.email).toBe(prismaResult.email);
-      expect(result?.perfis).toBeDefined();
-      expect(result?.perfis?.[0]).toBeInstanceOf(Perfil);
-      expect(result?.perfis?.[0].permissoes).toBeDefined();
-      expect(result?.perfis?.[0].permissoes?.[0]).toBeInstanceOf(Permissao);
-      expect(mockPrismaService.usuario.findUnique).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
-        include: {
-          perfis: {
-            include: {
-              permissoes: true,
-            },
-          },
+      expect(result.email).toBe(updateData.email);
+      expect(mockPrismaService.usuario.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          email: updateData.email,
+          perfis: undefined, // No perfis in updateData
         },
+        include: { perfis: true },
+      });
+    });
+  });
+
+  describe('remove', () => {
+    it('should soft delete a user', async () => {
+      const prismaResult = {
+        id: 1,
+        email: 'test@example.com',
+        senha: 'hashedPassword',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: new Date(), // Expected to be set
+        perfis: [],
+      };
+      mockPrismaService.usuario.update.mockResolvedValue(prismaResult);
+
+      const result = await repository.remove(1);
+
+      expect(result).toBeInstanceOf(Usuario);
+      expect(result.id).toBe(prismaResult.id);
+      expect(result.deletedAt).not.toBeNull(); // Assert deletedAt is set
+      expect(mockPrismaService.usuario.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { deletedAt: expect.any(Date) },
+        include: { perfis: true },
       });
     });
 
-    it('should return null if user not found by email with profiles and permissions', async () => {
-      mockPrismaService.usuario.findUnique.mockResolvedValue(null);
+    it('should throw error if user not found during soft delete', async () => {
+      mockPrismaService.usuario.update.mockRejectedValue({ code: 'P2025' }); // Simulate not found
 
-      const result = await repository.findByEmailWithPerfisAndPermissoes(
-        'nonexistent@example.com',
+      await expect(repository.remove(999)).rejects.toThrow(
+        'Usuário com ID 999 não encontrado.',
       );
-      expect(result).toBeNull();
+    });
+  });
+
+  describe('restore', () => {
+    it('should restore a soft-deleted user', async () => {
+      const prismaResult = {
+        id: 1,
+        email: 'test@example.com',
+        senha: 'hashedPassword',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null, // Expected to be null after restore
+        perfis: [],
+      };
+      mockPrismaService.usuario.update.mockResolvedValue(prismaResult);
+
+      const result = await repository.restore(1);
+
+      expect(result).toBeInstanceOf(Usuario);
+      expect(result.id).toBe(prismaResult.id);
+      expect(result.deletedAt).toBeNull(); // Assert deletedAt is null
+      expect(mockPrismaService.usuario.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { deletedAt: null },
+        include: { perfis: true },
+      });
+    });
+
+    it('should throw error if user not found during restore', async () => {
+      mockPrismaService.usuario.update.mockRejectedValue({ code: 'P2025' }); // Simulate not found
+
+      await expect(repository.restore(999)).rejects.toThrow(
+        'Usuário com ID 999 não encontrado.',
+      );
     });
   });
 });

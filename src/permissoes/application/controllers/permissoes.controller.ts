@@ -9,6 +9,8 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PermissoesService } from '../services/permissoes.service';
 import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
@@ -23,6 +25,7 @@ import {
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { PaginationDto } from '../../../dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
+import { Request } from 'express';
 
 @ApiTags('Permissoes')
 @ApiBearerAuth()
@@ -46,7 +49,10 @@ export class PermissoesController {
 
   @TemPermissao('READ_PERMISSOES')
   @Get()
-  @ApiOperation({ summary: 'Listar todas as permissões' })
+  @ApiOperation({
+    summary: 'Listar todas as permissões',
+    description: 'Retorna todas as permissões não deletadas por padrão.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Retorna todas as permissões.',
@@ -61,20 +67,31 @@ export class PermissoesController {
 
   @TemPermissao('READ_PERMISSAO_BY_ID')
   @Get(':id')
-  @ApiOperation({ summary: 'Buscar uma permissão por ID' })
+  @ApiOperation({
+    summary: 'Buscar uma permissão por ID',
+    description:
+      'Retorna a permissão com o ID especificado. Não retorna permissões deletadas por padrão.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Retorna a permissão com o ID especificado.',
     type: Permissao,
   })
-  @ApiResponse({ status: 404, description: 'Permissão não encontrada.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Permissão não encontrada ou deletada.',
+  })
   findOne(@Param('id') id: string): Promise<Permissao> {
     return this.permissoesService.findOne(+id);
   }
 
   @TemPermissao('READ_PERMISSAO_BY_NOME')
   @Get('nome/:nome')
-  @ApiOperation({ summary: 'Buscar permissões por nome contendo a string' })
+  @ApiOperation({
+    summary: 'Buscar permissões por nome contendo a string',
+    description:
+      'Retorna uma lista de permissões não deletadas que contêm a string no nome.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Retorna uma lista de permissões que contêm a string no nome.',
@@ -89,7 +106,11 @@ export class PermissoesController {
 
   @TemPermissao('UPDATE_PERMISSAO')
   @Patch(':id')
-  @ApiOperation({ summary: 'Atualizar uma permissão existente' })
+  @ApiOperation({
+    summary: 'Atualizar uma permissão existente',
+    description:
+      'Atualiza uma permissão existente. Pode atualizar permissões deletadas.',
+  })
   @ApiResponse({
     status: 200,
     description: 'A permissão foi atualizada com sucesso.',
@@ -104,16 +125,49 @@ export class PermissoesController {
     return this.permissoesService.update(+id, updatePermissaoDto);
   }
 
-  @Delete(':id')
   @TemPermissao('DELETE_PERMISSAO')
+  @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remover uma permissão por ID' })
+  @ApiOperation({
+    summary: 'Deletar (soft delete) uma permissão por ID',
+    description: 'Marca uma permissão como deletada (soft delete).',
+  })
   @ApiResponse({
     status: 204,
-    description: 'A permissão foi removida com sucesso.',
+    description: 'A permissão foi deletada com sucesso.',
   })
   @ApiResponse({ status: 404, description: 'Permissão não encontrada.' })
-  remove(@Param('id') id: string): Promise<void> {
-    return this.permissoesService.remove(+id);
+  remove(@Param('id') id: string, @Req() req: Request): Promise<Permissao> {
+    // Changed return type and added Req
+    if (!req.usuarioLogado) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
+    return this.permissoesService.remove(+id, req.usuarioLogado);
+  }
+
+  @TemPermissao('RESTORE_PERMISSAO') // Assuming a new permission for restore
+  @Patch(':id/restore')
+  @ApiOperation({
+    summary: 'Restaurar uma permissão deletada por ID',
+    description: 'Restaura uma permissão previamente deletada (soft delete).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'A permissão foi restaurada com sucesso.',
+    type: Permissao,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Permissão não encontrada ou não está deletada.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado - Sem permissão para restaurar esta permissão.',
+  })
+  restore(@Param('id') id: string, @Req() req: Request): Promise<Permissao> {
+    if (!req.usuarioLogado) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
+    return this.permissoesService.restore(+id, req.usuarioLogado);
   }
 }
