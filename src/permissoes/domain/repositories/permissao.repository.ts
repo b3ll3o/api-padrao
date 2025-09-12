@@ -33,5 +33,6 @@ export abstract class PermissaoRepository {
     nome: string,
     skip: number,
     take: number,
+    includeDeleted?: boolean,
   ): Promise<[Permissao[], number]>;
 }

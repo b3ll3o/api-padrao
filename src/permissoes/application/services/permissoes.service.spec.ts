@@ -224,7 +224,8 @@ describe('PermissoesService', () => {
         'Test Permissao',
         0,
         10,
-      ); // Removed includeDeleted
+        false,
+      ); // Added includeDeleted
     });
 
     it('should return a paginated list of all permissoes containing the name including deleted', async () => {
@@ -245,7 +246,8 @@ describe('PermissoesService', () => {
         'Test Permissao',
         0,
         10,
-      ); // Removed includeDeleted
+        true,
+      ); // Added includeDeleted
     });
   });
 
