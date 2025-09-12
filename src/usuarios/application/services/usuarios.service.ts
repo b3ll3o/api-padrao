@@ -6,17 +6,23 @@ import {
 } from '@nestjs/common';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
-import * as bcrypt from 'bcrypt';
+
+import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { Perfil } from 'src/perfis/domain/entities/perfil.entity';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+import { IUsuarioAuthorizationService } from './usuario-authorization.service';
 
 type UsuarioLogado = JwtPayload;
 
 @Injectable()
 export class UsuariosService {
-  constructor(private readonly usuarioRepository: UsuarioRepository) {}
+  constructor(
+    private readonly usuarioRepository: UsuarioRepository,
+    private readonly passwordHasher: PasswordHasher,
+    private readonly usuarioAuthorizationService: IUsuarioAuthorizationService,
+  ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto) {
     const usuarioExistente = await this.usuarioRepository.findByEmail(
@@ -32,8 +38,7 @@ export class UsuariosService {
     newUsuario.senha = undefined; // Initialize senha to undefined
 
     if (createUsuarioDto.senha) {
-      const salt = await bcrypt.genSalt();
-      newUsuario.senha = await bcrypt.hash(createUsuarioDto.senha, salt);
+      newUsuario.senha = await this.passwordHasher.hash(createUsuarioDto.senha);
     }
 
     // Assign perfilId if provided
@@ -59,12 +64,12 @@ export class UsuariosService {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
 
-    const isOwner = usuario.id === usuarioLogado.userId;
-    const isAdmin = usuarioLogado.perfis?.some(
-      (perfil) => perfil.codigo === 'ADMIN',
-    );
-
-    if (!isOwner && !isAdmin) {
+    if (
+      !this.usuarioAuthorizationService.canAccessUsuario(
+        usuario.id,
+        usuarioLogado,
+      )
+    ) {
       throw new ForbiddenException(
         'Você não tem permissão para acessar os dados deste usuário',
       );
@@ -86,19 +91,25 @@ export class UsuariosService {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
 
-    const isOwner = usuario.id === usuarioLogado.userId;
-    const isAdmin = usuarioLogado.perfis?.some(
-      (perfil) => perfil.codigo === 'ADMIN',
-    );
-
-    if (!isOwner && !isAdmin) {
+    if (
+      !this.usuarioAuthorizationService.canUpdateUsuario(
+        usuario.id,
+        usuarioLogado,
+      )
+    ) {
       throw new ForbiddenException(
         'Você não tem permissão para atualizar os dados deste usuário',
       );
     }
 
     // Prevent non-admins from changing their own roles/permissions
-    if (!isAdmin && updateUsuarioDto.perfisIds) {
+    if (
+      !this.usuarioAuthorizationService.canUpdateUsuario(
+        usuario.id,
+        usuarioLogado,
+      ) &&
+      updateUsuarioDto.perfisIds
+    ) {
       throw new ForbiddenException(
         'Você não tem permissão para alterar perfis de usuário',
       );
@@ -119,12 +130,17 @@ export class UsuariosService {
 
     // Update password if provided
     if (updateUsuarioDto.senha) {
-      const salt = await bcrypt.genSalt();
-      usuario.senha = await bcrypt.hash(updateUsuarioDto.senha, salt);
+      usuario.senha = await this.passwordHasher.hash(updateUsuarioDto.senha);
     }
 
     // Update profiles if provided and user is admin
-    if (isAdmin && updateUsuarioDto.perfisIds) {
+    if (
+      this.usuarioAuthorizationService.canUpdateUsuario(
+        usuario.id,
+        usuarioLogado,
+      ) &&
+      updateUsuarioDto.perfisIds
+    ) {
       usuario.perfis = updateUsuarioDto.perfisIds.map(
         (perfilId) => ({ id: perfilId }) as Perfil,
       );
@@ -143,12 +159,12 @@ export class UsuariosService {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
 
-    const isOwner = usuario.id === usuarioLogado.userId;
-    const isAdmin = usuarioLogado.perfis?.some(
-      (perfil) => perfil.codigo === 'ADMIN',
-    );
-
-    if (!isOwner && !isAdmin) {
+    if (
+      !this.usuarioAuthorizationService.canDeleteUsuario(
+        usuario.id,
+        usuarioLogado,
+      )
+    ) {
       throw new ForbiddenException(
         'Você não tem permissão para deletar este usuário',
       );
@@ -175,11 +191,12 @@ export class UsuariosService {
       throw new ConflictException(`Usuário com ID ${id} não está deletado.`);
     }
 
-    const isAdmin = usuarioLogado.perfis?.some(
-      (perfil) => perfil.codigo === 'ADMIN',
-    );
-
-    if (!isAdmin) {
+    if (
+      !this.usuarioAuthorizationService.canRestoreUsuario(
+        usuario.id,
+        usuarioLogado,
+      )
+    ) {
       throw new ForbiddenException(
         'Você não tem permissão para restaurar este usuário',
       );

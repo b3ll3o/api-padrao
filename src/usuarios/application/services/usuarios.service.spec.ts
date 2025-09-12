@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
+import { IUsuarioAuthorizationService } from './usuario-authorization.service';
 
 describe('UsuariosService', () => {
   let service: UsuariosService;
@@ -24,6 +26,16 @@ describe('UsuariosService', () => {
     remove: jest.Mock<Promise<Usuario>, [number]>;
     restore: jest.Mock<Promise<Usuario>, [number]>;
   };
+  let mockPasswordHasher: {
+    hash: jest.Mock<Promise<string>, [string]>;
+    compare: jest.Mock<Promise<boolean>, [string, string]>;
+  };
+  let mockUsuarioAuthorizationService: {
+    canAccessUsuario: jest.Mock<boolean, [number, JwtPayload]>;
+    canUpdateUsuario: jest.Mock<boolean, [number, JwtPayload]>;
+    canDeleteUsuario: jest.Mock<boolean, [number, JwtPayload]>;
+    canRestoreUsuario: jest.Mock<boolean, [number, JwtPayload]>;
+  };
 
   beforeEach(async () => {
     mockUsuarioRepository = {
@@ -34,6 +46,16 @@ describe('UsuariosService', () => {
       remove: jest.fn(),
       restore: jest.fn(),
     };
+    mockPasswordHasher = {
+      hash: jest.fn().mockResolvedValue('hashedPassword'),
+      compare: jest.fn().mockResolvedValue(true),
+    };
+    mockUsuarioAuthorizationService = {
+      canAccessUsuario: jest.fn().mockReturnValue(true),
+      canUpdateUsuario: jest.fn().mockReturnValue(true),
+      canDeleteUsuario: jest.fn().mockReturnValue(true),
+      canRestoreUsuario: jest.fn().mockReturnValue(true),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -41,6 +63,14 @@ describe('UsuariosService', () => {
         {
           provide: UsuarioRepository,
           useValue: mockUsuarioRepository,
+        },
+        {
+          provide: PasswordHasher,
+          useValue: mockPasswordHasher,
+        },
+        {
+          provide: IUsuarioAuthorizationService,
+          useValue: mockUsuarioAuthorizationService,
         },
       ],
     }).compile();
@@ -62,7 +92,6 @@ describe('UsuariosService', () => {
       createdUser.id = 1;
       createdUser.email = createDto.email;
       createdUser.deletedAt = null; // Added
-      createdUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
       (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(null);
       (mockUsuarioRepository.create as jest.Mock).mockResolvedValue(
@@ -85,7 +114,6 @@ describe('UsuariosService', () => {
       };
       const existingUser = new Usuario();
       existingUser.deletedAt = null; // Added
-      existingUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
       (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(
         existingUser,
       );
@@ -104,7 +132,6 @@ describe('UsuariosService', () => {
       { id: 1, codigo: 'USER', nome: 'User', descricao: 'User Profile' },
     ];
     mockUser.deletedAt = null; // Added
-    mockUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
     const mockAdminUser = new Usuario();
     mockAdminUser.id = 2;
@@ -113,7 +140,6 @@ describe('UsuariosService', () => {
       { id: 2, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' },
     ];
     mockAdminUser.deletedAt = null; // Added
-    mockAdminUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
     const mockUsuarioLogado: JwtPayload = {
       userId: 1,
@@ -170,9 +196,11 @@ describe('UsuariosService', () => {
       anotherUser.id = 3;
       anotherUser.email = 'another@example.com';
       anotherUser.deletedAt = null; // Added
-      anotherUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
         anotherUser,
+      );
+      mockUsuarioAuthorizationService.canAccessUsuario.mockReturnValueOnce(
+        false,
       );
 
       await expect(service.findOne(3, mockUsuarioLogado)).rejects.toThrow(
@@ -189,7 +217,6 @@ describe('UsuariosService', () => {
       { id: 1, codigo: 'USER', nome: 'User', descricao: 'User Profile' },
     ];
     mockUser.deletedAt = null; // Added
-    mockUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
     const mockAdminUser = new Usuario();
     mockAdminUser.id = 2;
@@ -198,7 +225,6 @@ describe('UsuariosService', () => {
       { id: 2, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' },
     ];
     mockAdminUser.deletedAt = null; // Added
-    mockAdminUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
     const mockUsuarioLogado: JwtPayload = {
       userId: 1,
@@ -221,6 +247,9 @@ describe('UsuariosService', () => {
       (mockUsuarioRepository.update as jest.Mock).mockResolvedValue(
         updatedUser,
       );
+      mockUsuarioAuthorizationService.canUpdateUsuario.mockReturnValueOnce(
+        true,
+      );
 
       const result = await service.update(1, updateDto, mockUsuarioLogado);
 
@@ -242,6 +271,9 @@ describe('UsuariosService', () => {
       (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(null);
       (mockUsuarioRepository.update as jest.Mock).mockResolvedValue(
         updatedUser,
+      );
+      mockUsuarioAuthorizationService.canUpdateUsuario.mockReturnValueOnce(
+        true,
       );
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
@@ -269,10 +301,15 @@ describe('UsuariosService', () => {
       anotherUser.id = 3;
       anotherUser.email = 'another@example.com';
       anotherUser.deletedAt = null; // Added
-      anotherUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
         anotherUser,
       );
+      mockUsuarioAuthorizationService.canUpdateUsuario.mockReturnValueOnce(
+        false,
+      );
+      (mockUsuarioRepository.update as jest.Mock).mockResolvedValue(
+        anotherUser,
+      ); // Mock to prevent TypeError
 
       await expect(
         service.update(3, updateDto, mockUsuarioLogado),
@@ -285,7 +322,6 @@ describe('UsuariosService', () => {
       existingUser.id = 2;
       existingUser.email = 'existing@example.com';
       existingUser.deletedAt = null; // Added
-      existingUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser); // User to update
       (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(
@@ -300,6 +336,10 @@ describe('UsuariosService', () => {
     it('should throw ForbiddenException if non-admin tries to change perfisIds', async () => {
       const updateDto: UpdateUsuarioDto = { perfisIds: [99] };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
+      mockUsuarioAuthorizationService.canUpdateUsuario.mockReturnValueOnce(
+        false,
+      ); // Explicitly deny permission for this scenario
+      (mockUsuarioRepository.update as jest.Mock).mockResolvedValue(mockUser); // Mock to prevent TypeError
 
       await expect(
         service.update(1, updateDto, mockUsuarioLogado),
@@ -315,7 +355,6 @@ describe('UsuariosService', () => {
       { id: 1, codigo: 'USER', nome: 'User', descricao: 'User Profile' },
     ];
     mockUser.deletedAt = null; // Added
-    mockUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
     const mockAdminUser = new Usuario();
     mockAdminUser.id = 2;
@@ -324,7 +363,6 @@ describe('UsuariosService', () => {
       { id: 2, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' },
     ];
     mockAdminUser.deletedAt = null; // Added
-    mockAdminUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
     const mockUsuarioLogado: JwtPayload = {
       userId: 1,
@@ -379,10 +417,15 @@ describe('UsuariosService', () => {
       anotherUser.id = 3;
       anotherUser.email = 'another@example.com';
       anotherUser.deletedAt = null; // Added
-      anotherUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
         anotherUser,
       );
+      mockUsuarioAuthorizationService.canDeleteUsuario.mockReturnValueOnce(
+        false,
+      );
+      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(
+        anotherUser,
+      ); // Mock to prevent TypeError
 
       await expect(service.remove(3, mockUsuarioLogado)).rejects.toThrow(
         ForbiddenException,
@@ -398,7 +441,6 @@ describe('UsuariosService', () => {
       { id: 1, codigo: 'USER', nome: 'User', descricao: 'User Profile' },
     ];
     mockUser.deletedAt = new Date(); // User is soft-deleted
-    mockUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
 
     const mockAdminUsuarioLogado: JwtPayload = {
       userId: 2,
@@ -433,7 +475,6 @@ describe('UsuariosService', () => {
       nonDeletedUser.id = 1;
       nonDeletedUser.email = 'test@example.com';
       nonDeletedUser.deletedAt = null; // Added
-      nonDeletedUser.comparePassword = jest.fn().mockResolvedValue(true); // Added mock for comparePassword
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
         nonDeletedUser,
       );
@@ -450,6 +491,10 @@ describe('UsuariosService', () => {
         perfis: [{ codigo: 'USER' }], // Corrected perfis structure
       };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
+      mockUsuarioAuthorizationService.canRestoreUsuario.mockReturnValueOnce(
+        false,
+      );
+      (mockUsuarioRepository.restore as jest.Mock).mockResolvedValue(mockUser); // Mock to prevent TypeError
 
       await expect(service.restore(1, mockUsuarioLogado)).rejects.toThrow(
         ForbiddenException,

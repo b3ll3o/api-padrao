@@ -8,6 +8,8 @@ import { AuthGuard } from './auth/application/guards/auth.guard';
 import { PermissoesModule } from './permissoes/permissoes.module';
 import { PerfisModule } from './perfis/perfis.module';
 import { PermissaoGuard } from './auth/application/guards/permissao.guard';
+import { PasswordHasher } from './shared/domain/services/password-hasher.service';
+import { BcryptPasswordHasherService } from './shared/infrastructure/services/bcrypt-password-hasher.service';
 
 @Module({
   imports: [
@@ -26,6 +28,10 @@ import { PermissaoGuard } from './auth/application/guards/permissao.guard';
     {
       provide: APP_GUARD,
       useClass: PermissaoGuard,
+    },
+    {
+      provide: PasswordHasher,
+      useClass: BcryptPasswordHasherService,
     },
   ],
 })

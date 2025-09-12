@@ -9,6 +9,7 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 *   **Autenticação Segura:** Implementação de autenticação JWT (JSON Web Tokens) para acesso seguro aos recursos da API.
 *   **Gerenciamento de Usuários:** Funcionalidades completas para criação, leitura, atualização, **deleção lógica (soft delete) e restauração** de usuários, com suporte a múltiplos perfis.
 *   **Perfis e Permissões:** Sistema granular de perfis e permissões, permitindo controle de acesso detalhado a diferentes funcionalidades da API, **incluindo deleção lógica (soft delete) e restauração de perfis e permissões**.
+*   **Lógica de Hashing de Senha Abstraída:** A manipulação de senhas agora utiliza uma abstração (`PasswordHasher`), permitindo flexibilidade na escolha do algoritmo de hashing e melhorando a aderência ao Princípio da Inversão de Dependência (DIP).
 *   **Lógica de Autorização Centralizada:** Extração da lógica de verificação de perfis (ex: `isAdmin`) para um serviço de autorização dedicado, promovendo maior aderência aos princípios SOLID (SRP e OCP).
 *   **Paginação:** Suporte a paginação em endpoints de listagem para otimização de desempenho e experiência do usuário.
 *   **Documentação Interativa:** Documentação completa e interativa da API gerada automaticamente com Swagger/OpenAPI.
@@ -116,7 +117,7 @@ src/
 ├── usuarios/              # Módulo de usuários
 ├── perfis/               # Módulo de perfis
 ├── permissoes/           # Módulo de permissões
-├── shared/               # Módulos compartilhados (ex: abstrações de serviços)
+├── shared/               # Módulos compartilhados (ex: abstrações de serviços e suas implementações)
 └── prisma/               # Configuração do Prisma ORM
 ```
 

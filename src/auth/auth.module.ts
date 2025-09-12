@@ -8,6 +8,7 @@ import { jwtConstants } from './infrastructure/constants/jwt.constants';
 import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 import { AuthorizationService } from '../shared/domain/services/authorization.service';
 import { DefaultAuthorizationService } from './infrastructure/services/default-authorization.service';
+import { SharedModule } from '../shared/shared.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { DefaultAuthorizationService } from './infrastructure/services/default-a
       secret: jwtConstants.secret,
       signOptions: { expiresIn: '60s' },
     }),
+    SharedModule,
   ],
   providers: [
     AuthService,

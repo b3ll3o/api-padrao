@@ -6,6 +6,7 @@ import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario
 import { Usuario } from '../../../usuarios/domain/entities/usuario.entity';
 import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
 import { Permissao } from '../../../permissoes/domain/entities/permissao.entity';
+import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -16,6 +17,10 @@ describe('AuthService', () => {
 
   const mockJwtService = {
     sign: jest.fn(() => 'mockAccessToken'),
+  };
+
+  const mockPasswordHasher = {
+    compare: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -29,6 +34,10 @@ describe('AuthService', () => {
         {
           provide: JwtService,
           useValue: mockJwtService,
+        },
+        {
+          provide: PasswordHasher,
+          useValue: mockPasswordHasher,
         },
       ],
     }).compile();
@@ -65,12 +74,12 @@ describe('AuthService', () => {
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
-        comparePassword: jest.fn(() => Promise.resolve(true)),
         perfis: [mockPerfil],
       };
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         mockUser,
       );
+      mockPasswordHasher.compare.mockResolvedValue(true);
 
       const loginDto = { email: 'test@example.com', senha: 'password123' };
       const result = await service.login(loginDto);
@@ -80,7 +89,10 @@ describe('AuthService', () => {
         mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
       ).toHaveBeenCalledWith('test@example.com');
 
-      expect(mockUser.comparePassword).toHaveBeenCalledWith('password123');
+      expect(mockPasswordHasher.compare).toHaveBeenCalledWith(
+        'password123',
+        mockUser.senha,
+      );
       expect(mockJwtService.sign).toHaveBeenCalledWith(
         {
           email: mockUser.email,
@@ -132,12 +144,12 @@ describe('AuthService', () => {
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
-        comparePassword: jest.fn(() => Promise.resolve(false)),
         perfis: [],
       };
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         mockUser,
       );
+      mockPasswordHasher.compare.mockResolvedValue(false);
 
       const loginDto = { email: 'test@example.com', senha: 'wrongPassword' };
 
@@ -148,7 +160,10 @@ describe('AuthService', () => {
         mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
       ).toHaveBeenCalledWith('test@example.com');
 
-      expect(mockUser.comparePassword).toHaveBeenCalledWith('wrongPassword');
+      expect(mockPasswordHasher.compare).toHaveBeenCalledWith(
+        'wrongPassword',
+        mockUser.senha,
+      );
       expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
   });

@@ -4,15 +4,24 @@ import { UsuariosController } from './application/controllers/usuarios.controlle
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { UsuarioRepository } from './domain/repositories/usuario.repository';
 import { PrismaUsuarioRepository } from './infrastructure/repositories/prisma-usuario.repository';
+import {
+  IUsuarioAuthorizationService,
+  UsuarioAuthorizationService,
+} from './application/services/usuario-authorization.service';
+import { SharedModule } from '../shared/shared.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, SharedModule],
   controllers: [UsuariosController],
   providers: [
     UsuariosService,
     {
       provide: UsuarioRepository,
       useClass: PrismaUsuarioRepository,
+    },
+    {
+      provide: IUsuarioAuthorizationService,
+      useClass: UsuarioAuthorizationService,
     },
   ],
   exports: [UsuariosService, UsuarioRepository],

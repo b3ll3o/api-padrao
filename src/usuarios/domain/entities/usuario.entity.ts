@@ -1,4 +1,3 @@
-import * as bcrypt from 'bcrypt';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
 
@@ -46,11 +45,4 @@ export class Usuario {
     type: () => [Perfil],
   })
   perfis?: Perfil[];
-
-  async comparePassword(password: string): Promise<boolean> {
-    if (!this.senha) {
-      return false;
-    }
-    return bcrypt.compare(password, this.senha);
-  }
 }

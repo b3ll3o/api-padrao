@@ -3,12 +3,14 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginUsuarioDto } from '../../dto/login-usuario.dto';
 import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
 import { jwtConstants } from '../../infrastructure/constants/jwt.constants';
+import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usuarioRepository: UsuarioRepository,
     private jwtService: JwtService,
+    private passwordHasher: PasswordHasher,
   ) {}
 
   async login(loginUsuarioDto: LoginUsuarioDto) {
@@ -17,7 +19,11 @@ export class AuthService {
         loginUsuarioDto.email,
       );
 
-    if (!user || !(await user.comparePassword(loginUsuarioDto.senha))) {
+    if (
+      !user ||
+      !user.senha ||
+      !(await this.passwordHasher.compare(loginUsuarioDto.senha, user.senha))
+    ) {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
