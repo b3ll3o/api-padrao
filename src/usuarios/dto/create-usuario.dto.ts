@@ -4,14 +4,19 @@ import {
   IsOptional,
   MinLength,
   Matches,
+  IsNotEmpty,
+  IsNumber,
+  IsArray,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer'; // Import Type
 
 export class CreateUsuarioDto {
   @ApiProperty({
     example: 'test@example.com',
     description: 'Endereço de e-mail do usuário',
   })
+  @IsNotEmpty({ message: 'O e-mail não pode ser vazio' })
   @IsEmail({}, { message: 'E-mail inválido' })
   email: string;
 
@@ -31,5 +36,8 @@ export class CreateUsuarioDto {
     required: false,
   })
   @IsOptional()
+  @IsArray({ message: 'perfisIds deve ser um array' })
+  @IsNumber({}, { each: true, message: 'Cada ID de perfil deve ser um número' })
+  @Type(() => Number) // Add Type decorator for transformation
   perfisIds?: number[];
 }

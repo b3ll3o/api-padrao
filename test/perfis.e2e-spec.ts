@@ -7,11 +7,13 @@ import { PaginatedResponseDto } from '../src/dto/paginated-response.dto';
 import { Perfil } from '../src/perfis/domain/entities/perfil.entity';
 import { cleanDatabase } from './e2e-utils';
 import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt'; // Import JwtService
 
 describe('PerfisController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let token: string;
+  let adminToken: string; // Renamed to adminToken for clarity
+  let userToken: string; // Token for a user with limited permissions
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -20,20 +22,15 @@ describe('PerfisController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     prisma = app.get<PrismaService>(PrismaService);
+    const jwtService = app.get<JwtService>(JwtService); // Get JwtService instance
 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
-  });
 
-  afterAll(async () => {
-    await app.close();
-  });
-
-  beforeEach(async () => {
+    // Setup for admin user and token (moved from beforeEach to beforeAll for efficiency)
     await cleanDatabase(prisma);
 
-    // Create permissions
     const permissionsData = [
       {
         nome: 'read:users',
@@ -76,12 +73,10 @@ describe('PerfisController (e2e)', () => {
         descricao: 'Permissão para deletar perfis',
       },
     ];
-
     const permissions = await Promise.all(
       permissionsData.map((p) => prisma.permissao.create({ data: p })),
     );
 
-    // Create an admin profile with permissions
     let adminProfile = await prisma.perfil.create({
       data: {
         nome: 'Admin',
@@ -92,8 +87,6 @@ describe('PerfisController (e2e)', () => {
         },
       },
     });
-
-    // Fetch the admin profile with its permissions to ensure they are loaded
     adminProfile = await prisma.perfil.findUniqueOrThrow({
       where: { id: adminProfile.id },
       include: { permissoes: true },
@@ -109,9 +102,9 @@ describe('PerfisController (e2e)', () => {
           connect: { id: adminProfile.id },
         },
       },
+      include: { perfis: { include: { permissoes: true } } },
     });
 
-    // Login as admin to get a token
     const loginDto = {
       email: 'admin@example.com',
       senha: 'admin123',
@@ -122,11 +115,54 @@ describe('PerfisController (e2e)', () => {
       .send(loginDto)
       .expect(201);
 
-    token = res.body.access_token;
+    adminToken = res.body.access_token;
+
+    // Setup for a regular user with limited permissions
+    const limitedPerms = await prisma.permissao.create({
+      data: {
+        nome: 'read:limited_resource',
+        codigo: 'READ_LIMITED_RESOURCE',
+        descricao: 'Permissão para ler um recurso limitado',
+      },
+    });
+    const limitedProfile = await prisma.perfil.create({
+      data: {
+        nome: 'LimitedUser',
+        codigo: 'LIMITED_USER',
+        descricao: 'Perfil de usuário com acesso limitado',
+        permissoes: {
+          connect: { id: limitedPerms.id },
+        },
+      },
+    });
+    const limitedUserHashedPassword = await bcrypt.hash('Limited123!', 10);
+    const limitedUser = await prisma.usuario.create({
+      data: {
+        email: 'limited@example.com',
+        senha: limitedUserHashedPassword,
+        perfis: {
+          connect: { id: limitedProfile.id },
+        },
+      },
+      include: { perfis: { include: { permissoes: true } } },
+    });
+    userToken = jwtService.sign({
+      sub: limitedUser.id,
+      email: limitedUser.email,
+      perfis: limitedUser.perfis,
+    });
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
     // Clean up data created by individual tests if necessary, but not global data
+    // For perfis, we'll create them within each test or specific describe blocks
+    await prisma.perfil.deleteMany({
+      where: { codigo: { notIn: ['ADMIN', 'LIMITED_USER'] } },
+    });
   });
 
   describe('POST /perfis', () => {
@@ -139,7 +175,7 @@ describe('PerfisController (e2e)', () => {
 
       return request(app.getHttpServer())
         .post('/perfis')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(createPerfilDto)
         .expect(201)
         .expect((res) => {
@@ -149,12 +185,25 @@ describe('PerfisController (e2e)', () => {
         });
     });
 
+    it('deve retornar 403 se o usuário não tiver permissão para criar perfil', () => {
+      const createPerfilDto = {
+        nome: `NoPerms-${Date.now()}`,
+        codigo: `NO_PERMS_${Date.now()}`,
+        descricao: 'Perfil sem permissão',
+      };
+      return request(app.getHttpServer())
+        .post('/perfis')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send(createPerfilDto)
+        .expect(403);
+    });
+
     it('deve retornar 400 se o nome estiver faltando', () => {
       const createPerfilDto = {};
 
       return request(app.getHttpServer())
         .post('/perfis')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(createPerfilDto)
         .expect(400);
     });
@@ -165,19 +214,15 @@ describe('PerfisController (e2e)', () => {
         codigo: 'DUPLICATE_NAME',
         descricao: 'Perfil duplicado',
       };
-      // Criar o primeiro perfil
-
       await request(app.getHttpServer())
         .post('/perfis')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(createPerfilDto)
         .expect(201);
 
-      // Tentar criar um perfil duplicado
-
       return request(app.getHttpServer())
         .post('/perfis')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(createPerfilDto)
         .expect(409)
         .expect((res) => {
@@ -197,7 +242,7 @@ describe('PerfisController (e2e)', () => {
 
       return request(app.getHttpServer())
         .post('/perfis')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(createPerfilDto)
         .expect(404)
         .expect((res) => {
@@ -220,7 +265,7 @@ describe('PerfisController (e2e)', () => {
 
       return request(app.getHttpServer())
         .get('/perfis')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(200)
         .expect((res) => {
           const paginatedResponse = res.body as PaginatedResponseDto<Perfil>;
@@ -230,6 +275,13 @@ describe('PerfisController (e2e)', () => {
           expect(paginatedResponse).toHaveProperty('total');
           expect(typeof paginatedResponse.total).toBe('number');
         });
+    });
+
+    it('deve retornar 403 se o usuário não tiver permissão para ler perfis', () => {
+      return request(app.getHttpServer())
+        .get('/perfis')
+        .set('Authorization', `Bearer ${userToken}`)
+        .expect(403);
     });
   });
 
@@ -245,7 +297,7 @@ describe('PerfisController (e2e)', () => {
 
       return request(app.getHttpServer())
         .get(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('id', perfil.id);
@@ -254,10 +306,24 @@ describe('PerfisController (e2e)', () => {
         });
     });
 
+    it('deve retornar 403 se o usuário não tiver permissão para ler perfil por ID', async () => {
+      const perfil = await prisma.perfil.create({
+        data: {
+          nome: 'Editor',
+          codigo: 'EDITOR',
+          descricao: 'Perfil de editor',
+        },
+      });
+      return request(app.getHttpServer())
+        .get(`/perfis/${perfil.id}`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .expect(403);
+    });
+
     it('deve retornar 404 se o perfil não for encontrado', () => {
       return request(app.getHttpServer())
         .get('/perfis/99999')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(404);
     });
   });
@@ -275,7 +341,7 @@ describe('PerfisController (e2e)', () => {
 
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(updatePerfilDto)
         .expect(200)
         .expect((res) => {
@@ -285,12 +351,28 @@ describe('PerfisController (e2e)', () => {
         });
     });
 
+    it('deve retornar 403 se o usuário não tiver permissão para atualizar perfil', async () => {
+      const perfil = await prisma.perfil.create({
+        data: {
+          nome: 'Viewer',
+          codigo: 'VIEWER',
+          descricao: 'Perfil de visualizador',
+        },
+      });
+      const updatePerfilDto = { nome: 'Updated Viewer' };
+      return request(app.getHttpServer())
+        .patch(`/perfis/${perfil.id}`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send(updatePerfilDto)
+        .expect(403);
+    });
+
     it('deve retornar 404 se o perfil não for encontrado', () => {
       const updatePerfilDto = { nome: 'Non Existent' };
 
       return request(app.getHttpServer())
         .patch('/perfis/99999')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(updatePerfilDto)
         .expect(404);
     });
@@ -308,14 +390,28 @@ describe('PerfisController (e2e)', () => {
 
       return request(app.getHttpServer())
         .delete(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(204);
+    });
+
+    it('deve retornar 403 se o usuário não tiver permissão para deletar perfil', async () => {
+      const perfil = await prisma.perfil.create({
+        data: {
+          nome: 'Deletable',
+          codigo: 'DELETABLE',
+          descricao: 'Perfil deletável',
+        },
+      });
+      return request(app.getHttpServer())
+        .delete(`/perfis/${perfil.id}`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .expect(403);
     });
 
     it('deve retornar 404 se o perfil não for encontrado', () => {
       return request(app.getHttpServer())
         .delete('/perfis/99999')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(404);
     });
   });
@@ -346,7 +442,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .get('/perfis/nome/teste')
         .query(paginationDto) // Add query parameters
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(200)
         .expect((res) => {
           const paginatedResponse = res.body as PaginatedResponseDto<Perfil>;
@@ -360,13 +456,22 @@ describe('PerfisController (e2e)', () => {
         });
     });
 
+    it('deve retornar 403 se o usuário não tiver permissão para ler perfis por nome', () => {
+      const paginationDto = { page: 1, limit: 10 };
+      return request(app.getHttpServer())
+        .get('/perfis/nome/teste')
+        .query(paginationDto)
+        .set('Authorization', `Bearer ${userToken}`)
+        .expect(403);
+    });
+
     it('deve retornar um array vazio se nenhum perfil for encontrado', () => {
       const paginationDto = { page: 1, limit: 10 };
 
       return request(app.getHttpServer())
         .get('/perfis/nome/naoexiste')
         .query(paginationDto) // Add query parameters
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(200)
         .expect((res) => {
           const paginatedResponse = res.body as PaginatedResponseDto<Perfil>;

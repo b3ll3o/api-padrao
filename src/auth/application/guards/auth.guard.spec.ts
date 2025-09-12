@@ -3,21 +3,30 @@ import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
+// Mock the actual PassportAuthGuard from @nestjs/passport
+const mockPassportAuthGuardCanActivate = jest.fn();
+
+jest.mock('@nestjs/passport', () => ({
+  AuthGuard: jest.fn().mockImplementation(() => {
+    return class {
+      // This is the mocked canActivate method that super.canActivate will call
+      canActivate = mockPassportAuthGuardCanActivate;
+      constructor() {}
+    };
+  }),
+}));
+
 describe('AuthGuard', () => {
   let guard: AuthGuard;
   let reflector: Reflector;
   let mockExecutionContext: ExecutionContext;
   let mockRequest: any;
 
-  // Get a reference to the mocked AuthGuard's canActivate method
-  let passportAuthGuardCanActivateMock: jest.Mock;
-
   beforeEach(() => {
-    // Clear all mocks before each test
-    jest.clearAllMocks();
+    jest.clearAllMocks(); // Clear all mocks before each test
 
     reflector = new Reflector();
-    guard = new AuthGuard(reflector);
+    guard = new AuthGuard(reflector); // Create the actual guard instance
 
     mockRequest = {
       user: { userId: 1, email: 'test@example.com' },
@@ -30,11 +39,6 @@ describe('AuthGuard', () => {
       getHandler: () => ({}),
       getClass: () => ({}),
     } as ExecutionContext;
-
-    // Get the mock instance of canActivate from the mocked AuthGuard
-    // This needs to be done after `guard = new AuthGuard(reflector);`
-    // because the mockImplementation creates the class instance.
-    passportAuthGuardCanActivateMock = (guard as any).canActivate;
   });
 
   it('should be defined', () => {
@@ -50,18 +54,13 @@ describe('AuthGuard', () => {
       IS_PUBLIC_KEY,
       expect.any(Array),
     );
-    // No need to check passportAuthGuardCanActivateMock here as we are mocking guard.canActivate directly
+    // Ensure the mocked PassportAuthGuard's canActivate was NOT called
+    expect(mockPassportAuthGuardCanActivate).not.toHaveBeenCalled();
   });
 
   it('should return true and set usuarioLogado if not public and authentication succeeds', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-    // Mock the actual canActivate of the parent guard to return true
-    jest
-      .spyOn(
-        jest.requireActual('@nestjs/passport').AuthGuard('jwt').prototype,
-        'canActivate',
-      )
-      .mockResolvedValue(true);
+    mockPassportAuthGuardCanActivate.mockResolvedValue(true); // Simulate successful authentication
 
     const result = await guard.canActivate(mockExecutionContext);
     expect(result).toBe(true);
@@ -69,21 +68,13 @@ describe('AuthGuard', () => {
       IS_PUBLIC_KEY,
       expect.any(Array),
     );
-    expect(passportAuthGuardCanActivateMock).toHaveBeenCalledWith(
-      mockExecutionContext,
-    );
+    expect(mockPassportAuthGuardCanActivate).toHaveBeenCalledWith(mockExecutionContext);
     expect(mockRequest.usuarioLogado).toEqual(mockRequest.user);
   });
 
   it('should return false if not public and authentication fails', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-    // Mock the actual canActivate of the parent guard to return false
-    jest
-      .spyOn(
-        jest.requireActual('@nestjs/passport').AuthGuard('jwt').prototype,
-        'canActivate',
-      )
-      .mockResolvedValue(false);
+    mockPassportAuthGuardCanActivate.mockResolvedValue(false); // Simulate failed authentication
 
     const result = await guard.canActivate(mockExecutionContext);
     expect(result).toBe(false);
@@ -91,9 +82,21 @@ describe('AuthGuard', () => {
       IS_PUBLIC_KEY,
       expect.any(Array),
     );
-    expect(passportAuthGuardCanActivateMock).toHaveBeenCalledWith(
-      mockExecutionContext,
+    expect(mockPassportAuthGuardCanActivate).toHaveBeenCalledWith(mockExecutionContext);
+    expect(mockRequest.usuarioLogado).toBeUndefined();
+  });
+
+  it('should re-throw error if super.canActivate throws an error', async () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+    const error = new Error('Authentication failed');
+    mockPassportAuthGuardCanActivate.mockRejectedValue(error);
+
+    await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(error);
+    expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
+      IS_PUBLIC_KEY,
+      expect.any(Array),
     );
+    expect(mockPassportAuthGuardCanActivate).toHaveBeenCalledWith(mockExecutionContext);
     expect(mockRequest.usuarioLogado).toBeUndefined();
   });
 });

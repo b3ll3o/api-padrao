@@ -19,6 +19,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
           connect: perfis?.map((perfil) => ({ id: perfil.id })),
         },
       },
+      include: { perfis: true }, // Include perfis in the creation result
     });
     const newUsuario = new Usuario();
     newUsuario.id = usuario.id;
@@ -26,6 +27,15 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
     newUsuario.createdAt = usuario.createdAt;
     newUsuario.updatedAt = usuario.updatedAt;
+    newUsuario.perfis = usuario.perfis?.map((perfil) => {
+      // Map profiles to Perfil instances
+      const newPerfil = new Perfil();
+      newPerfil.id = perfil.id;
+      newPerfil.nome = perfil.nome;
+      newPerfil.codigo = perfil.codigo;
+      newPerfil.descricao = perfil.descricao;
+      return newPerfil;
+    });
     return newUsuario;
   }
 

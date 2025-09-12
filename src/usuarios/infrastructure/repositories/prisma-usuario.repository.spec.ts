@@ -67,6 +67,7 @@ describe('PrismaUsuarioRepository', () => {
             connect: [{ id: 1 }],
           },
         },
+        include: { perfis: true }, // Added include expectation
       });
     });
 
@@ -95,6 +96,7 @@ describe('PrismaUsuarioRepository', () => {
             connect: undefined,
           },
         },
+        include: { perfis: true }, // Added include expectation
       });
     });
   });

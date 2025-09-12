@@ -148,5 +148,65 @@ describe('AuthController (e2e)', () => {
         .send(loginDto)
         .expect(401);
     });
+
+    it('deve retornar 400 para email inválido', () => {
+      const loginDto = {
+        email: 'invalid-email',
+        senha: 'Password123!',
+      };
+
+      return request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginDto)
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.message).toContain('E-mail inválido');
+        });
+    });
+
+    it('deve retornar 400 para senha muito curta', () => {
+      const loginDto = {
+        email: 'test@example.com',
+        senha: 'short',
+      };
+
+      return request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginDto)
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.message).toContain(
+            'A senha deve ter no mínimo 8 caracteres',
+          );
+        });
+    });
+
+    it('deve retornar 400 se o email estiver faltando', () => {
+      const loginDto = {
+        senha: 'Password123!',
+      };
+
+      return request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginDto)
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.message).toContain('O e-mail não pode ser vazio');
+        });
+    });
+
+    it('deve retornar 400 se a senha estiver faltando', () => {
+      const loginDto = {
+        email: 'test@example.com',
+      };
+
+      return request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginDto)
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.message).toContain('A senha não pode ser vazia');
+        });
+    });
   });
 });
