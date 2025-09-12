@@ -348,7 +348,9 @@ describe('PermissoesService', () => {
 
       expect(result).toEqual(softDeletedPermissao);
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1); // Removed false
-      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(mockAdminUsuarioLogado); // Verify isAdmin call
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
+        mockAdminUsuarioLogado,
+      ); // Verify isAdmin call
       expect(mockPermissaoRepository.remove).toHaveBeenCalledWith(1);
     });
 
@@ -373,7 +375,9 @@ describe('PermissoesService', () => {
         ForbiddenException,
       );
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1); // Removed false
-      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(mockUserUsuarioLogado); // Verify isAdmin call
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
+        mockUserUsuarioLogado,
+      ); // Verify isAdmin call
       expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
     });
   });
@@ -413,7 +417,9 @@ describe('PermissoesService', () => {
 
       expect(result).toEqual(restoredPermissao);
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
-      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(mockAdminUsuarioLogado); // Verify isAdmin call
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
+        mockAdminUsuarioLogado,
+      ); // Verify isAdmin call
       expect(mockPermissaoRepository.restore).toHaveBeenCalledWith(1);
     });
 
@@ -452,7 +458,9 @@ describe('PermissoesService', () => {
         ForbiddenException,
       );
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
-      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(mockUserUsuarioLogado); // Verify isAdmin call
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
+        mockUserUsuarioLogado,
+      ); // Verify isAdmin call
       expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
     });
   });
