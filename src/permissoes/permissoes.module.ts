@@ -4,9 +4,10 @@ import { PermissoesController } from './application/controllers/permissoes.contr
 import { PermissaoRepository } from './domain/repositories/permissao.repository';
 import { PrismaPermissaoRepository } from './infrastructure/repositories/prisma-permissao.repository';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module'; // Added
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule], // Added AuthModule
   controllers: [PermissoesController],
   providers: [
     PermissoesService,

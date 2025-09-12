@@ -11,12 +11,16 @@ import { Permissao } from '../../domain/entities/permissao.entity';
 import { PaginationDto } from '../../../dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+import { AuthorizationService } from 'src/shared/domain/services/authorization.service'; // Added
 
 type UsuarioLogado = JwtPayload;
 
 @Injectable()
 export class PermissoesService {
-  constructor(private readonly permissaoRepository: PermissaoRepository) {}
+  constructor(
+    private readonly permissaoRepository: PermissaoRepository,
+    private readonly authorizationService: AuthorizationService, // Added
+  ) {}
 
   async create(createPermissaoDto: CreatePermissaoDto): Promise<Permissao> {
     const existingPermissao = await this.permissaoRepository.findByNome(
@@ -127,9 +131,7 @@ export class PermissoesService {
       throw new NotFoundException(`Permissão com ID ${id} não encontrada.`);
     }
 
-    const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
-
-    if (!isAdmin) {
+    if (!this.authorizationService.isAdmin(usuarioLogado)) {
       throw new ForbiddenException(
         'Você não tem permissão para deletar esta permissão',
       );
@@ -149,9 +151,7 @@ export class PermissoesService {
       throw new ConflictException(`Permissão com ID ${id} não está deletada.`);
     }
 
-    const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
-
-    if (!isAdmin) {
+    if (!this.authorizationService.isAdmin(usuarioLogado)) {
       throw new ForbiddenException(
         'Você não tem permissão para restaurar esta permissão',
       );

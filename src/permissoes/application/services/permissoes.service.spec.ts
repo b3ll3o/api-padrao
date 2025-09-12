@@ -8,11 +8,13 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy'; // Added
+import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+import { AuthorizationService } from 'src/shared/domain/services/authorization.service'; // Added
 
 describe('PermissoesService', () => {
   let service: PermissoesService;
   let mockPermissaoRepository: Partial<PermissaoRepository>;
+  let mockAuthorizationService: Partial<AuthorizationService>; // Added
 
   beforeEach(async () => {
     mockPermissaoRepository = {
@@ -26,6 +28,10 @@ describe('PermissoesService', () => {
       findByNomeContaining: jest.fn(),
     };
 
+    mockAuthorizationService = {
+      isAdmin: jest.fn(),
+    }; // Added
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PermissoesService,
@@ -36,6 +42,10 @@ describe('PermissoesService', () => {
         {
           provide: PrismaService, // Keep PrismaService mock if it's used indirectly
           useValue: {},
+        },
+        {
+          provide: AuthorizationService, // Added
+          useValue: mockAuthorizationService, // Added
         },
       ],
     }).compile();
@@ -332,16 +342,19 @@ describe('PermissoesService', () => {
       (mockPermissaoRepository.remove as jest.Mock).mockResolvedValue(
         softDeletedPermissao,
       );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
 
       const result = await service.remove(1, mockAdminUsuarioLogado);
 
       expect(result).toEqual(softDeletedPermissao);
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1); // Removed false
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(mockAdminUsuarioLogado); // Verify isAdmin call
       expect(mockPermissaoRepository.remove).toHaveBeenCalledWith(1);
     });
 
     it('should throw NotFoundException if permissao not found', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
 
       await expect(service.remove(999, mockAdminUsuarioLogado)).rejects.toThrow(
         NotFoundException,
@@ -354,11 +367,13 @@ describe('PermissoesService', () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
         mockPermissao,
       );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(false); // Mock isAdmin
 
       await expect(service.remove(1, mockUserUsuarioLogado)).rejects.toThrow(
         ForbiddenException,
       );
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1); // Removed false
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(mockUserUsuarioLogado); // Verify isAdmin call
       expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
     });
   });
@@ -392,16 +407,19 @@ describe('PermissoesService', () => {
       (mockPermissaoRepository.restore as jest.Mock).mockResolvedValue(
         restoredPermissao,
       );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
 
       const result = await service.restore(1, mockAdminUsuarioLogado);
 
       expect(result).toEqual(restoredPermissao);
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(mockAdminUsuarioLogado); // Verify isAdmin call
       expect(mockPermissaoRepository.restore).toHaveBeenCalledWith(1);
     });
 
     it('should throw NotFoundException if permissao not found', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
 
       await expect(
         service.restore(999, mockAdminUsuarioLogado),
@@ -415,6 +433,7 @@ describe('PermissoesService', () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
         nonDeletedPermissao,
       );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
 
       await expect(service.restore(1, mockAdminUsuarioLogado)).rejects.toThrow(
         ConflictException,
@@ -427,11 +446,13 @@ describe('PermissoesService', () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
         mockPermissao,
       );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(false); // Mock isAdmin
 
       await expect(service.restore(1, mockUserUsuarioLogado)).rejects.toThrow(
         ForbiddenException,
       );
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(mockUserUsuarioLogado); // Verify isAdmin call
       expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
     });
   });
