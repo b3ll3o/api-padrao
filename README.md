@@ -11,6 +11,7 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 *   **Perfis e Permissões:** Sistema granular de perfis e permissões, permitindo controle de acesso detalhado a diferentes funcionalidades da API.
 *   **Paginação:** Suporte a paginação em endpoints de listagem para otimização de desempenho e experiência do usuário.
 *   **Documentação Interativa:** Documentação completa e interativa da API gerada automaticamente com Swagger/OpenAPI.
+*   **Observabilidade (OpenTelemetry):** Instrumentação com OpenTelemetry para rastreamento distribuído (distributed tracing), facilitando a depuração e monitoramento da aplicação.
 
 ## Tecnologias Utilizadas
 
@@ -20,6 +21,7 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 *   **Banco de Dados:** PostgreSQL (via Docker)
 *   **Autenticação:** JWT (JSON Web Tokens), Passport.js, bcrypt
 *   **Validação:** class-validator, class-transformer
+*   **Observabilidade:** OpenTelemetry (SDK, Instrumentations), Jaeger
 *   **Testes:** Jest, Supertest
 *   **Estilo de Código:** ESLint, Prettier
 
@@ -31,7 +33,7 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
 
 *   [Node.js](https://nodejs.org/en/) (versão 20.x ou superior)
 *   [npm](https://www.npmjs.com/) (gerenciador de pacotes do Node.js)
-*   [Docker](https://www.docker.com/) (para o banco de dados PostgreSQL e pgAdmin)
+*   [Docker](https://www.docker.com/) e Docker Compose (para gerenciar os contêineres de banco de dados, OpenTelemetry Collector e Jaeger)
 *   [Git](https://git-scm.com/) (para controle de versão)
 
 ### Instalação
@@ -46,7 +48,7 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
     npm install
     ```
 
-### Configuração do Banco de Dados
+### Configuração do Banco de Dados e Serviços
 
 1.  Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis de ambiente:
     ```
@@ -56,12 +58,14 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
     PGADMIN_DEFAULT_EMAIL=admin@admin.com
     PGADMIN_DEFAULT_PASSWORD=admin
     DATABASE_URL="postgresql://postgres:postgres@localhost:5432/api-padrao"
+    OTEL_SERVICE_NAME=api-padrao
+    OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
     ```
     *Nota: Você pode alterar os valores conforme sua preferência.*
 
-2.  Inicie os contêineres do PostgreSQL e pgAdmin usando Docker Compose:
+2.  Inicie os contêineres do PostgreSQL, pgAdmin, OpenTelemetry Collector e Jaeger usando Docker Compose (isso também construirá as imagens se necessário):
     ```bash
-    docker-compose up -d
+    docker compose up --build -d
     ```
 
 3.  Execute as migrações do Prisma para criar o schema do banco de dados:
@@ -73,10 +77,16 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
 
 #### Modo de Desenvolvimento
 
+Para iniciar a aplicação e todos os serviços (banco de dados, OpenTelemetry Collector, Jaeger), utilize o Docker Compose:
+```bash
+docker compose up --build -d
+```
+A aplicação NestJS estará disponível em `http://localhost:3000` (ou na porta configurada na variável de ambiente `PORT`).
+
+Se você deseja rodar a aplicação NestJS diretamente (sem Docker Compose para a aplicação, mas com os outros serviços rodando via Docker Compose), use:
 ```bash
 npm run start:dev
 ```
-A aplicação estará disponível em `http://localhost:3000` (ou na porta configurada na variável de ambiente `PORT`).
 
 #### Modo de Produção
 
