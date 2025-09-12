@@ -7,7 +7,7 @@ import { Perfil } from '../../domain/entities/perfil.entity';
 
 describe('PrismaPerfilRepository', () => {
   let repository: PrismaPerfilRepository;
-  let prismaService: PrismaService;
+  // let prismaService: PrismaService; // Removed unused variable
 
   const mockPrismaService = {
     perfil: {
@@ -32,7 +32,7 @@ describe('PrismaPerfilRepository', () => {
     }).compile();
 
     repository = module.get<PrismaPerfilRepository>(PrismaPerfilRepository);
-    prismaService = module.get<PrismaService>(PrismaService);
+    // prismaService = module.get<PrismaService>(PrismaService); // Removed unused assignment
   });
 
   it('should be defined', () => {
@@ -145,7 +145,10 @@ describe('PrismaPerfilRepository', () => {
 
   describe('update', () => {
     it('should update an existing perfil', async () => {
-      const updatePerfilDto: UpdatePerfilDto = { nome: 'Updated Perfil', permissoesIds: [3] };
+      const updatePerfilDto: UpdatePerfilDto = {
+        nome: 'Updated Perfil',
+        permissoesIds: [3],
+      };
       const expectedPerfil = { id: 1, ...updatePerfilDto } as Perfil;
       mockPrismaService.perfil.update.mockResolvedValue(expectedPerfil);
 
@@ -198,7 +201,9 @@ describe('PrismaPerfilRepository', () => {
       (prismaError as any).code = 'P1000'; // Some other Prisma error
       mockPrismaService.perfil.update.mockRejectedValue(prismaError);
 
-      await expect(repository.update(1, updatePerfilDto)).rejects.toThrow(prismaError);
+      await expect(repository.update(1, updatePerfilDto)).rejects.toThrow(
+        prismaError,
+      );
     });
   });
 
@@ -207,7 +212,9 @@ describe('PrismaPerfilRepository', () => {
       mockPrismaService.perfil.delete.mockResolvedValue(undefined);
 
       await expect(repository.remove(1)).resolves.toBeUndefined();
-      expect(mockPrismaService.perfil.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockPrismaService.perfil.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
 
     it('should not throw error if perfil to remove not found (P2025 error)', async () => {
@@ -258,7 +265,11 @@ describe('PrismaPerfilRepository', () => {
       mockPrismaService.perfil.findMany.mockResolvedValue(expectedPerfis);
       mockPrismaService.perfil.count.mockResolvedValue(1);
 
-      const [data, total] = await repository.findByNomeContaining('Test', 0, 10);
+      const [data, total] = await repository.findByNomeContaining(
+        'Test',
+        0,
+        10,
+      );
       expect(data).toEqual(expectedPerfis);
       expect(total).toBe(1);
       expect(mockPrismaService.perfil.findMany).toHaveBeenCalledWith({
@@ -286,7 +297,11 @@ describe('PrismaPerfilRepository', () => {
       mockPrismaService.perfil.findMany.mockResolvedValue([]);
       mockPrismaService.perfil.count.mockResolvedValue(0);
 
-      const [data, total] = await repository.findByNomeContaining('Non Existent', 0, 10);
+      const [data, total] = await repository.findByNomeContaining(
+        'Non Existent',
+        0,
+        10,
+      );
       expect(data).toEqual([]);
       expect(total).toBe(0);
     });

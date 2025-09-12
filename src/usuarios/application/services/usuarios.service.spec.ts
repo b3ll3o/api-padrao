@@ -1,10 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsuariosService } from './usuarios.service';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import * as bcrypt from 'bcrypt';
-import { Usuario } from '../../domain/entities/usuario.entity';
+// import { Usuario } from '../../domain/entities/usuario.entity'; // Removed unused import
 
 // Mock the entire bcrypt module
 jest.mock('bcrypt', () => ({
@@ -206,15 +210,21 @@ describe('UsuariosService', () => {
       };
       mockUsuarioRepository.findOne.mockResolvedValue(usuario);
 
-      await expect(service.findOne(1, { userId: 2, email: 'other@example.com' })).rejects.toThrow(
-        new ForbiddenException('Você não tem permissão para acessar os dados deste usuário'),
+      await expect(
+        service.findOne(1, { userId: 2, email: 'other@example.com' }),
+      ).rejects.toThrow(
+        new ForbiddenException(
+          'Você não tem permissão para acessar os dados deste usuário',
+        ),
       );
     });
 
     it('should throw NotFoundException if usuario not found', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(undefined);
 
-      await expect(service.findOne(999, { userId: 999, email: 'test@example.com' })).rejects.toThrow(
+      await expect(
+        service.findOne(999, { userId: 999, email: 'test@example.com' }),
+      ).rejects.toThrow(
         new NotFoundException('Usuário com ID 999 não encontrado'),
       );
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(999);

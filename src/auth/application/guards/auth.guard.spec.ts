@@ -2,9 +2,6 @@ import { AuthGuard } from './auth.guard';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { of } from 'rxjs';
-
-// No need to mock @nestjs/passport's AuthGuard globally anymore
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
@@ -12,11 +9,15 @@ describe('AuthGuard', () => {
   let mockExecutionContext: ExecutionContext;
   let mockRequest: any;
 
+  // Get a reference to the mocked AuthGuard's canActivate method
+  let passportAuthGuardCanActivateMock: jest.Mock;
+
   beforeEach(() => {
+    // Clear all mocks before each test
     jest.clearAllMocks();
 
     reflector = new Reflector();
-    guard = new AuthGuard(reflector); // Create the actual guard instance
+    guard = new AuthGuard(reflector);
 
     mockRequest = {
       user: { userId: 1, email: 'test@example.com' },
@@ -30,27 +31,10 @@ describe('AuthGuard', () => {
       getClass: () => ({}),
     } as ExecutionContext;
 
-    // Mock the canActivate method of the guard instance directly
-    // This allows us to control the behavior of super.canActivate
-    jest.spyOn(guard, 'canActivate').mockImplementation(async (context) => {
-      // Simulate the original behavior of checking public routes
-      const isPublic = reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-        context.getHandler(),
-        context.getClass(),
-      ]);
-      if (isPublic) {
-        return true;
-      }
-
-      // Simulate the parent AuthGuard's canActivate logic
-      // For non-public routes, we'll control this mock's return value
-      const result = await (jest.requireActual('@nestjs/passport').AuthGuard('jwt').prototype.canActivate as jest.Mock).call(guard, context);
-
-      if (result) {
-        mockRequest.usuarioLogado = mockRequest.user;
-      }
-      return result;
-    });
+    // Get the mock instance of canActivate from the mocked AuthGuard
+    // This needs to be done after `guard = new AuthGuard(reflector);`
+    // because the mockImplementation creates the class instance.
+    passportAuthGuardCanActivateMock = (guard as any).canActivate;
   });
 
   it('should be defined', () => {
@@ -72,7 +56,12 @@ describe('AuthGuard', () => {
   it('should return true and set usuarioLogado if not public and authentication succeeds', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
     // Mock the actual canActivate of the parent guard to return true
-    jest.spyOn(jest.requireActual('@nestjs/passport').AuthGuard('jwt').prototype, 'canActivate').mockResolvedValue(true);
+    jest
+      .spyOn(
+        jest.requireActual('@nestjs/passport').AuthGuard('jwt').prototype,
+        'canActivate',
+      )
+      .mockResolvedValue(true);
 
     const result = await guard.canActivate(mockExecutionContext);
     expect(result).toBe(true);
@@ -80,19 +69,30 @@ describe('AuthGuard', () => {
       IS_PUBLIC_KEY,
       expect.any(Array),
     );
+    expect(passportAuthGuardCanActivateMock).toHaveBeenCalledWith(
+      mockExecutionContext,
+    );
     expect(mockRequest.usuarioLogado).toEqual(mockRequest.user);
   });
 
   it('should return false if not public and authentication fails', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
     // Mock the actual canActivate of the parent guard to return false
-    jest.spyOn(jest.requireActual('@nestjs/passport').AuthGuard('jwt').prototype, 'canActivate').mockResolvedValue(false);
+    jest
+      .spyOn(
+        jest.requireActual('@nestjs/passport').AuthGuard('jwt').prototype,
+        'canActivate',
+      )
+      .mockResolvedValue(false);
 
     const result = await guard.canActivate(mockExecutionContext);
     expect(result).toBe(false);
     expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
       IS_PUBLIC_KEY,
       expect.any(Array),
+    );
+    expect(passportAuthGuardCanActivateMock).toHaveBeenCalledWith(
+      mockExecutionContext,
     );
     expect(mockRequest.usuarioLogado).toBeUndefined();
   });

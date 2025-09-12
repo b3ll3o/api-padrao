@@ -1,15 +1,18 @@
 import { JwtStrategy, JwtPayload } from './jwt.strategy';
 import { UsuariosService } from '../../../usuarios/application/services/usuarios.service';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Strategy } from 'passport-jwt';
-// import { jwtConstants } from '../../constants/jwt.constants'; // Remove this import
+// import { Strategy } from 'passport-jwt'; // Removed unused import
 
 // Mock PassportStrategy and Strategy
 jest.mock('passport-jwt', () => ({
   ExtractJwt: {
     fromAuthHeaderAsBearerToken: jest.fn(() => 'mockExtractor'),
   },
-  Strategy: jest.fn().mockImplementation(function (this: any, options: any, verify: any) {
+  Strategy: jest.fn().mockImplementation(function (
+    this: any,
+    options: any,
+    verify: any,
+  ) {
     // Mock the constructor of Strategy
     this.options = options;
     this.verify = verify;
@@ -37,7 +40,7 @@ jest.mock('../constants/jwt.constants', () => ({
 
 describe('JwtStrategy', () => {
   let jwtStrategy: JwtStrategy;
-  let usuariosService: UsuariosService;
+  // let usuariosService: UsuariosService; // Removed unused variable
 
   const mockUsuariosService = {
     // Mock any methods of UsuariosService that JwtStrategy might use
@@ -58,7 +61,7 @@ describe('JwtStrategy', () => {
     }).compile();
 
     jwtStrategy = module.get<JwtStrategy>(JwtStrategy);
-    usuariosService = module.get<UsuariosService>(UsuariosService);
+    // usuariosService = module.get<UsuariosService>(UsuariosService); // Removed unused assignment
   });
 
   it('should be defined', () => {

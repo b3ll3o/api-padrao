@@ -96,11 +96,16 @@ describe('PerfisController', () => {
         limit: 10,
         totalPages: 1,
       };
-      mockPerfisService.findByNomeContaining.mockResolvedValue(expectedResponse);
+      mockPerfisService.findByNomeContaining.mockResolvedValue(
+        expectedResponse,
+      );
 
       const result = await controller.findByNome(nome, paginationDto);
       expect(result).toEqual(expectedResponse);
-      expect(service.findByNomeContaining).toHaveBeenCalledWith(nome, paginationDto);
+      expect(service.findByNomeContaining).toHaveBeenCalledWith(
+        nome,
+        paginationDto,
+      );
     });
   });
 

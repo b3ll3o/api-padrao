@@ -26,7 +26,10 @@ describe('Usuario Entity', () => {
 
       const result = await usuario.comparePassword('correctPassword');
       expect(result).toBe(true);
-      expect(bcrypt.compare).toHaveBeenCalledWith('correctPassword', 'hashedPassword');
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        'correctPassword',
+        'hashedPassword',
+      );
     });
 
     it('should return false for an incorrect password', async () => {
@@ -35,7 +38,10 @@ describe('Usuario Entity', () => {
 
       const result = await usuario.comparePassword('incorrectPassword');
       expect(result).toBe(false);
-      expect(bcrypt.compare).toHaveBeenCalledWith('incorrectPassword', 'hashedPassword');
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        'incorrectPassword',
+        'hashedPassword',
+      );
     });
   });
 });

@@ -24,7 +24,10 @@ describe('TemPermissao Decorator', () => {
       testMethod() {}
     }
 
-    const metadata = reflector.get<string>(PERMISSAO_KEY, TestController.prototype.testMethod);
+    const metadata = reflector.get<string>(
+      PERMISSAO_KEY,
+      TestController.prototype.testMethod,
+    );
     expect(metadata).toBe(permission);
   });
 
@@ -38,7 +41,10 @@ describe('TemPermissao Decorator', () => {
       testMethod() {}
     }
 
-    const metadata = reflector.get<string[]>(PERMISSAO_KEY, TestController.prototype.testMethod);
+    const metadata = reflector.get<string[]>(
+      PERMISSAO_KEY,
+      TestController.prototype.testMethod,
+    );
     expect(metadata).toEqual(permissions);
   });
 

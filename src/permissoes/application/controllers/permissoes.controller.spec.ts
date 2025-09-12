@@ -96,18 +96,25 @@ describe('PermissoesController', () => {
         limit: 10,
         totalPages: 1,
       };
-      mockPermissoesService.findByNomeContaining.mockResolvedValue(expectedResponse);
+      mockPermissoesService.findByNomeContaining.mockResolvedValue(
+        expectedResponse,
+      );
 
       const result = await controller.findByName(nome, paginationDto);
       expect(result).toEqual(expectedResponse);
-      expect(service.findByNomeContaining).toHaveBeenCalledWith(nome, paginationDto);
+      expect(service.findByNomeContaining).toHaveBeenCalledWith(
+        nome,
+        paginationDto,
+      );
     });
   });
 
   describe('update', () => {
     it('should update a permissao', async () => {
       const id = '1';
-      const updatePermissaoDto: UpdatePermissaoDto = { nome: 'Updated Permissao' };
+      const updatePermissaoDto: UpdatePermissaoDto = {
+        nome: 'Updated Permissao',
+      };
       const expectedPermissao = { id: 1, ...updatePermissaoDto } as Permissao;
       mockPermissoesService.update.mockResolvedValue(expectedPermissao);
 

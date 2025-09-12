@@ -7,7 +7,7 @@ import { Permissao } from '../../domain/entities/permissao.entity';
 
 describe('PrismaPermissaoRepository', () => {
   let repository: PrismaPermissaoRepository;
-  let prismaService: PrismaService;
+  // let prismaService: PrismaService; // Removed unused variable
 
   const mockPrismaService = {
     permissao: {
@@ -31,8 +31,10 @@ describe('PrismaPermissaoRepository', () => {
       ],
     }).compile();
 
-    repository = module.get<PrismaPermissaoRepository>(PrismaPermissaoRepository);
-    prismaService = module.get<PrismaService>(PrismaService);
+    repository = module.get<PrismaPermissaoRepository>(
+      PrismaPermissaoRepository,
+    );
+    // prismaService = module.get<PrismaService>(PrismaService); // Removed unused assignment
   });
 
   it('should be defined', () => {
@@ -60,8 +62,12 @@ describe('PrismaPermissaoRepository', () => {
 
   describe('findAll', () => {
     it('should return a list of permissoes and total count', async () => {
-      const expectedPermissoes = [{ id: 1, nome: 'Permissao 1' }] as Permissao[];
-      mockPrismaService.permissao.findMany.mockResolvedValue(expectedPermissoes);
+      const expectedPermissoes = [
+        { id: 1, nome: 'Permissao 1' },
+      ] as Permissao[];
+      mockPrismaService.permissao.findMany.mockResolvedValue(
+        expectedPermissoes,
+      );
       mockPrismaService.permissao.count.mockResolvedValue(1);
 
       const [data, total] = await repository.findAll(0, 10);
@@ -78,7 +84,9 @@ describe('PrismaPermissaoRepository', () => {
   describe('findOne', () => {
     it('should return a single permissao by ID', async () => {
       const expectedPermissao = { id: 1, nome: 'Permissao 1' } as Permissao;
-      mockPrismaService.permissao.findUnique.mockResolvedValue(expectedPermissao);
+      mockPrismaService.permissao.findUnique.mockResolvedValue(
+        expectedPermissao,
+      );
 
       const result = await repository.findOne(1);
       expect(result).toEqual(expectedPermissao);
@@ -100,7 +108,9 @@ describe('PrismaPermissaoRepository', () => {
 
   describe('update', () => {
     it('should update an existing permissao', async () => {
-      const updatePermissaoDto: UpdatePermissaoDto = { nome: 'Updated Permissao' };
+      const updatePermissaoDto: UpdatePermissaoDto = {
+        nome: 'Updated Permissao',
+      };
       const expectedPermissao = { id: 1, ...updatePermissaoDto } as Permissao;
       mockPrismaService.permissao.update.mockResolvedValue(expectedPermissao);
 
@@ -123,12 +133,16 @@ describe('PrismaPermissaoRepository', () => {
     });
 
     it('should rethrow other errors during update', async () => {
-      const updatePermissaoDto: UpdatePermissaoDto = { nome: 'Error Permissao' };
+      const updatePermissaoDto: UpdatePermissaoDto = {
+        nome: 'Error Permissao',
+      };
       const prismaError = new Error('Database error');
       (prismaError as any).code = 'P1000'; // Some other Prisma error
       mockPrismaService.permissao.update.mockRejectedValue(prismaError);
 
-      await expect(repository.update(1, updatePermissaoDto)).rejects.toThrow(prismaError);
+      await expect(repository.update(1, updatePermissaoDto)).rejects.toThrow(
+        prismaError,
+      );
     });
   });
 
@@ -137,7 +151,9 @@ describe('PrismaPermissaoRepository', () => {
       mockPrismaService.permissao.delete.mockResolvedValue(undefined);
 
       await expect(repository.remove(1)).resolves.toBeUndefined();
-      expect(mockPrismaService.permissao.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockPrismaService.permissao.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
 
     it('should not throw error if permissao to remove not found (P2025 error)', async () => {
@@ -160,7 +176,9 @@ describe('PrismaPermissaoRepository', () => {
   describe('findByNome', () => {
     it('should return a permissao by name', async () => {
       const expectedPermissao = { id: 1, nome: 'Test Permissao' } as Permissao;
-      mockPrismaService.permissao.findUnique.mockResolvedValue(expectedPermissao);
+      mockPrismaService.permissao.findUnique.mockResolvedValue(
+        expectedPermissao,
+      );
 
       const result = await repository.findByNome('Test Permissao');
       expect(result).toEqual(expectedPermissao);
@@ -182,11 +200,19 @@ describe('PrismaPermissaoRepository', () => {
 
   describe('findByNomeContaining', () => {
     it('should return a list of permissoes containing the name and total count', async () => {
-      const expectedPermissoes = [{ id: 1, nome: 'Test Permissao' }] as Permissao[];
-      mockPrismaService.permissao.findMany.mockResolvedValue(expectedPermissoes);
+      const expectedPermissoes = [
+        { id: 1, nome: 'Test Permissao' },
+      ] as Permissao[];
+      mockPrismaService.permissao.findMany.mockResolvedValue(
+        expectedPermissoes,
+      );
       mockPrismaService.permissao.count.mockResolvedValue(1);
 
-      const [data, total] = await repository.findByNomeContaining('Test', 0, 10);
+      const [data, total] = await repository.findByNomeContaining(
+        'Test',
+        0,
+        10,
+      );
       expect(data).toEqual(expectedPermissoes);
       expect(total).toBe(1);
       expect(mockPrismaService.permissao.findMany).toHaveBeenCalledWith({
@@ -213,7 +239,11 @@ describe('PrismaPermissaoRepository', () => {
       mockPrismaService.permissao.findMany.mockResolvedValue([]);
       mockPrismaService.permissao.count.mockResolvedValue(0);
 
-      const [data, total] = await repository.findByNomeContaining('Non Existent', 0, 10);
+      const [data, total] = await repository.findByNomeContaining(
+        'Non Existent',
+        0,
+        10,
+      );
       expect(data).toEqual([]);
       expect(total).toBe(0);
     });

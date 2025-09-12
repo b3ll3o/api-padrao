@@ -2,7 +2,6 @@ import { PermissaoGuard } from './permissao.guard';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PERMISSAO_KEY } from '../decorators/temPermissao.decorator';
-import { JwtPayload } from '../../infrastructure/strategies/jwt.strategy';
 
 describe('PermissaoGuard', () => {
   let guard: PermissaoGuard;
@@ -43,25 +42,35 @@ describe('PermissaoGuard', () => {
   });
 
   it('should throw ForbiddenException if user is not logged in', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('some_permission');
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue('some_permission');
     mockRequest.usuarioLogado = undefined;
 
     expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-      new ForbiddenException('Usuário não possui perfis ou permissões suficientes.'),
+      new ForbiddenException(
+        'Usuário não possui perfis ou permissões suficientes.',
+      ),
     );
   });
 
   it('should throw ForbiddenException if user has no profiles property', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('some_permission');
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue('some_permission');
     mockRequest.usuarioLogado = { userId: 1, email: 'test@example.com' }; // No 'perfis' property
 
     expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-      new ForbiddenException('Usuário não possui perfis ou permissões suficientes.'),
+      new ForbiddenException(
+        'Usuário não possui perfis ou permissões suficientes.',
+      ),
     );
   });
 
   it('should throw ForbiddenException if user has profiles but no matching permissions', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('REQUIRED_PERMISSION');
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue('REQUIRED_PERMISSION');
     mockRequest.usuarioLogado = {
       userId: 1,
       email: 'test@example.com',
@@ -74,12 +83,16 @@ describe('PermissaoGuard', () => {
     };
 
     expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-      new ForbiddenException('Usuário não possui permissões suficientes para acessar este recurso.'),
+      new ForbiddenException(
+        'Usuário não possui permissões suficientes para acessar este recurso.',
+      ),
     );
   });
 
   it('should return true if user has the required single permission', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('REQUIRED_PERMISSION');
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue('REQUIRED_PERMISSION');
     mockRequest.usuarioLogado = {
       userId: 1,
       email: 'test@example.com',
@@ -96,7 +109,9 @@ describe('PermissaoGuard', () => {
   });
 
   it('should return true if user has one of the required multiple permissions', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['PERMISSION_A', 'PERMISSION_B']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['PERMISSION_A', 'PERMISSION_B']);
     mockRequest.usuarioLogado = {
       userId: 1,
       email: 'test@example.com',
@@ -113,7 +128,9 @@ describe('PermissaoGuard', () => {
   });
 
   it('should throw ForbiddenException if user has profiles but none of the required multiple permissions', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['PERMISSION_A', 'PERMISSION_B']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['PERMISSION_A', 'PERMISSION_B']);
     mockRequest.usuarioLogado = {
       userId: 1,
       email: 'test@example.com',
@@ -126,7 +143,9 @@ describe('PermissaoGuard', () => {
     };
 
     expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-      new ForbiddenException('Usuário não possui permissões suficientes para acessar este recurso.'),
+      new ForbiddenException(
+        'Usuário não possui permissões suficientes para acessar este recurso.',
+      ),
     );
   });
 });

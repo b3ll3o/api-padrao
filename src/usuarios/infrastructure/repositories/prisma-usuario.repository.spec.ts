@@ -7,7 +7,7 @@ import { Permissao } from 'src/permissoes/domain/entities/permissao.entity';
 
 describe('PrismaUsuarioRepository', () => {
   let repository: PrismaUsuarioRepository;
-  let prismaService: PrismaService;
+  // let prismaService: PrismaService; // Removed unused variable
 
   const mockPrismaService = {
     usuario: {
@@ -28,7 +28,7 @@ describe('PrismaUsuarioRepository', () => {
     }).compile();
 
     repository = module.get<PrismaUsuarioRepository>(PrismaUsuarioRepository);
-    prismaService = module.get<PrismaService>(PrismaService);
+    // prismaService = module.get<PrismaService>(PrismaService); // Removed unused assignment
   });
 
   it('should be defined', () => {
@@ -107,7 +107,9 @@ describe('PrismaUsuarioRepository', () => {
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
-        perfis: [{ id: 1, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' }],
+        perfis: [
+          { id: 1, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' },
+        ],
       };
       mockPrismaService.usuario.findUnique.mockResolvedValue(prismaResult);
 
@@ -189,7 +191,8 @@ describe('PrismaUsuarioRepository', () => {
       };
       mockPrismaService.usuario.findUnique.mockResolvedValue(prismaResult);
 
-      const result = await repository.findByEmailWithPerfisAndPermissoes('test@example.com');
+      const result =
+        await repository.findByEmailWithPerfisAndPermissoes('test@example.com');
 
       expect(result).toBeInstanceOf(Usuario);
       expect(result?.email).toBe(prismaResult.email);
@@ -212,7 +215,9 @@ describe('PrismaUsuarioRepository', () => {
     it('should return null if user not found by email with profiles and permissions', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(null);
 
-      const result = await repository.findByEmailWithPerfisAndPermissoes('nonexistent@example.com');
+      const result = await repository.findByEmailWithPerfisAndPermissoes(
+        'nonexistent@example.com',
+      );
       expect(result).toBeNull();
     });
   });

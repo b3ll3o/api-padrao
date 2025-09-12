@@ -61,7 +61,10 @@ describe('UsuariosController', () => {
 
       const result = await controller.findOne(id, mockRequest);
       expect(result).toEqual(expectedUsuario);
-      expect(service.findOne).toHaveBeenCalledWith(+id, mockRequest.usuarioLogado);
+      expect(service.findOne).toHaveBeenCalledWith(
+        +id,
+        mockRequest.usuarioLogado,
+      );
     });
 
     it('should throw ForbiddenException if usuarioLogado is not present in request', async () => {
