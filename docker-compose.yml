@@ -59,29 +59,6 @@ services:
     networks:
       - local-network
 
-  # Serviço da aplicação NestJS
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile # Assumindo que você tem um Dockerfile na raiz do projeto
-    container_name: nestjs_app_container
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME}
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
-      - DATABASE_URL=${DATABASE_URL}
-    ports:
-      - "3000:3000"
-    depends_on:
-      - postgres
-      - otel-collector
-    networks:
-      - local-network
-    volumes:
-      - .:/app # Monta o código-fonte para desenvolvimento (hot-reloading)
-      - /app/node_modules # Garante que node_modules não seja sobrescrito pelo volume
-
 volumes:
   postgres_data:
   pgadmin_data:

@@ -1,3 +1,6 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 // IMPORTANT: This MUST be the very first import in your application!
 import './tracing';
 

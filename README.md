@@ -77,16 +77,15 @@ Certifique-se de ter as seguintes ferramentas instaladas em sua máquina:
 
 #### Modo de Desenvolvimento
 
-Para iniciar a aplicação e todos os serviços (banco de dados, OpenTelemetry Collector, Jaeger), utilize o Docker Compose:
+Para iniciar os serviços de banco de dados, OpenTelemetry Collector e Jaeger, utilize o Docker Compose:
 ```bash
 docker compose up --build -d
 ```
-A aplicação NestJS estará disponível em `http://localhost:3000` (ou na porta configurada na variável de ambiente `PORT`).
-
-Se você deseja rodar a aplicação NestJS diretamente (sem Docker Compose para a aplicação, mas com os outros serviços rodando via Docker Compose), use:
+Após os serviços estarem em execução, você pode iniciar a aplicação NestJS diretamente:
 ```bash
 npm run start:dev
 ```
+A aplicação NestJS estará disponível em `http://localhost:3000` (ou na porta configurada na variável de ambiente `PORT`). Certifique-se de que as variáveis de ambiente `DATABASE_URL` e `OTEL_EXPORTER_OTLP_ENDPOINT` estejam configuradas corretamente no seu arquivo `.env`.
 
 #### Modo de Produção
 
