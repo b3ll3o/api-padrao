@@ -59,6 +59,7 @@ To ensure code quality, maintainability, and adherence to best practices, the fo
 
 *   **Test-Driven Development (TDD):** All new features and bug fixes must be developed following the Test-Driven Development (TDD) methodology. Write tests before writing the production code.
 *   **Clean Code Principles:** Adhere strictly to Clean Code principles, focusing on readability, maintainability, and simplicity.
+*   **SOLID Principles:** Apply SOLID principles (Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion) to design and implement robust, maintainable, and scalable solutions.
 *   **Unit Test Coverage:** Unit test coverage must be equal to or greater than 80%. Ensure that new code maintains or improves this coverage.
 *   **Pre-Commit Checks:**
     *   **Passing Tests:** No code should be committed if any tests (unit or E2E) are failing. All tests must pass before committing.
