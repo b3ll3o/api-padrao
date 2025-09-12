@@ -7,6 +7,35 @@ import { JwtService } from '@nestjs/jwt';
 import { cleanDatabase } from './e2e-utils';
 import * as bcrypt from 'bcrypt';
 
+// Helper function to create admin user and profile, connecting to existing permissions
+async function setupAdminUserAndProfile(
+  prisma: PrismaService,
+  jwtService: JwtService,
+  adminProfileId: number,
+) {
+  // Create an admin user
+  const hashedPassword = await bcrypt.hash('admin123', 10);
+  const adminUser = await prisma.usuario.create({
+    data: {
+      email: 'admin@example.com',
+      senha: hashedPassword,
+      perfis: {
+        connect: { id: adminProfileId },
+      },
+    },
+    include: { perfis: { include: { permissoes: true } } },
+  });
+
+  // Login as admin to get a token
+  const adminToken = jwtService.sign({
+    sub: adminUser.id,
+    email: adminUser.email,
+    perfis: adminUser.perfis,
+  });
+
+  return { adminUser, adminToken };
+}
+
 describe('UsuariosController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -28,74 +57,51 @@ describe('UsuariosController (e2e)', () => {
 
     // Clean database once before all tests
     await cleanDatabase(prisma);
-
-    // Create permissions for admin user setup
-    const perm1 = await prisma.permissao.create({
-      data: {
-        nome: 'read:users',
-        codigo: 'READ_USERS',
-        descricao: 'Permissão para ler usuários',
-      },
-    });
-    const perm2 = await prisma.permissao.create({
-      data: {
-        nome: 'write:users',
-        codigo: 'WRITE_USERS',
-        descricao: 'Permissão para escrever usuários',
-      },
-    });
-
-    // Create an admin profile with permissions
-    const adminProfile = await prisma.perfil.create({
-      data: {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
-        permissoes: {
-          connect: [{ id: perm1.id }, { id: perm2.id }],
-        },
-      },
-    });
-
-    // Create an admin user
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    await prisma.usuario.create({
-      data: {
-        email: 'admin@example.com',
-        senha: hashedPassword,
-        perfis: {
-          connect: { id: adminProfile.id },
-        },
-      },
-      include: { perfis: { include: { permissoes: true } } },
-    });
-
-    // Login as admin to get a token
-    const loginDto = {
-      email: 'admin@example.com',
-      senha: 'admin123',
-    };
-
-    const res = await supertestRequest(app.getHttpServer())
-      .post('/auth/login')
-      .send(loginDto)
-      .expect(201);
-
-    adminToken = res.body.access_token;
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  beforeEach(async () => {
-    // No global cleanDatabase here, individual describe blocks will manage their data
-  });
-
   describe('POST /usuarios', () => {
     // Clean database before each test in this describe block
     beforeEach(async () => {
       await cleanDatabase(prisma);
+      // Create permissions for admin user setup
+      const permReadUsers = await prisma.permissao.create({
+        data: {
+          nome: 'read:users',
+          codigo: 'READ_USERS',
+          descricao: 'Permissão para ler usuários',
+        },
+      });
+      const permWriteUsers = await prisma.permissao.create({
+        data: {
+          nome: 'write:users',
+          codigo: 'WRITE_USERS',
+          descricao: 'Permissão para escrever usuários',
+        },
+      });
+
+      // Create an admin profile with permissions
+      const adminProfile = await prisma.perfil.create({
+        data: {
+          nome: 'Admin',
+          codigo: 'ADMIN',
+          descricao: 'Perfil de administrador',
+          permissoes: {
+            connect: [{ id: permReadUsers.id }, { id: permWriteUsers.id }],
+          },
+        },
+      });
+
+      // Re-setup admin user and permissions for this describe block
+      const adminSetup = await setupAdminUserAndProfile(
+        prisma,
+        jwtService,
+        adminProfile.id,
+      );
+      adminToken = adminSetup.adminToken;
     });
 
     it('deve criar um usuário e retornar 201', () => {
@@ -281,6 +287,24 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
+      // Create an admin profile with permissions
+      const adminProfile = await prisma.perfil.create({
+        data: {
+          nome: 'Admin',
+          codigo: 'ADMIN',
+          descricao: 'Perfil de administrador',
+          permissoes: { connect: { id: readUsuarioByIdPerm.id } },
+        },
+      });
+
+      // Re-setup admin user and permissions for this describe block
+      const adminSetup = await setupAdminUserAndProfile(
+        prisma,
+        jwtService,
+        adminProfile.id,
+      );
+      adminToken = adminSetup.adminToken;
+
       // Create profiles
       const userProfile = await prisma.perfil.create({
         data: {
@@ -290,21 +314,6 @@ describe('UsuariosController (e2e)', () => {
           permissoes: { connect: { id: readUsuarioByIdPerm.id } },
         },
       });
-
-      const adminProfile = await prisma.perfil.findFirst({
-        where: { codigo: 'ADMIN' },
-      });
-
-      if (adminProfile) {
-        await prisma.perfil.update({
-          where: { id: adminProfile.id },
-          data: {
-            permissoes: {
-              connect: { id: readUsuarioByIdPerm.id },
-            },
-          },
-        });
-      }
 
       // Create users
       user1 = await prisma.usuario.create({
@@ -406,6 +415,24 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
+      // Create an admin profile with permissions
+      const adminProfile = await prisma.perfil.create({
+        data: {
+          nome: 'Admin',
+          codigo: 'ADMIN',
+          descricao: 'Perfil de administrador',
+          permissoes: { connect: { id: updateUsuarioPerm.id } },
+        },
+      });
+
+      // Re-setup admin user and permissions for this describe block
+      const adminSetup = await setupAdminUserAndProfile(
+        prisma,
+        jwtService,
+        adminProfile.id,
+      );
+      adminToken = adminSetup.adminToken;
+
       // Create profiles
       const userProfile = await prisma.perfil.create({
         data: {
@@ -415,21 +442,6 @@ describe('UsuariosController (e2e)', () => {
           permissoes: { connect: { id: updateUsuarioPerm.id } },
         },
       });
-
-      const adminProfile = await prisma.perfil.findFirst({
-        where: { codigo: 'ADMIN' },
-      });
-
-      if (adminProfile) {
-        await prisma.perfil.update({
-          where: { id: adminProfile.id },
-          data: {
-            permissoes: {
-              connect: { id: updateUsuarioPerm.id },
-            },
-          },
-        });
-      }
 
       // Create users
       userToUpdate = await prisma.usuario.create({
@@ -515,6 +527,24 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
+      // Create an admin profile with permissions
+      const adminProfile = await prisma.perfil.create({
+        data: {
+          nome: 'Admin',
+          codigo: 'ADMIN',
+          descricao: 'Perfil de administrador',
+          permissoes: { connect: { id: deleteUsuarioPerm.id } },
+        },
+      });
+
+      // Re-setup admin user and permissions for this describe block
+      const adminSetup = await setupAdminUserAndProfile(
+        prisma,
+        jwtService,
+        adminProfile.id,
+      );
+      adminToken = adminSetup.adminToken;
+
       // Create profiles
       const userProfile = await prisma.perfil.create({
         data: {
@@ -524,21 +554,6 @@ describe('UsuariosController (e2e)', () => {
           permissoes: { connect: { id: deleteUsuarioPerm.id } },
         },
       });
-
-      const adminProfile = await prisma.perfil.findFirst({
-        where: { codigo: 'ADMIN' },
-      });
-
-      if (adminProfile) {
-        await prisma.perfil.update({
-          where: { id: adminProfile.id },
-          data: {
-            permissoes: {
-              connect: { id: deleteUsuarioPerm.id },
-            },
-          },
-        });
-      }
 
       // Create users
       userToDelete = await prisma.usuario.create({

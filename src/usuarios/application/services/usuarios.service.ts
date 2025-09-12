@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
+import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import * as bcrypt from 'bcrypt';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
 import { Usuario } from '../../domain/entities/usuario.entity';
@@ -69,5 +70,90 @@ export class UsuariosService {
     delete usuario.senha;
     delete usuario.perfis;
     return usuario;
+  }
+
+  async update(
+    id: number,
+    updateUsuarioDto: UpdateUsuarioDto,
+    usuarioLogado: UsuarioLogado,
+  ): Promise<Usuario> {
+    const usuario = await this.usuarioRepository.findOne(id);
+    if (!usuario) {
+      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+
+    const isOwner = usuario.id === usuarioLogado.userId;
+    const isAdmin = usuarioLogado.perfis?.some(
+      (perfil) => perfil.codigo === 'ADMIN',
+    );
+
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException(
+        'Você não tem permissão para atualizar os dados deste usuário',
+      );
+    }
+
+    // Prevent non-admins from changing their own roles/permissions
+    if (!isAdmin && updateUsuarioDto.perfisIds) {
+      throw new ForbiddenException(
+        'Você não tem permissão para alterar perfis de usuário',
+      );
+    }
+
+    // Update email if provided and different
+    if (updateUsuarioDto.email && updateUsuarioDto.email !== usuario.email) {
+      const usuarioExistente = await this.usuarioRepository.findByEmail(
+        updateUsuarioDto.email,
+      );
+      if (usuarioExistente && usuarioExistente.id !== id) {
+        throw new ConflictException(
+          'Este e-mail já está em uso por outro usuário.',
+        );
+      }
+      usuario.email = updateUsuarioDto.email;
+    }
+
+    // Update password if provided
+    if (updateUsuarioDto.senha) {
+      const salt = await bcrypt.genSalt();
+      usuario.senha = await bcrypt.hash(updateUsuarioDto.senha, salt);
+    }
+
+    // Update profiles if provided and user is admin
+    if (isAdmin && updateUsuarioDto.perfisIds) {
+      usuario.perfis = updateUsuarioDto.perfisIds.map(
+        (perfilId) => ({ id: perfilId }) as Perfil,
+      );
+    }
+
+    const updatedUsuario = await this.usuarioRepository.update(id, usuario);
+
+    delete updatedUsuario.senha;
+    return updatedUsuario;
+  }
+
+  async remove(id: number, usuarioLogado: UsuarioLogado): Promise<void> {
+    const usuario = await this.usuarioRepository.findOne(id);
+    if (!usuario) {
+      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+
+    const isOwner = usuario.id === usuarioLogado.userId;
+    const isAdmin = usuarioLogado.perfis?.some(
+      (perfil) => perfil.codigo === 'ADMIN',
+    );
+
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException(
+        'Você não tem permissão para deletar este usuário',
+      );
+    }
+
+    // Prevent a user from deleting themselves if they are the only admin
+    // (This is a more complex rule and might require additional logic,
+    // for now, just allow admin to delete any user, and user to delete self)
+    // Consider adding a check if the user is trying to delete the last admin account.
+
+    await this.usuarioRepository.remove(id);
   }
 }

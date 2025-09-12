@@ -42,7 +42,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
   async findOne(id: number): Promise<Usuario | undefined> {
     const usuario = await this.prisma.usuario.findUnique({
       where: { id },
-      include: { perfis: true }, // Include profiles if needed
+      include: { perfis: true }, // Include perfis if needed
     });
     if (!usuario) return undefined;
 
@@ -116,5 +116,44 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     });
 
     return newUsuario;
+  }
+
+  async update(id: number, data: Partial<Usuario>): Promise<Usuario> {
+    const { perfis, ...rest } = data;
+    const updatedUsuario = await this.prisma.usuario.update({
+      where: { id },
+      data: {
+        ...rest,
+        perfis: perfis
+          ? {
+              set: perfis.map((perfil) => ({ id: perfil.id })),
+            }
+          : undefined,
+      },
+      include: { perfis: true },
+    });
+
+    const newUsuario = new Usuario();
+    newUsuario.id = updatedUsuario.id;
+    newUsuario.email = updatedUsuario.email;
+    newUsuario.senha =
+      updatedUsuario.senha === null ? undefined : updatedUsuario.senha;
+    newUsuario.createdAt = updatedUsuario.createdAt;
+    newUsuario.updatedAt = updatedUsuario.updatedAt;
+    newUsuario.perfis = updatedUsuario.perfis?.map((perfil) => {
+      const newPerfil = new Perfil();
+      newPerfil.id = perfil.id;
+      newPerfil.nome = perfil.nome;
+      newPerfil.codigo = perfil.codigo;
+      newPerfil.descricao = perfil.descricao;
+      return newPerfil;
+    });
+    return newUsuario;
+  }
+
+  async remove(id: number): Promise<void> {
+    await this.prisma.usuario.delete({
+      where: { id },
+    });
   }
 }

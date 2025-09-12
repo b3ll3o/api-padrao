@@ -68,7 +68,9 @@ describe('AuthGuard', () => {
       IS_PUBLIC_KEY,
       expect.any(Array),
     );
-    expect(passportAuthGuardCanActivateSpy).toHaveBeenCalledWith(mockExecutionContext);
+    expect(passportAuthGuardCanActivateSpy).toHaveBeenCalledWith(
+      mockExecutionContext,
+    );
     expect(mockRequest.usuarioLogado).toEqual(mockRequest.user);
   });
 
@@ -82,7 +84,9 @@ describe('AuthGuard', () => {
       IS_PUBLIC_KEY,
       expect.any(Array),
     );
-    expect(passportAuthGuardCanActivateSpy).toHaveBeenCalledWith(mockExecutionContext);
+    expect(passportAuthGuardCanActivateSpy).toHaveBeenCalledWith(
+      mockExecutionContext,
+    );
     expect(mockRequest.usuarioLogado).toBeUndefined();
   });
 
@@ -91,12 +95,16 @@ describe('AuthGuard', () => {
     const error = new Error('Authentication failed');
     passportAuthGuardCanActivateSpy.mockRejectedValue(error);
 
-    await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(error);
+    await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+      error,
+    );
     expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
       IS_PUBLIC_KEY,
       expect.any(Array),
     );
-    expect(passportAuthGuardCanActivateSpy).toHaveBeenCalledWith(mockExecutionContext);
+    expect(passportAuthGuardCanActivateSpy).toHaveBeenCalledWith(
+      mockExecutionContext,
+    );
     expect(mockRequest.usuarioLogado).toBeUndefined();
   });
 });

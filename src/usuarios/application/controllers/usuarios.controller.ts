@@ -6,9 +6,14 @@ import {
   Param,
   Req,
   ForbiddenException,
+  Patch,
+  Delete,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { UsuariosService } from '../services/usuarios.service';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
+import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { Request } from 'express';
@@ -62,5 +67,68 @@ export class UsuariosController {
       throw new ForbiddenException('Usuário não autenticado');
     }
     return this.usuariosService.findOne(+id, req.usuarioLogado);
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Atualiza um usuário por ID',
+    description:
+      'Atualiza os dados de um usuário. Requer autenticação e permissão. Um usuário pode atualizar seus próprios dados. Um administrador pode atualizar os dados de qualquer usuário.',
+  })
+  @ApiResponse({ status: 200, description: 'Usuário atualizado com sucesso.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Não autorizado - Token JWT ausente ou inválido.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado - Sem permissão para atualizar este usuário.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Usuário não encontrado - O ID especificado não existe.',
+  })
+  @TemPermissao('UPDATE_USUARIO')
+  update(
+    @Param('id') id: string,
+    @Body() updateUsuarioDto: UpdateUsuarioDto,
+    @Req() req: Request,
+  ): Promise<Usuario> {
+    if (!req.usuarioLogado) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
+    return this.usuariosService.update(
+      +id,
+      updateUsuarioDto,
+      req.usuarioLogado,
+    );
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT) // Returns 204 No Content on success
+  @ApiOperation({
+    summary: 'Deleta um usuário por ID',
+    description:
+      'Deleta um usuário. Requer autenticação e permissão. Um usuário pode deletar sua própria conta. Um administrador pode deletar qualquer usuário.',
+  })
+  @ApiResponse({ status: 204, description: 'Usuário deletado com sucesso.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Não autorizado - Token JWT ausente ou inválido.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado - Sem permissão para deletar este usuário.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Usuário não encontrado - O ID especificado não existe.',
+  })
+  @TemPermissao('DELETE_USUARIO')
+  remove(@Param('id') id: string, @Req() req: Request): Promise<void> {
+    if (!req.usuarioLogado) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
+    return this.usuariosService.remove(+id, req.usuarioLogado);
   }
 }
