@@ -137,6 +137,7 @@ O projeto inclui testes unitários e de integração (E2E). Os testes são execu
     npm run test
     ```
 *   **Cobertura de Testes:**
+    A cobertura de testes unitários atual é de **85.28%**, superando o requisito mínimo de 80%.
     ```bash
     npm run test:cov
     ```
