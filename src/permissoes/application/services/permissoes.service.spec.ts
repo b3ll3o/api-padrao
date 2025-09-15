@@ -270,6 +270,25 @@ describe('PermissoesService', () => {
       deletedAt: null,
     } as Permissao;
 
+    const mockAdminUsuarioLogado: JwtPayload = {
+      userId: 1,
+      email: 'admin@example.com',
+      perfis: [{ codigo: 'ADMIN' }],
+    };
+
+    const mockUserUsuarioLogado: JwtPayload = {
+      userId: 2,
+      email: 'user@example.com',
+      perfis: [{ codigo: 'USER' }],
+    };
+
+    type UpdatePermissaoDto = {
+      nome?: string;
+      codigo?: string;
+      descricao?: string;
+      ativo?: boolean;
+    };
+
     it('deve atualizar uma permissão', async () => {
       const updatePermissaoDto = {
         nome: 'Updated Permissao',
@@ -288,7 +307,7 @@ describe('PermissoesService', () => {
         expectedPermissao,
       );
 
-      const result = await service.update(1, updatePermissaoDto);
+      const result = await service.update(1, updatePermissaoDto, mockAdminUsuarioLogado);
 
       expect(result).toEqual(expectedPermissao);
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
@@ -306,162 +325,162 @@ describe('PermissoesService', () => {
           nome: 'Non Existent',
           codigo: 'NON_EXISTENT',
           descricao: 'Non Existent',
-        }),
+        } as UpdatePermissaoDto, mockAdminUsuarioLogado),
       ).rejects.toThrow(NotFoundException);
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999, true);
       expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
     });
-  });
 
-  describe('remoção', () => {
-    const mockPermissao = {
+    describe('atualização', () => {
+    const existingPermissao = {
       id: 1,
-      nome: 'Test Permissao',
-      codigo: 'TEST_PERMISSAO',
-      descricao: 'Description',
+      nome: 'Old Permissao',
+      codigo: 'OLD_PERMISSAO',
+      descricao: 'Old Description',
       deletedAt: null,
     } as Permissao;
 
     const mockAdminUsuarioLogado: JwtPayload = {
       userId: 1,
       email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
+      perfis: [{ codigo: 'ADMIN' }],
     };
 
     const mockUserUsuarioLogado: JwtPayload = {
       userId: 2,
       email: 'user@example.com',
-      perfis: [{ codigo: 'USER' }], // Corrected perfis structure
+      perfis: [{ codigo: 'USER' }],
     };
 
-    it('deve realizar soft delete de uma permissão se for admin', async () => {
-      const softDeletedPermissao = { ...mockPermissao, deletedAt: new Date() };
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
-        mockPermissao,
-      ); // Find only non-deleted
-      (mockPermissaoRepository.remove as jest.Mock).mockResolvedValue(
-        softDeletedPermissao,
-      );
-      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
-
-      const result = await service.remove(1, mockAdminUsuarioLogado);
-
-      expect(result).toEqual(softDeletedPermissao);
-      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1); // Removed false
-      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
-        mockAdminUsuarioLogado,
-      ); // Verify isAdmin call
-      expect(mockPermissaoRepository.remove).toHaveBeenCalledWith(1);
-    });
-
-    it('deve lançar NotFoundException se a permissão não for encontrada', async () => {
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
-      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
-
-      await expect(service.remove(999, mockAdminUsuarioLogado)).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999); // Removed false
-      expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
-    });
-
-    it('deve lançar ForbiddenException se não for admin', async () => {
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
-        mockPermissao,
-      );
-      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(false); // Mock isAdmin
-
-      await expect(service.remove(1, mockUserUsuarioLogado)).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1); // Removed false
-      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
-        mockUserUsuarioLogado,
-      ); // Verify isAdmin call
-      expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('restauração', () => {
-    const mockPermissao = {
-      id: 1,
-      nome: 'Test Permissao',
-      codigo: 'TEST_PERMISSAO',
-      descricao: 'Description',
-      deletedAt: new Date(), // Soft deleted
-    } as Permissao;
-
-    const mockAdminUsuarioLogado: JwtPayload = {
-      userId: 1,
-      email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
+    type UpdatePermissaoDto = {
+      nome?: string;
+      codigo?: string;
+      descricao?: string;
+      ativo?: boolean;
     };
 
-    const mockUserUsuarioLogado: JwtPayload = {
-      userId: 2,
-      email: 'user@example.com',
-      perfis: [{ codigo: 'USER' }], // Corrected perfis structure
-    };
+    it('deve atualizar uma permissão', async () => {
+      const updatePermissaoDto = {
+        nome: 'Updated Permissao',
+        codigo: 'UPDATED_PERMISSAO',
+        descricao: 'Permissão atualizada',
+      };
+      const expectedPermissao = {
+        ...existingPermissao,
+        ...updatePermissaoDto,
+      } as Permissao;
 
-    it('deve restaurar uma permissão com soft delete se for admin', async () => {
-      const restoredPermissao = { ...mockPermissao, deletedAt: null };
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
-        mockPermissao,
-      ); // Find soft-deleted permissao
-      (mockPermissaoRepository.restore as jest.Mock).mockResolvedValue(
-        restoredPermissao,
+        existingPermissao,
+      ); // For the findOne call inside update
+      (mockPermissaoRepository.update as jest.Mock).mockResolvedValue(
+        expectedPermissao,
       );
-      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
 
-      const result = await service.restore(1, mockAdminUsuarioLogado);
+      const result = await service.update(1, updatePermissaoDto, mockAdminUsuarioLogado);
 
-      expect(result).toEqual(restoredPermissao);
+      expect(result).toEqual(expectedPermissao);
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
-      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
-        mockAdminUsuarioLogado,
-      ); // Verify isAdmin call
-      expect(mockPermissaoRepository.restore).toHaveBeenCalledWith(1);
+      expect(mockPermissaoRepository.update).toHaveBeenCalledWith(
+        1,
+        updatePermissaoDto,
+      );
     });
 
-    it('deve lançar NotFoundException se a permissão não for encontrada', async () => {
+    it('deve lançar NotFoundException se a permissão a ser atualizada não for encontrada', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
-      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
 
       await expect(
-        service.restore(999, mockAdminUsuarioLogado),
+        service.update(999, {
+          nome: 'Non Existent',
+          codigo: 'NON_EXISTENT',
+          descricao: 'Non Existent',
+        } as UpdatePermissaoDto, mockAdminUsuarioLogado),
       ).rejects.toThrow(NotFoundException);
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999, true);
-      expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
+      expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
     });
 
-    it('deve lançar ConflictException se a permissão não estiver com soft delete', async () => {
-      const nonDeletedPermissao = { ...mockPermissao, deletedAt: null };
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
-        nonDeletedPermissao,
-      );
-      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true); // Mock isAdmin
+    it('deve restaurar uma permissão com soft delete via flag ativo', async () => {
+      const softDeletedPermissao = { ...existingPermissao, deletedAt: new Date() };
+      const updateDto: UpdatePermissaoDto = { ativo: true };
 
-      await expect(service.restore(1, mockAdminUsuarioLogado)).rejects.toThrow(
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(softDeletedPermissao);
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true);
+      (mockPermissaoRepository.restore as jest.Mock).mockResolvedValue({ ...softDeletedPermissao, deletedAt: null });
+
+      const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
+
+      expect(result.deletedAt).toBeNull();
+      expect(mockPermissaoRepository.restore).toHaveBeenCalledWith(1);
+      expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ConflictException se tentar restaurar uma permissão não deletada via flag ativo', async () => {
+      const nonDeletedPermissao = { ...existingPermissao, deletedAt: null };
+      const updateDto: UpdatePermissaoDto = { ativo: true };
+
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPermissao);
+
+      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
         ConflictException,
       );
-      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
       expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
     });
 
-    it('deve lançar ForbiddenException se não for admin', async () => {
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
-        mockPermissao,
-      );
-      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(false); // Mock isAdmin
+    it('deve lançar ForbiddenException se não for admin ao tentar restaurar via flag ativo', async () => {
+      const softDeletedPermissao = { ...existingPermissao, deletedAt: new Date() };
+      const updateDto: UpdatePermissaoDto = { ativo: true };
 
-      await expect(service.restore(1, mockUserUsuarioLogado)).rejects.toThrow(
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(softDeletedPermissao);
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(false);
+
+      await expect(service.update(1, updateDto, mockUserUsuarioLogado)).rejects.toThrow(
         ForbiddenException,
       );
-      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
-      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
-        mockUserUsuarioLogado,
-      ); // Verify isAdmin call
       expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
     });
+
+    it('deve realizar soft delete de uma permissão via flag ativo', async () => {
+      const nonDeletedPermissao = { ...existingPermissao, deletedAt: null };
+      const updateDto: UpdatePermissaoDto = { ativo: false };
+
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPermissao);
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true);
+      (mockPermissaoRepository.remove as jest.Mock).mockResolvedValue({ ...nonDeletedPermissao, deletedAt: new Date() });
+
+      const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
+
+      expect(result.deletedAt).not.toBeNull();
+      expect(mockPermissaoRepository.remove).toHaveBeenCalledWith(1);
+      expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ConflictException se tentar deletar uma permissão já deletada via flag ativo', async () => {
+      const softDeletedPermissao = { ...existingPermissao, deletedAt: new Date() };
+      const updateDto: UpdatePermissaoDto = { ativo: false };
+
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(softDeletedPermissao);
+
+      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ForbiddenException se não for admin ao tentar deletar via flag ativo', async () => {
+      const nonDeletedPermissao = { ...existingPermissao, deletedAt: null };
+      const updateDto: UpdatePermissaoDto = { ativo: false };
+
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPermissao);
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(false);
+
+      await expect(service.update(1, updateDto, mockUserUsuarioLogado)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
+    });
   });
+
+  
 });

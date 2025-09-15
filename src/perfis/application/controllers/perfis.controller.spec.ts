@@ -19,8 +19,6 @@ describe('PerfisController', () => {
     findOne: jest.fn(),
     findByNomeContaining: jest.fn(),
     update: jest.fn(),
-    remove: jest.fn(),
-    restore: jest.fn(), // Added
   };
 
   // Mock Request object for @Req()
@@ -156,20 +154,26 @@ describe('PerfisController', () => {
 
   describe('atualização', () => {
     it('deve atualizar um perfil', async () => {
-      const id = '1';
-      const updatePerfilDto: UpdatePerfilDto = {
-        nome: 'Updated Perfil',
-      };
-      const expectedPerfil = {
-        id: 1,
-        ...updatePerfilDto,
-        deletedAt: null,
-      } as Perfil; // Added deletedAt
-      (mockPerfisService.update as jest.Mock).mockResolvedValue(expectedPerfil);
+      const perfil = await prisma.perfil.create({
+        data: {
+          nome: 'Viewer',
+          codigo: 'VIEWER',
+          descricao: 'Perfil de visualizador',
+        },
+      });
+      const updatePerfilDto = { nome: 'Updated Viewer' };
+      const req = mockRequest(true); // Admin user
 
-      const result = await controller.update(id, updatePerfilDto);
-      expect(result).toEqual(expectedPerfil);
-      expect(service.update).toHaveBeenCalledWith(+id, updatePerfilDto);
+      return request(app.getHttpServer())
+        .patch(`/perfis/${perfil.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(updatePerfilDto)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('id', perfil.id);
+
+          expect(res.body.nome).toEqual(updatePerfilDto.nome);
+        });
     });
   });
 

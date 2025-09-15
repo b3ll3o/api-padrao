@@ -106,7 +106,11 @@ export class PerfisService {
     };
   }
 
-  async update(id: number, updatePerfilDto: UpdatePerfilDto): Promise<Perfil> {
+  async update(
+    id: number,
+    updatePerfilDto: UpdatePerfilDto,
+    usuarioLogado: UsuarioLogado, // Add usuarioLogado parameter
+  ): Promise<Perfil> {
     if (updatePerfilDto.permissoesIds) {
       for (const permId of updatePerfilDto.permissoesIds) {
         await this.permissoesService.findOne(permId); // Validate if permission exists
@@ -117,6 +121,35 @@ export class PerfisService {
     if (!perfil) {
       throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }
+
+    // Handle 'ativo' flag for soft delete/restore
+    if (updatePerfilDto.ativo !== undefined) {
+      const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
+      if (!isAdmin) {
+        throw new ForbiddenException('Você não tem permissão para alterar o status de ativo/inativo deste perfil');
+      }
+
+      if (updatePerfilDto.ativo === true) {
+        // Attempt to restore
+        if (perfil.deletedAt === null) {
+          throw new ConflictException(`Perfil com ID ${id} não está deletado.`);
+        }
+        await this.perfilRepository.restore(id);
+        // After restore, update the local 'perfil' object to reflect the change
+        perfil.deletedAt = null;
+      } else { // updatePerfilDto.ativo === false
+        // Attempt to soft delete
+        if (perfil.deletedAt !== null) {
+          throw new ConflictException(`Perfil com ID ${id} já está deletado.`);
+        }
+        await this.perfilRepository.remove(id);
+        // After soft delete, update the local 'perfil' object to reflect the change
+        perfil.deletedAt = new Date(); // Set a dummy date for local object consistency
+      }
+      // Remove 'ativo' from DTO to prevent it from being passed to repository update
+      delete updatePerfilDto.ativo;
+    }
+
     const updatedPerfil = await this.perfilRepository.update(
       id,
       updatePerfilDto,
@@ -129,43 +162,5 @@ export class PerfisService {
     return updatedPerfil;
   }
 
-  async remove(id: number, usuarioLogado: UsuarioLogado): Promise<Perfil> {
-    const perfil = await this.perfilRepository.findOne(id); // Find only non-deleted
-    if (!perfil) {
-      throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
-    }
-
-    const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
-
-    if (!isAdmin) {
-      throw new ForbiddenException(
-        'Você não tem permissão para deletar este perfil',
-      );
-    }
-
-    const softDeletedPerfil = await this.perfilRepository.remove(id);
-    return softDeletedPerfil;
-  }
-
-  async restore(id: number, usuarioLogado: UsuarioLogado): Promise<Perfil> {
-    const perfil = await this.perfilRepository.findOne(id, true); // Find including deleted
-    if (!perfil) {
-      throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
-    }
-
-    if (perfil.deletedAt === null) {
-      throw new ConflictException(`Perfil com ID ${id} não está deletado.`);
-    }
-
-    const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
-
-    if (!isAdmin) {
-      throw new ForbiddenException(
-        'Você não tem permissão para restaurar este perfil',
-      );
-    }
-
-    const restoredPerfil = await this.perfilRepository.restore(id);
-    return restoredPerfil;
-  }
+  
 }

@@ -107,12 +107,43 @@ export class PermissoesService {
   async update(
     id: number,
     updatePermissaoDto: UpdatePermissaoDto,
+    usuarioLogado: UsuarioLogado, // Add usuarioLogado parameter
   ): Promise<Permissao> {
-    // Find including deleted to allow update on soft-deleted
-    const permissao = await this.permissaoRepository.findOne(id, true);
+    const permissao = await this.permissaoRepository.findOne(id, true); // Find including deleted to allow update on soft-deleted
     if (!permissao) {
       throw new NotFoundException(`Permissão com ID ${id} não encontrada.`);
     }
+
+    // Handle 'ativo' flag for soft delete/restore
+    if (updatePermissaoDto.ativo !== undefined) {
+      if (updatePermissaoDto.ativo === true) {
+        // Attempt to restore
+        if (permissao.deletedAt === null) {
+          throw new ConflictException(`Permissão com ID ${id} não está deletada.`);
+        }
+        if (!this.authorizationService.isAdmin(usuarioLogado)) {
+          throw new ForbiddenException('Você não tem permissão para restaurar esta permissão');
+        }
+        await this.permissaoRepository.restore(id);
+        // After restore, update the local 'permissao' object to reflect the change
+        permissao.deletedAt = null;
+      } else { // updatePermissaoDto.ativo === false
+        // Attempt to soft delete
+        if (permissao.deletedAt !== null) {
+          throw new ConflictException(`Permissão com ID ${id} já está deletada.`);
+        }
+        if (!this.authorizationService.isAdmin(usuarioLogado)) {
+          throw new ForbiddenException('Você não tem permissão para deletar esta permissão');
+        }
+        await this.permissaoRepository.remove(id);
+        // After soft delete, update the local 'permissao' object to reflect the change
+        permissao.deletedAt = new Date(); // Set a dummy date for local object consistency
+      }
+      // Remove 'ativo' from DTO to prevent it from being passed to repository update
+      delete updatePermissaoDto.ativo;
+    }
+
+    // The existing update logic for other fields
     const updatedPermissao = await this.permissaoRepository.update(
       id,
       updatePermissaoDto,

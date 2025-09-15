@@ -91,6 +91,33 @@ export class UsuariosService {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
 
+    // Handle 'ativo' flag for soft delete/restore
+    if (updateUsuarioDto.ativo !== undefined) {
+      if (updateUsuarioDto.ativo === true) {
+        // Attempt to restore
+        if (usuario.deletedAt === null) {
+          throw new ConflictException(`Usuário com ID ${id} não está deletado.`);
+        }
+        if (!this.usuarioAuthorizationService.canRestoreUsuario(usuario.id, usuarioLogado)) {
+          throw new ForbiddenException('Você não tem permissão para restaurar este usuário');
+        }
+        const restoredUsuario = await this.usuarioRepository.restore(id);
+        delete restoredUsuario.senha;
+        return restoredUsuario; // Return immediately after restore
+      } else { // updateUsuarioDto.ativo === false
+        // Attempt to soft delete
+        if (usuario.deletedAt !== null) {
+          throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
+        }
+        if (!this.usuarioAuthorizationService.canDeleteUsuario(usuario.id, usuarioLogado)) {
+          throw new ForbiddenException('Você não tem permissão para deletar este usuário');
+        }
+        const softDeletedUsuario = await this.usuarioRepository.remove(id);
+        delete softDeletedUsuario.senha;
+        return softDeletedUsuario; // Return immediately after soft delete
+      }
+    }
+
     if (
       !this.usuarioAuthorizationService.canUpdateUsuario(
         usuario.id,

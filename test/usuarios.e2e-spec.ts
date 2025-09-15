@@ -578,10 +578,10 @@ describe('UsuariosController (e2e)', () => {
         .expect(404);
     });
 
-    it('deve restaurar um usuário deletado', async () => {
-      const restoreDto = {}; // No body needed for restore
+    it('deve restaurar um usuário deletado via PATCH /usuarios/:id com { ativo: true }', async () => {
+      const restoreDto = { ativo: true };
       return supertestRequest(app.getHttpServer())
-        .patch(`/usuarios/${userToSoftDelete.id}/restore`)
+        .patch(`/usuarios/${userToSoftDelete.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send(restoreDto)
         .expect(200)
@@ -596,23 +596,61 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
-    it('deve retornar 403 se não for admin ao tentar restaurar', async () => {
-      const restoreDto = {};
+    it('deve retornar 403 se não for admin ao tentar restaurar via PATCH', async () => {
+      const restoreDto = { ativo: true };
       return supertestRequest(app.getHttpServer())
-        .patch(`/usuarios/${userToSoftDelete.id}/restore`)
+        .patch(`/usuarios/${userToSoftDelete.id}`)
         .set('Authorization', `Bearer ${userToken}`)
         .send(restoreDto)
         .expect(403);
     });
 
-    it('deve retornar 409 se tentar restaurar um usuário não deletado', async () => {
-      const restoreDto = {};
+    it('deve retornar 409 se tentar restaurar um usuário não deletado via PATCH', async () => {
+      const restoreDto = { ativo: true };
       return supertestRequest(app.getHttpServer())
-        .patch(`/usuarios/${userToUpdate.id}/restore`)
+        .patch(`/usuarios/${userToUpdate.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send(restoreDto)
         .expect(409);
     });
+
+    it('deve realizar soft delete de um usuário via PATCH /usuarios/:id com { ativo: false }', async () => {
+      const deleteDto = { ativo: false };
+      return supertestRequest(app.getHttpServer())
+        .patch(`/usuarios/${userToUpdate.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(deleteDto)
+        .expect(200)
+        .then(async (res) => {
+          expect(res.body.id).toBe(userToUpdate.id);
+          expect(res.body.deletedAt).not.toBeNull();
+          // Verify it's no longer accessible via normal GET
+          await supertestRequest(app.getHttpServer())
+            .get(`/usuarios/${userToUpdate.id}`)
+            .set('Authorization', `Bearer ${adminToken}`)
+            .expect(404);
+        });
+    });
+
+    it('deve retornar 403 se não for admin ao tentar deletar via PATCH', async () => {
+      const deleteDto = { ativo: false };
+      return supertestRequest(app.getHttpServer())
+        .patch(`/usuarios/${userToUpdate.id}`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send(deleteDto)
+        .expect(403);
+    });
+
+    it('deve retornar 409 se tentar deletar um usuário já deletado via PATCH', async () => {
+      const deleteDto = { ativo: false };
+      return supertestRequest(app.getHttpServer())
+        .patch(`/usuarios/${userToSoftDelete.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(deleteDto)
+        .expect(409);
+    });
+
+    
   });
 
   describe('DELETE /usuarios/:id', () => {

@@ -42,7 +42,11 @@ describe('UsuariosService', () => {
       create: jest.fn(),
       findByEmail: jest.fn(),
       findOne: jest.fn(),
-      update: jest.fn(),
+      update: jest.fn().mockImplementation((id, data) => {
+        const updatedUser = new Usuario();
+        Object.assign(updatedUser, { id, ...data });
+        return updatedUser;
+      }),
       remove: jest.fn(),
       restore: jest.fn(),
     };
@@ -345,160 +349,87 @@ describe('UsuariosService', () => {
         service.update(1, updateDto, mockUsuarioLogado),
       ).rejects.toThrow(ForbiddenException);
     });
-  });
 
-  describe('remoção', () => {
-    const mockUser = new Usuario();
-    mockUser.id = 1;
-    mockUser.email = 'test@example.com';
-    mockUser.perfis = [
-      { id: 1, codigo: 'USER', nome: 'User', descricao: 'User Profile' },
-    ];
-    mockUser.deletedAt = null; // Added
-
-    const mockAdminUser = new Usuario();
-    mockAdminUser.id = 2;
-    mockAdminUser.email = 'admin@example.com';
-    mockAdminUser.perfis = [
-      { id: 2, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' },
-    ];
-    mockAdminUser.deletedAt = null; // Added
-
-    const mockUsuarioLogado: JwtPayload = {
-      userId: 1,
-      email: 'test@example.com',
-      perfis: [{ codigo: 'USER' }], // Corrected perfis structure
-    };
-
-    const mockAdminUsuarioLogado: JwtPayload = {
-      userId: 2,
-      email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
-    };
-
-    it('deve realizar soft delete de um usuário se encontrado e for o proprietário', async () => {
+    it('deve restaurar um usuário com soft delete via flag ativo', async () => {
       const softDeletedUser = { ...mockUser, deletedAt: new Date() };
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
-      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(
-        softDeletedUser,
-      );
+      const updateDto: UpdateUsuarioDto = { ativo: true };
 
-      const result = await service.remove(1, mockUsuarioLogado);
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(softDeletedUser);
+      mockUsuarioAuthorizationService.canRestoreUsuario.mockReturnValueOnce(true);
+      (mockUsuarioRepository.restore as jest.Mock).mockResolvedValue({ ...softDeletedUser, deletedAt: null });
 
-      expect(result).toEqual(softDeletedUser);
-      expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1); // Should find only non-deleted
-      expect(mockUsuarioRepository.remove).toHaveBeenCalledWith(1);
-    });
+      const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
 
-    it('deve realizar soft delete de um usuário se encontrado e for admin', async () => {
-      const softDeletedUser = { ...mockUser, deletedAt: new Date() };
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
-      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(
-        softDeletedUser,
-      );
-
-      const result = await service.remove(1, mockAdminUsuarioLogado);
-
-      expect(result).toEqual(softDeletedUser);
-      expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1);
-      expect(mockUsuarioRepository.remove).toHaveBeenCalledWith(1);
-    });
-
-    it('deve lançar NotFoundException se o usuário não for encontrado', async () => {
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(null);
-
-      await expect(service.remove(999, mockUsuarioLogado)).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
-    it('deve lançar ForbiddenException se não for proprietário nem admin', async () => {
-      const anotherUser = new Usuario();
-      anotherUser.id = 3;
-      anotherUser.email = 'another@example.com';
-      anotherUser.deletedAt = null; // Added
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
-        anotherUser,
-      );
-      mockUsuarioAuthorizationService.canDeleteUsuario.mockReturnValueOnce(
-        false,
-      );
-      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(
-        anotherUser,
-      ); // Mock to prevent TypeError
-
-      await expect(service.remove(3, mockUsuarioLogado)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
-  });
-
-  describe('restauração', () => {
-    const mockUser = new Usuario();
-    mockUser.id = 1;
-    mockUser.email = 'test@example.com';
-    mockUser.perfis = [
-      { id: 1, codigo: 'USER', nome: 'User', descricao: 'User Profile' },
-    ];
-    mockUser.deletedAt = new Date(); // User is soft-deleted
-
-    const mockAdminUsuarioLogado: JwtPayload = {
-      userId: 2,
-      email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
-    };
-
-    it('deve restaurar um usuário com soft delete se for admin', async () => {
-      const restoredUser = { ...mockUser, deletedAt: null };
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser); // Find soft-deleted user
-      (mockUsuarioRepository.restore as jest.Mock).mockResolvedValue(
-        restoredUser,
-      );
-
-      const result = await service.restore(1, mockAdminUsuarioLogado);
-
-      expect(result).toEqual(restoredUser);
-      expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
+      expect(result.deletedAt).toBeNull();
       expect(mockUsuarioRepository.restore).toHaveBeenCalledWith(1);
+      expect(mockUsuarioRepository.update).not.toHaveBeenCalled(); // Should not call update after restore
     });
 
-    it('deve lançar NotFoundException se o usuário não for encontrado', async () => {
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(null);
+    it('deve lançar ConflictException se tentar restaurar um usuário não deletado via flag ativo', async () => {
+      const nonDeletedUser = { ...mockUser, deletedAt: null };
+      const updateDto: UpdateUsuarioDto = { ativo: true };
 
-      await expect(
-        service.restore(999, mockAdminUsuarioLogado),
-      ).rejects.toThrow(NotFoundException);
-    });
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedUser);
 
-    it('deve lançar ConflictException se o usuário não estiver com soft delete', async () => {
-      const nonDeletedUser = new Usuario();
-      nonDeletedUser.id = 1;
-      nonDeletedUser.email = 'test@example.com';
-      nonDeletedUser.deletedAt = null; // Added
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
-        nonDeletedUser,
-      );
-
-      await expect(service.restore(1, mockAdminUsuarioLogado)).rejects.toThrow(
+      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
         ConflictException,
       );
+      expect(mockUsuarioRepository.restore).not.toHaveBeenCalled();
     });
 
-    it('deve lançar ForbiddenException se não for admin', async () => {
-      const mockUsuarioLogado: JwtPayload = {
-        userId: 1,
-        email: 'test@example.com',
-        perfis: [{ codigo: 'USER' }], // Corrected perfis structure
-      };
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
-      mockUsuarioAuthorizationService.canRestoreUsuario.mockReturnValueOnce(
-        false,
-      );
-      (mockUsuarioRepository.restore as jest.Mock).mockResolvedValue(mockUser); // Mock to prevent TypeError
+    it('deve lançar ForbiddenException se não tiver permissão para restaurar via flag ativo', async () => {
+      const softDeletedUser = { ...mockUser, deletedAt: new Date() };
+      const updateDto: UpdateUsuarioDto = { ativo: true };
 
-      await expect(service.restore(1, mockUsuarioLogado)).rejects.toThrow(
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(softDeletedUser);
+      mockUsuarioAuthorizationService.canRestoreUsuario.mockReturnValueOnce(false);
+
+      await expect(service.update(1, updateDto, mockUsuarioLogado)).rejects.toThrow(
         ForbiddenException,
       );
+      expect(mockUsuarioRepository.restore).not.toHaveBeenCalled();
+    });
+
+    it('deve realizar soft delete de um usuário via flag ativo', async () => {
+      const nonDeletedUser = { ...mockUser, deletedAt: null };
+      const updateDto: UpdateUsuarioDto = { ativo: false };
+
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedUser);
+      mockUsuarioAuthorizationService.canDeleteUsuario.mockReturnValueOnce(true);
+      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue({ ...nonDeletedUser, deletedAt: new Date() });
+
+      const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
+
+      expect(result.deletedAt).not.toBeNull();
+      expect(mockUsuarioRepository.remove).toHaveBeenCalledWith(1);
+      expect(mockUsuarioRepository.update).not.toHaveBeenCalled(); // Should not call update after remove
+    });
+
+    it('deve lançar ConflictException se tentar deletar um usuário já deletado via flag ativo', async () => {
+      const softDeletedUser = { ...mockUser, deletedAt: new Date() };
+      const updateDto: UpdateUsuarioDto = { ativo: false };
+
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(softDeletedUser);
+
+      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockUsuarioRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ForbiddenException se não tiver permissão para deletar via flag ativo', async () => {
+      const nonDeletedUser = { ...mockUser, deletedAt: null };
+      const updateDto: UpdateUsuarioDto = { ativo: false };
+
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedUser);
+      mockUsuarioAuthorizationService.canDeleteUsuario.mockReturnValueOnce(false);
+
+      await expect(service.update(1, updateDto, mockUsuarioLogado)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockUsuarioRepository.remove).not.toHaveBeenCalled();
     });
   });
+
+  
 });

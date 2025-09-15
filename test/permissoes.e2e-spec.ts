@@ -415,6 +415,129 @@ describe('PermissoesController (e2e)', () => {
         .send(updatePermissaoDto)
         .expect(404);
     });
+
+    it('deve restaurar uma permissão deletada via PATCH /permissoes/:id com { ativo: true }', async () => {
+      const permissao = await prisma.permissao.create({
+        data: {
+          nome: 'restore:test',
+          codigo: 'RESTORE_TEST',
+          descricao: 'Permissão de teste para restauração',
+          deletedAt: new Date(),
+        },
+      });
+      const restoreDto = { ativo: true };
+
+      return request(app.getHttpServer())
+        .patch(`/permissoes/${permissao.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(restoreDto)
+        .expect(200)
+        .expect(async (res) => {
+          expect(res.body).toHaveProperty('id', permissao.id);
+          expect(res.body.deletedAt).toBeNull();
+          // Verify it's now accessible via normal GET
+          await request(app.getHttpServer())
+            .get(`/permissoes/${permissao.id}`)
+            .set('Authorization', `Bearer ${adminToken}`)
+            .expect(200);
+        });
+    });
+
+    it('deve retornar 403 se não for admin ao tentar restaurar via PATCH', async () => {
+      const permissao = await prisma.permissao.create({
+        data: {
+          nome: 'restore:test',
+          codigo: 'RESTORE_TEST',
+          descricao: 'Permissão de teste para restauração',
+          deletedAt: new Date(),
+        },
+      });
+      const restoreDto = { ativo: true };
+
+      return request(app.getHttpServer())
+        .patch(`/permissoes/${permissao.id}`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send(restoreDto)
+        .expect(403);
+    });
+
+    it('deve retornar 409 se tentar restaurar uma permissão não deletada via PATCH', async () => {
+      const permissao = await prisma.permissao.create({
+        data: {
+          nome: 'non-deleted:test',
+          codigo: 'NON_DELETED_TEST',
+          descricao: 'Permissão de teste não deletada',
+        },
+      });
+      const restoreDto = { ativo: true };
+
+      return request(app.getHttpServer())
+        .patch(`/permissoes/${permissao.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(restoreDto)
+        .expect(409);
+    });
+
+    it('deve realizar soft delete de uma permissão via PATCH /permissoes/:id com { ativo: false }', async () => {
+      const permissao = await prisma.permissao.create({
+        data: {
+          nome: 'softdelete:test',
+          codigo: 'SOFTDELETE_TEST',
+          descricao: 'Permissão de teste para soft delete',
+        },
+      });
+      const deleteDto = { ativo: false };
+
+      return request(app.getHttpServer())
+        .patch(`/permissoes/${permissao.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(deleteDto)
+        .expect(200)
+        .expect(async (res) => {
+          expect(res.body).toHaveProperty('id', permissao.id);
+          expect(res.body.deletedAt).not.toBeNull();
+          // Verify it's no longer accessible via normal GET
+          await request(app.getHttpServer())
+            .get(`/permissoes/${permissao.id}`)
+            .set('Authorization', `Bearer ${adminToken}`)
+            .expect(404);
+        });
+    });
+
+    it('deve retornar 403 se não for admin ao tentar deletar via PATCH', async () => {
+      const permissao = await prisma.permissao.create({
+        data: {
+          nome: 'softdelete:test',
+          codigo: 'SOFTDELETE_TEST',
+          descricao: 'Permissão de teste para soft delete',
+        },
+      });
+      const deleteDto = { ativo: false };
+
+      return request(app.getHttpServer())
+        .patch(`/permissoes/${permissao.id}`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send(deleteDto)
+        .expect(403);
+    });
+
+    it('deve retornar 409 se tentar deletar uma permissão já deletada via PATCH', async () => {
+      const permissao = await prisma.permissao.create({
+        data: {
+          nome: 'already-deleted:test',
+          codigo: 'ALREADY_DELETED_TEST',
+          descricao: 'Permissão de teste já deletada',
+          deletedAt: new Date(),
+        },
+      });
+      const deleteDto = { ativo: false };
+
+      return request(app.getHttpServer())
+        .patch(`/permissoes/${permissao.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(deleteDto)
+        .expect(409);
+    });
   });
 
   describe('DELETE /permissoes/:id', () => {

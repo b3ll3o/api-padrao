@@ -88,33 +88,5 @@ describe('UsuariosController', () => {
     });
   });
 
-  describe('remoção', () => {
-    it('deve remover um usuário', async () => {
-      const user = new Usuario();
-      mockUsuariosService.remove.mockResolvedValue(user);
-      const req = {
-        usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] },
-      } as unknown as Request;
-
-      const result = await controller.remove('1', req);
-
-      expect(result).toEqual(user);
-      expect(service.remove).toHaveBeenCalledWith(1, req.usuarioLogado);
-    });
-  });
-
-  describe('restauração', () => {
-    it('deve restaurar um usuário', async () => {
-      const user = new Usuario();
-      mockUsuariosService.restore.mockResolvedValue(user);
-      const req = {
-        usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] },
-      } as unknown as Request;
-
-      const result = await controller.restore('1', req);
-
-      expect(result).toEqual(user);
-      expect(service.restore).toHaveBeenCalledWith(1, req.usuarioLogado);
-    });
-  });
+  
 });

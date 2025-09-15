@@ -136,89 +136,20 @@ describe('PermissoesController', () => {
       const id = '1';
       const updatePermissaoDto: UpdatePermissaoDto = {
         nome: 'Updated Permissao',
+        codigo: 'UPDATED_PERMISSAO',
+        descricao: 'Permissão atualizada',
       };
       const expectedPermissao = { id: 1, ...updatePermissaoDto } as Permissao;
       (mockPermissoesService.update as jest.Mock).mockResolvedValue(
         expectedPermissao,
       );
+      const req = mockRequest(true); // Admin user
 
-      const result = await controller.update(id, updatePermissaoDto);
+      const result = await controller.update(id, updatePermissaoDto, req);
       expect(result).toEqual(expectedPermissao);
-      expect(service.update).toHaveBeenCalledWith(+id, updatePermissaoDto);
+      expect(service.update).toHaveBeenCalledWith(+id, updatePermissaoDto, req.usuarioLogado);
     });
   });
 
-  describe('remoção', () => {
-    const mockPermissao = {
-      id: 1,
-      nome: 'Test Permissao',
-      codigo: 'TEST_PERMISSAO',
-      descricao: 'Description',
-      deletedAt: null,
-    } as Permissao; // Corrected
-    const softDeletedPermissao = {
-      ...mockPermissao,
-      deletedAt: new Date(),
-    } as Permissao;
-
-    it('deve realizar soft delete de uma permissão', async () => {
-      (mockPermissoesService.remove as jest.Mock).mockResolvedValue(
-        softDeletedPermissao,
-      );
-      const req = mockRequest(true); // Admin user
-
-      const result = await controller.remove('1', req);
-      expect(result).toEqual(softDeletedPermissao);
-      expect(service.remove).toHaveBeenCalledWith(1, req.usuarioLogado);
-    });
-
-    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
-      const req: Partial<Request> = { usuarioLogado: undefined };
-      let error: any;
-      try {
-        await controller.remove('1', req as Request);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).toBeInstanceOf(ForbiddenException);
-      expect(error.message).toBe('Usuário não autenticado');
-    });
-  });
-
-  describe('restauração', () => {
-    const mockPermissao = {
-      id: 1,
-      nome: 'Test Permissao',
-      codigo: 'TEST_PERMISSAO',
-      descricao: 'Description',
-      deletedAt: new Date(),
-    } as Permissao; // Corrected
-    const restoredPermissao = {
-      ...mockPermissao,
-      deletedAt: null,
-    } as Permissao;
-
-    it('deve restaurar uma permissão', async () => {
-      (mockPermissoesService.restore as jest.Mock).mockResolvedValue(
-        restoredPermissao,
-      );
-      const req = mockRequest(true); // Admin user
-
-      const result = await controller.restore('1', req);
-      expect(result).toEqual(restoredPermissao);
-      expect(service.restore).toHaveBeenCalledWith(1, req.usuarioLogado);
-    });
-
-    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
-      const req: Partial<Request> = { usuarioLogado: undefined };
-      let error: any;
-      try {
-        await controller.restore('1', req as Request);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).toBeInstanceOf(ForbiddenException);
-      expect(error.message).toBe('Usuário não autenticado');
-    });
-  });
+  
 });

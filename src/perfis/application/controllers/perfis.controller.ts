@@ -120,53 +120,15 @@ export class PerfisController {
   update(
     @Param('id') id: string,
     @Body() updatePerfilDto: UpdatePerfilDto,
+    @Req() req: Request,
   ): Promise<Perfil> {
-    return this.perfisService.update(+id, updatePerfilDto);
-  }
-
-  @TemPermissao('DELETE_PERFIL')
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({
-    summary: 'Deletar (soft delete) um perfil por ID',
-    description: 'Marca um perfil como deletado (soft delete).',
-  })
-  @ApiResponse({
-    status: 204,
-    description: 'O perfil foi deletado com sucesso.',
-  })
-  @ApiResponse({ status: 404, description: 'Perfil não encontrado.' })
-  remove(@Param('id') id: string, @Req() req: Request): Promise<Perfil> {
-    // Changed return type and added Req
     if (!req.usuarioLogado) {
       throw new ForbiddenException('Usuário não autenticado');
     }
-    return this.perfisService.remove(+id, req.usuarioLogado);
+    return this.perfisService.update(+id, updatePerfilDto, req.usuarioLogado);
   }
 
-  @TemPermissao('RESTORE_PERFIL') // Assuming a new permission for restore
-  @Patch(':id/restore')
-  @ApiOperation({
-    summary: 'Restaurar um perfil deletado por ID',
-    description: 'Restaura um perfil previamente deletado (soft delete).',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'O perfil foi restaurado com sucesso.',
-    type: Perfil,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Perfil não encontrado ou não está deletado.',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Acesso negado - Sem permissão para restaurar este perfil.',
-  })
-  restore(@Param('id') id: string, @Req() req: Request): Promise<Perfil> {
-    if (!req.usuarioLogado) {
-      throw new ForbiddenException('Usuário não autenticado');
-    }
-    return this.perfisService.restore(+id, req.usuarioLogado);
-  }
+  
+
+  
 }

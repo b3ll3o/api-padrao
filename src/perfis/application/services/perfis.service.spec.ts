@@ -22,8 +22,6 @@ describe('PerfisService', () => {
       findAll: jest.fn(),
       findOne: jest.fn(),
       update: jest.fn(),
-      remove: jest.fn(),
-      restore: jest.fn(),
       findByNome: jest.fn(),
       findByNomeContaining: jest.fn(),
     };
@@ -142,22 +140,98 @@ describe('PerfisService', () => {
     });
 
     it('deve lançar NotFoundException se as permissões não existirem', async () => {
-      const createPerfilDto = {
-        nome: 'Perfil with Invalid Perms',
-        codigo: 'PERFIL_INVALID_PERMS',
-        descricao: 'Perfil com permissões inválidas',
+      const updatePerfilDto = {
+        nome: 'Perfil com Permissões Inválidas',
         permissoesIds: [999],
       };
-      (mockPerfilRepository.findByNome as jest.Mock).mockResolvedValue(null);
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+        existingPerfil,
+      );
       (mockPermissoesService.findOne as jest.Mock).mockRejectedValue(
         new NotFoundException('Permissão com ID 999 não encontrada'),
       );
 
-      await expect(service.create(createPerfilDto)).rejects.toThrow(
+      await expect(service.update(1, updatePerfilDto, mockAdminUsuarioLogado)).rejects.toThrow(
         NotFoundException,
       );
       expect(mockPermissoesService.findOne).toHaveBeenCalledWith(999);
-      expect(mockPerfilRepository.create).not.toHaveBeenCalled();
+      expect(mockPerfilRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('deve restaurar um perfil com soft delete via flag ativo', async () => {
+      const softDeletedPerfil = { ...existingPerfil, deletedAt: new Date() };
+      const updateDto: UpdatePerfilDto = { ativo: true };
+
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(softDeletedPerfil);
+      (mockPerfilRepository.restore as jest.Mock).mockResolvedValue({ ...softDeletedPerfil, deletedAt: null });
+
+      const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
+
+      expect(result.deletedAt).toBeNull();
+      expect(mockPerfilRepository.restore).toHaveBeenCalledWith(1);
+      expect(mockPerfilRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ConflictException se tentar restaurar um perfil não deletado via flag ativo', async () => {
+      const nonDeletedPerfil = { ...existingPerfil, deletedAt: null };
+      const updateDto: UpdatePerfilDto = { ativo: true };
+
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPerfil);
+
+      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockPerfilRepository.restore).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ForbiddenException se não for admin ao tentar restaurar via flag ativo', async () => {
+      const softDeletedPerfil = { ...existingPerfil, deletedAt: new Date() };
+      const updateDto: UpdatePerfilDto = { ativo: true };
+
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(softDeletedPerfil);
+
+      await expect(service.update(1, updateDto, mockUserUsuarioLogado)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPerfilRepository.restore).not.toHaveBeenCalled();
+    });
+
+    it('deve realizar soft delete de um perfil via flag ativo', async () => {
+      const nonDeletedPerfil = { ...existingPerfil, deletedAt: null };
+      const updateDto: UpdatePerfilDto = { ativo: false };
+
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPerfil);
+      (mockPerfilRepository.remove as jest.Mock).mockResolvedValue({ ...nonDeletedPerfil, deletedAt: new Date() });
+
+      const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
+
+      expect(result.deletedAt).not.toBeNull();
+      expect(mockPerfilRepository.remove).toHaveBeenCalledWith(1);
+      expect(mockPerfilRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ConflictException se tentar deletar um perfil já deletado via flag ativo', async () => {
+      const softDeletedPerfil = { ...existingPerfil, deletedAt: new Date() };
+      const updateDto: UpdatePerfilDto = { ativo: false };
+
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(softDeletedPerfil);
+
+      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockPerfilRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ForbiddenException se não for admin ao tentar deletar via flag ativo', async () => {
+      const nonDeletedPerfil = { ...existingPerfil, deletedAt: null };
+      const updateDto: UpdatePerfilDto = { ativo: false };
+
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPerfil);
+
+      await expect(service.update(1, updateDto, mockUserUsuarioLogado)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPerfilRepository.remove).not.toHaveBeenCalled();
     });
   });
 
@@ -316,6 +390,26 @@ describe('PerfisService', () => {
       deletedAt: null,
     } as Perfil;
 
+    const mockAdminUsuarioLogado: JwtPayload = {
+      userId: 1,
+      email: 'admin@example.com',
+      perfis: [{ codigo: 'ADMIN' }],
+    };
+
+    const mockUserUsuarioLogado: JwtPayload = {
+      userId: 2,
+      email: 'user@example.com',
+      perfis: [{ codigo: 'USER' }],
+    };
+
+    type UpdatePerfilDto = {
+      nome?: string;
+      codigo?: string;
+      descricao?: string;
+      ativo?: boolean;
+      permissoesIds?: number[];
+    };
+
     it('deve atualizar um perfil', async () => {
       const updatePerfilDto = {
         nome: 'Updated Perfil',
@@ -351,7 +445,7 @@ describe('PerfisService', () => {
         deletedAt: null,
       });
 
-      const result = await service.update(1, updatePerfilDto);
+      const result = await service.update(1, updatePerfilDto, mockAdminUsuarioLogado);
 
       expect(result).toEqual(expectedPerfil);
       expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
@@ -380,7 +474,7 @@ describe('PerfisService', () => {
         expectedPerfil,
       );
 
-      const result = await service.update(1, updatePerfilDto);
+      const result = await service.update(1, updatePerfilDto, mockAdminUsuarioLogado);
 
       expect(result).toEqual(expectedPerfil);
       expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true);
@@ -395,7 +489,7 @@ describe('PerfisService', () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.update(999, { nome: 'Non Existent' }),
+        service.update(999, { nome: 'Non Existent' } as UpdatePerfilDto, mockAdminUsuarioLogado),
       ).rejects.toThrow(NotFoundException);
       expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(999, true);
       expect(mockPerfilRepository.update).not.toHaveBeenCalled();
@@ -421,128 +515,5 @@ describe('PerfisService', () => {
     });
   });
 
-  describe('remoção', () => {
-    const mockPerfil = {
-      id: 1,
-      nome: 'Test Perfil',
-      codigo: 'TEST_PERFIL',
-      descricao: 'Description',
-      deletedAt: null,
-    } as Perfil;
-
-    const mockAdminUsuarioLogado: JwtPayload = {
-      userId: 1,
-      email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
-    };
-
-    const mockUserUsuarioLogado: JwtPayload = {
-      userId: 2,
-      email: 'user@example.com',
-      perfis: [{ codigo: 'USER' }], // Corrected perfis structure
-    };
-
-    it('deve realizar soft delete de um perfil se for admin', async () => {
-      const softDeletedPerfil = { ...mockPerfil, deletedAt: new Date() };
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(mockPerfil); // Find only non-deleted
-      (mockPerfilRepository.remove as jest.Mock).mockResolvedValue(
-        softDeletedPerfil,
-      );
-
-      const result = await service.remove(1, mockAdminUsuarioLogado);
-
-      expect(result).toEqual(softDeletedPerfil);
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1); // Removed false
-      expect(mockPerfilRepository.remove).toHaveBeenCalledWith(1);
-    });
-
-    it('deve lançar NotFoundException se o perfil não for encontrado', async () => {
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
-
-      await expect(service.remove(999, mockAdminUsuarioLogado)).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(999); // Removed false
-      expect(mockPerfilRepository.remove).not.toHaveBeenCalled();
-    });
-
-    it('deve lançar ForbiddenException se não for admin', async () => {
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(mockPerfil);
-
-      await expect(service.remove(1, mockUserUsuarioLogado)).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1); // Removed false
-      expect(mockPerfilRepository.remove).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('restauração', () => {
-    const mockPerfil = {
-      id: 1,
-      nome: 'Test Perfil',
-      codigo: 'TEST_PERFIL',
-      descricao: 'Description',
-      deletedAt: new Date(), // Soft deleted
-    } as Perfil;
-
-    const mockAdminUsuarioLogado: JwtPayload = {
-      userId: 1,
-      email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
-    };
-
-    const mockUserUsuarioLogado: JwtPayload = {
-      userId: 2,
-      email: 'user@example.com',
-      perfis: [{ codigo: 'USER' }], // Corrected perfis structure
-    };
-
-    it('deve restaurar um perfil com soft delete se for admin', async () => {
-      const restoredPerfil = { ...mockPerfil, deletedAt: null };
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(mockPerfil); // Find soft-deleted perfil
-      (mockPerfilRepository.restore as jest.Mock).mockResolvedValue(
-        restoredPerfil,
-      );
-
-      const result = await service.restore(1, mockAdminUsuarioLogado);
-
-      expect(result).toEqual(restoredPerfil);
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
-      expect(mockPerfilRepository.restore).toHaveBeenCalledWith(1);
-    });
-
-    it('deve lançar NotFoundException se o perfil não for encontrado', async () => {
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
-
-      await expect(
-        service.restore(999, mockAdminUsuarioLogado),
-      ).rejects.toThrow(NotFoundException);
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(999, true);
-      expect(mockPerfilRepository.restore).not.toHaveBeenCalled();
-    });
-
-    it('deve lançar ConflictException se o perfil não estiver com soft delete', async () => {
-      const nonDeletedPerfil = { ...mockPerfil, deletedAt: null };
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
-        nonDeletedPerfil,
-      );
-
-      await expect(service.restore(1, mockAdminUsuarioLogado)).rejects.toThrow(
-        ConflictException,
-      );
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true);
-      expect(mockPerfilRepository.restore).not.toHaveBeenCalled();
-    });
-
-    it('deve lançar ForbiddenException se não for admin', async () => {
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(mockPerfil);
-
-      await expect(service.restore(1, mockUserUsuarioLogado)).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true);
-      expect(mockPerfilRepository.restore).not.toHaveBeenCalled();
-    });
-  });
+  
 });

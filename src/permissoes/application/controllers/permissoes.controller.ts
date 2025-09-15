@@ -121,53 +121,15 @@ export class PermissoesController {
   update(
     @Param('id') id: string,
     @Body() updatePermissaoDto: UpdatePermissaoDto,
+    @Req() req: Request,
   ): Promise<Permissao> {
-    return this.permissoesService.update(+id, updatePermissaoDto);
-  }
-
-  @TemPermissao('DELETE_PERMISSAO')
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({
-    summary: 'Deletar (soft delete) uma permissão por ID',
-    description: 'Marca uma permissão como deletada (soft delete).',
-  })
-  @ApiResponse({
-    status: 204,
-    description: 'A permissão foi deletada com sucesso.',
-  })
-  @ApiResponse({ status: 404, description: 'Permissão não encontrada.' })
-  remove(@Param('id') id: string, @Req() req: Request): Promise<Permissao> {
-    // Changed return type and added Req
     if (!req.usuarioLogado) {
       throw new ForbiddenException('Usuário não autenticado');
     }
-    return this.permissoesService.remove(+id, req.usuarioLogado);
+    return this.permissoesService.update(+id, updatePermissaoDto, req.usuarioLogado);
   }
 
-  @TemPermissao('RESTORE_PERMISSAO') // Assuming a new permission for restore
-  @Patch(':id/restore')
-  @ApiOperation({
-    summary: 'Restaurar uma permissão deletada por ID',
-    description: 'Restaura uma permissão previamente deletada (soft delete).',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'A permissão foi restaurada com sucesso.',
-    type: Permissao,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Permissão não encontrada ou não está deletada.',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Acesso negado - Sem permissão para restaurar esta permissão.',
-  })
-  restore(@Param('id') id: string, @Req() req: Request): Promise<Permissao> {
-    if (!req.usuarioLogado) {
-      throw new ForbiddenException('Usuário não autenticado');
-    }
-    return this.permissoesService.restore(+id, req.usuarioLogado);
-  }
+  
+
+  
 }
