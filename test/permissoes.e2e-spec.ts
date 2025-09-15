@@ -3,7 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { PaginatedResponseDto } from '../src/dto/paginated-response.dto';
+import { PaginatedResponseDto } from '../src/shared/dto/paginated-response.dto';
 import { Permissao } from '../src/permissoes/domain/entities/permissao.entity';
 import { cleanDatabase } from './e2e-utils';
 import * as bcrypt from 'bcrypt';
