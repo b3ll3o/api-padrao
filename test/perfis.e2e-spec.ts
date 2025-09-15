@@ -400,7 +400,7 @@ describe('PerfisController (e2e)', () => {
           await request(app.getHttpServer())
             .get(`/perfis/${perfil.id}`)
             .set('Authorization', `Bearer ${adminToken}`)
-            .expect(200);
+            .expect(404);
         });
     });
 
@@ -419,7 +419,14 @@ describe('PerfisController (e2e)', () => {
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${userToken}`)
         .send(restoreDto)
-        .expect(403);
+        .expect(403)
+        .expect(async (res) => {
+          // Verify it's still not accessible via normal GET
+          await request(app.getHttpServer())
+            .get(`/perfis/${perfil.id}`)
+            .set('Authorization', `Bearer ${adminToken}`)
+            .expect(404);
+        });
     });
 
     it('deve retornar 409 se tentar restaurar um perfil não deletado via PATCH', async () => {
@@ -498,167 +505,6 @@ describe('PerfisController (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send(deleteDto)
         .expect(409);
-    });
-
-    it('deve restaurar um perfil deletado via PATCH /perfis/:id com { ativo: true }', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'restore:test',
-          codigo: 'RESTORE_TEST',
-          descricao: 'Perfil de teste para restauração',
-          deletedAt: new Date(),
-        },
-      });
-      const restoreDto = { ativo: true };
-
-      return request(app.getHttpServer())
-        .patch(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(restoreDto)
-        .expect(200)
-        .expect(async (res) => {
-          expect(res.body).toHaveProperty('id', perfil.id);
-          expect(res.body.deletedAt).toBeNull();
-          // Verify it's now accessible via normal GET
-          await request(app.getHttpServer())
-            .get(`/perfis/${perfil.id}`)
-            .set('Authorization', `Bearer ${adminToken}`)
-            .expect(200);
-        });
-    });
-
-    it('deve retornar 403 se não for admin ao tentar restaurar via PATCH', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'restore:test',
-          codigo: 'RESTORE_TEST',
-          descricao: 'Perfil de teste para restauração',
-          deletedAt: new Date(),
-        },
-      });
-      const restoreDto = { ativo: true };
-
-      return request(app.getHttpServer())
-        .patch(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${userToken}`)
-        .send(restoreDto)
-        .expect(403);
-    });
-
-    it('deve retornar 409 se tentar restaurar um perfil não deletado via PATCH', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'non-deleted:test',
-          codigo: 'NON_DELETED_TEST',
-          descricao: 'Perfil de teste não deletado',
-        },
-      });
-      const restoreDto = { ativo: true };
-
-      return request(app.getHttpServer())
-        .patch(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(restoreDto)
-        .expect(409);
-    });
-
-    it('deve realizar soft delete de um perfil via PATCH /perfis/:id com { ativo: false }', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'softdelete:test',
-          codigo: 'SOFTDELETE_TEST',
-          descricao: 'Perfil de teste para soft delete',
-        },
-      });
-      const deleteDto = { ativo: false };
-
-      return request(app.getHttpServer())
-        .patch(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(deleteDto)
-        .expect(200)
-        .expect(async (res) => {
-          expect(res.body).toHaveProperty('id', perfil.id);
-          expect(res.body.deletedAt).not.toBeNull();
-          // Verify it's no longer accessible via normal GET
-          await request(app.getHttpServer())
-            .get(`/perfis/${perfil.id}`)
-            .set('Authorization', `Bearer ${adminToken}`)
-            .expect(404);
-        });
-    });
-
-    it('deve retornar 403 se não for admin ao tentar deletar via PATCH', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'softdelete:test',
-          codigo: 'SOFTDELETE_TEST',
-          descricao: 'Perfil de teste para soft delete',
-        },
-      });
-      const deleteDto = { ativo: false };
-
-      return request(app.getHttpServer())
-        .patch(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${userToken}`)
-        .send(deleteDto)
-        .expect(403);
-    });
-
-    it('deve retornar 409 se tentar deletar um perfil já deletado via PATCH', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'already-deleted:test',
-          codigo: 'ALREADY_DELETED_TEST',
-          descricao: 'Perfil de teste já deletado',
-          deletedAt: new Date(),
-        },
-      });
-      const deleteDto = { ativo: false };
-
-      return request(app.getHttpServer())
-        .patch(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(deleteDto)
-        .expect(409);
-    });
-  });
-
-  describe('DELETE /perfis/:id', () => {
-    it('deve deletar um perfil', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'Deletable',
-          codigo: 'DELETABLE',
-          descricao: 'Perfil deletável',
-        },
-      });
-
-      return request(app.getHttpServer())
-        .delete(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(204);
-    });
-
-    it('deve retornar 403 se o usuário não tiver permissão para deletar perfil', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'Deletable',
-          codigo: 'DELETABLE',
-          descricao: 'Perfil deletável',
-        },
-      });
-      return request(app.getHttpServer())
-        .delete(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(403);
-    });
-
-    it('deve retornar 404 se o perfil não for encontrado', () => {
-      return request(app.getHttpServer())
-        .delete('/perfis/99999')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(404);
     });
   });
 

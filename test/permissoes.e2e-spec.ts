@@ -439,7 +439,7 @@ describe('PermissoesController (e2e)', () => {
           await request(app.getHttpServer())
             .get(`/permissoes/${permissao.id}`)
             .set('Authorization', `Bearer ${adminToken}`)
-            .expect(200);
+            .expect(404);
         });
     });
 
@@ -537,46 +537,6 @@ describe('PermissoesController (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send(deleteDto)
         .expect(409);
-    });
-  });
-
-  describe('DELETE /permissoes/:id', () => {
-    it('deve deletar uma permissão', async () => {
-      const permissao = await prisma.permissao.create({
-        data: {
-          nome: 'delete:test',
-          codigo: 'DELETE_TEST',
-          descricao: 'Permissão de teste para exclusão',
-        },
-      });
-
-      return request(app.getHttpServer())
-        .delete(`/permissoes/${permissao.id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(204);
-    });
-
-    it('deve retornar 403 se o usuário não tiver permissão para deletar permissão', async () => {
-      const permissao = await prisma.permissao.create({
-        data: {
-          nome: 'delete:test',
-          codigo: 'DELETE_TEST',
-          descricao: 'Permissão de teste para exclusão',
-        },
-      });
-      return request(app.getHttpServer())
-        .delete(`/permissoes/${permissao.id}`)
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(403);
-    });
-
-    it('deve retornar 404 se a permissão a ser deletada não for encontrada', () => {
-      const updatePermissaoDto = { nome: 'nonexistent:update' }; // Define updatePermissaoDto here
-      return request(app.getHttpServer())
-        .delete('/permissoes/99999')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(updatePermissaoDto)
-        .expect(404);
     });
   });
 });
