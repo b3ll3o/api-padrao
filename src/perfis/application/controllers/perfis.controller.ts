@@ -127,8 +127,4 @@ export class PerfisController {
     }
     return this.perfisService.update(+id, updatePerfilDto, req.usuarioLogado);
   }
-
-  
-
-  
 }

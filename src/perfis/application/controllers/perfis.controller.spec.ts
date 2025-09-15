@@ -168,7 +168,11 @@ describe('PerfisController', () => {
 
       const result = await controller.update(id, updatePerfilDto, req);
       expect(result).toEqual(expectedPerfil);
-      expect(service.update).toHaveBeenCalledWith(+id, updatePerfilDto, req.usuarioLogado);
+      expect(service.update).toHaveBeenCalledWith(
+        +id,
+        updatePerfilDto,
+        req.usuarioLogado,
+      );
     });
 
     it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {

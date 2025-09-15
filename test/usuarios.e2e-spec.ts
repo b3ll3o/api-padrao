@@ -89,40 +89,15 @@ describe('UsuariosController (e2e)', () => {
     await app.close();
   });
 
+  beforeEach(async () => {
+    await cleanDatabase(prisma);
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase(prisma);
+  });
+
   describe('POST /usuarios', () => {
-    // Clean database before each test in this describe block
-    beforeEach(async () => {
-      // Create permissions for admin user setup
-      const permReadUsers = await findOrCreatePermissao(prisma, {
-        nome: 'read:users',
-        codigo: 'READ_USERS',
-        descricao: 'Permissão para ler usuários',
-      });
-      const permWriteUsers = await findOrCreatePermissao(prisma, {
-        nome: 'write:users',
-        codigo: 'WRITE_USERS',
-        descricao: 'Permissão para escrever usuários',
-      });
-
-      // Create an admin profile with permissions
-      const adminProfile = await findOrCreatePerfil(prisma, {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
-        permissoes: {
-          connect: [{ id: permReadUsers.id }, { id: permWriteUsers.id }],
-        },
-      });
-
-      // Re-setup admin user and permissions for this describe block
-      const adminSetup = await setupAdminUserAndProfile(
-        prisma,
-        jwtService,
-        adminProfile.id,
-      );
-      adminToken = adminSetup.adminToken;
-    });
-
     it('deve criar um usuário e retornar 201', () => {
       const createUserDto = {
         email: 'test@example.com',
@@ -299,7 +274,6 @@ describe('UsuariosController (e2e)', () => {
     let deletedUser;
 
     beforeEach(async () => {
-
       // Create permissions
       const readUsuarioByIdPerm = await findOrCreatePermissao(prisma, {
         nome: 'read:usuario_by_id',
@@ -456,7 +430,6 @@ describe('UsuariosController (e2e)', () => {
     let restoreUsuarioPerm;
 
     beforeEach(async () => {
-
       // Create permissions
       const updateUsuarioPerm = await findOrCreatePermissao(prisma, {
         nome: 'update:usuario',
@@ -652,8 +625,6 @@ describe('UsuariosController (e2e)', () => {
         .send(deleteDto)
         .expect(409);
     });
-
-    
   });
 
   describe('DELETE /usuarios/:id', () => {
@@ -662,7 +633,6 @@ describe('UsuariosController (e2e)', () => {
     let restoreUsuarioPerm;
 
     beforeEach(async () => {
-
       // Create permissions
       const deleteUsuarioPerm = await findOrCreatePermissao(prisma, {
         nome: 'delete:usuario',
@@ -721,7 +691,6 @@ describe('UsuariosController (e2e)', () => {
         },
         include: { perfis: { include: { permissoes: true } } },
       });
-
 
       // Create tokens
       userToken = jwtService.sign({

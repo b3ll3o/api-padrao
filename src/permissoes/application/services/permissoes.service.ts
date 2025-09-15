@@ -119,21 +119,30 @@ export class PermissoesService {
       if (updatePermissaoDto.ativo === true) {
         // Attempt to restore
         if (permissao.deletedAt === null) {
-          throw new ConflictException(`Permissão com ID ${id} não está deletada.`);
+          throw new ConflictException(
+            `Permissão com ID ${id} não está deletada.`,
+          );
         }
         if (!this.authorizationService.isAdmin(usuarioLogado)) {
-          throw new ForbiddenException('Você não tem permissão para restaurar esta permissão');
+          throw new ForbiddenException(
+            'Você não tem permissão para restaurar esta permissão',
+          );
         }
         await this.permissaoRepository.restore(id);
         // After restore, update the local 'permissao' object to reflect the change
         permissao.deletedAt = null;
-      } else { // updatePermissaoDto.ativo === false
+      } else {
+        // updatePermissaoDto.ativo === false
         // Attempt to soft delete
         if (permissao.deletedAt !== null) {
-          throw new ConflictException(`Permissão com ID ${id} já está deletada.`);
+          throw new ConflictException(
+            `Permissão com ID ${id} já está deletada.`,
+          );
         }
         if (!this.authorizationService.isAdmin(usuarioLogado)) {
-          throw new ForbiddenException('Você não tem permissão para deletar esta permissão');
+          throw new ForbiddenException(
+            'Você não tem permissão para deletar esta permissão',
+          );
         }
         await this.permissaoRepository.remove(id);
         // After soft delete, update the local 'permissao' object to reflect the change

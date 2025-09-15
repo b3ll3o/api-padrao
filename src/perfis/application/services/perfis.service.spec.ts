@@ -181,9 +181,9 @@ describe('PerfisService', () => {
         new NotFoundException('Permissão com ID 999 não encontrada'),
       );
 
-      await expect(service.update(1, updatePerfilDto, mockAdminUsuarioLogado)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.update(1, updatePerfilDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(NotFoundException);
       expect(mockPermissoesService.findOne).toHaveBeenCalledWith(999);
       expect(mockPerfilRepository.update).not.toHaveBeenCalled();
     });
@@ -192,8 +192,13 @@ describe('PerfisService', () => {
       const softDeletedPerfil = { ...existingPerfil, deletedAt: new Date() };
       const updateDto: UpdatePerfilDto = { ativo: true };
 
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(softDeletedPerfil);
-      (mockPerfilRepository.restore as jest.Mock).mockResolvedValue({ ...softDeletedPerfil, deletedAt: null });
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedPerfil,
+      );
+      (mockPerfilRepository.restore as jest.Mock).mockResolvedValue({
+        ...softDeletedPerfil,
+        deletedAt: null,
+      });
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
 
@@ -206,11 +211,13 @@ describe('PerfisService', () => {
       const nonDeletedPerfil = { ...existingPerfil, deletedAt: null };
       const updateDto: UpdatePerfilDto = { ativo: true };
 
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPerfil);
-
-      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
-        ConflictException,
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedPerfil,
       );
+
+      await expect(
+        service.update(1, updateDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(ConflictException);
       expect(mockPerfilRepository.restore).not.toHaveBeenCalled();
     });
 
@@ -218,11 +225,13 @@ describe('PerfisService', () => {
       const softDeletedPerfil = { ...existingPerfil, deletedAt: new Date() };
       const updateDto: UpdatePerfilDto = { ativo: true };
 
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(softDeletedPerfil);
-
-      await expect(service.update(1, updateDto, mockUserUsuarioLogado)).rejects.toThrow(
-        ForbiddenException,
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedPerfil,
       );
+
+      await expect(
+        service.update(1, updateDto, mockUserUsuarioLogado),
+      ).rejects.toThrow(ForbiddenException);
       expect(mockPerfilRepository.restore).not.toHaveBeenCalled();
     });
 
@@ -230,8 +239,13 @@ describe('PerfisService', () => {
       const nonDeletedPerfil = { ...existingPerfil, deletedAt: null };
       const updateDto: UpdatePerfilDto = { ativo: false };
 
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPerfil);
-      (mockPerfilRepository.remove as jest.Mock).mockResolvedValue({ ...nonDeletedPerfil, deletedAt: new Date() });
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedPerfil,
+      );
+      (mockPerfilRepository.remove as jest.Mock).mockResolvedValue({
+        ...nonDeletedPerfil,
+        deletedAt: new Date(),
+      });
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
 
@@ -244,11 +258,13 @@ describe('PerfisService', () => {
       const softDeletedPerfil = { ...existingPerfil, deletedAt: new Date() };
       const updateDto: UpdatePerfilDto = { ativo: false };
 
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(softDeletedPerfil);
-
-      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
-        ConflictException,
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedPerfil,
       );
+
+      await expect(
+        service.update(1, updateDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(ConflictException);
       expect(mockPerfilRepository.remove).not.toHaveBeenCalled();
     });
 
@@ -256,11 +272,13 @@ describe('PerfisService', () => {
       const nonDeletedPerfil = { ...existingPerfil, deletedAt: null };
       const updateDto: UpdatePerfilDto = { ativo: false };
 
-      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedPerfil);
-
-      await expect(service.update(1, updateDto, mockUserUsuarioLogado)).rejects.toThrow(
-        ForbiddenException,
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedPerfil,
       );
+
+      await expect(
+        service.update(1, updateDto, mockUserUsuarioLogado),
+      ).rejects.toThrow(ForbiddenException);
       expect(mockPerfilRepository.remove).not.toHaveBeenCalled();
     });
   });
@@ -412,7 +430,6 @@ describe('PerfisService', () => {
   });
 
   describe('atualização', () => {
-
     it('deve atualizar um perfil', async () => {
       const updatePerfilDto = {
         nome: 'Updated Perfil',
@@ -448,7 +465,11 @@ describe('PerfisService', () => {
         deletedAt: null,
       });
 
-      const result = await service.update(1, updatePerfilDto, mockAdminUsuarioLogado);
+      const result = await service.update(
+        1,
+        updatePerfilDto,
+        mockAdminUsuarioLogado,
+      );
 
       expect(result).toEqual(expectedPerfil);
       expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
@@ -477,7 +498,11 @@ describe('PerfisService', () => {
         expectedPerfil,
       );
 
-      const result = await service.update(1, updatePerfilDto, mockAdminUsuarioLogado);
+      const result = await service.update(
+        1,
+        updatePerfilDto,
+        mockAdminUsuarioLogado,
+      );
 
       expect(result).toEqual(expectedPerfil);
       expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true);
@@ -492,7 +517,11 @@ describe('PerfisService', () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.update(999, { nome: 'Non Existent' } as UpdatePerfilDto, mockAdminUsuarioLogado),
+        service.update(
+          999,
+          { nome: 'Non Existent' } as UpdatePerfilDto,
+          mockAdminUsuarioLogado,
+        ),
       ).rejects.toThrow(NotFoundException);
       expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(999, true);
       expect(mockPerfilRepository.update).not.toHaveBeenCalled();
@@ -510,13 +539,11 @@ describe('PerfisService', () => {
         new NotFoundException('Permissão com ID 999 não encontrada'),
       );
 
-      await expect(service.update(1, updatePerfilDto, mockAdminUsuarioLogado)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.update(1, updatePerfilDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(NotFoundException);
       expect(mockPermissoesService.findOne).toHaveBeenCalledWith(999);
       expect(mockPerfilRepository.update).not.toHaveBeenCalled();
     });
   });
-
-  
 });

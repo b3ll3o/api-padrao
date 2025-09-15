@@ -27,15 +27,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    const mappedPerfisArray = payload.perfis?.map((perfil) => ({
+      codigo: perfil.codigo,
+      permissoes: perfil.permissoes?.map((permissao) => ({
+        codigo: permissao.codigo,
+      })),
+    }));
     return {
       userId: payload.sub,
       email: payload.email,
-      perfis: payload.perfis?.map((perfil) => ({
-        codigo: perfil.codigo,
-        permissoes: perfil.permissoes?.map((permissao) => ({
-          codigo: permissao.codigo,
-        })),
-      })),
+      perfis: mappedPerfisArray,
     };
   }
 }

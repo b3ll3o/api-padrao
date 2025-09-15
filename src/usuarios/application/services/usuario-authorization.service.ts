@@ -29,7 +29,7 @@ export class UsuarioAuthorizationService
     const isOwner = usuarioId === usuarioLogado.userId;
     const isAdmin =
       usuarioLogado.perfis?.some((perfil) => perfil.codigo === 'ADMIN') ||
-      false; // Garante que isAdmin seja sempre boolean
+      false;
     return isOwner || isAdmin;
   }
 
@@ -37,7 +37,7 @@ export class UsuarioAuthorizationService
     const isOwner = usuarioId === usuarioLogado.userId;
     const isAdmin =
       usuarioLogado.perfis?.some((perfil) => perfil.codigo === 'ADMIN') ||
-      false; // Garante que isAdmin seja sempre boolean
+      false;
     return isOwner || isAdmin;
   }
 
@@ -45,14 +45,20 @@ export class UsuarioAuthorizationService
     const isOwner = usuarioId === usuarioLogado.userId;
     const isAdmin =
       usuarioLogado.perfis?.some((perfil) => perfil.codigo === 'ADMIN') ||
-      false; // Garante que isAdmin seja sempre boolean
+      false;
     return isOwner || isAdmin;
   }
 
   canRestoreUsuario(usuarioId: number, usuarioLogado: JwtPayload): boolean {
     const isAdmin =
       usuarioLogado.perfis?.some((perfil) => perfil.codigo === 'ADMIN') ||
-      false; // Garante que isAdmin seja sempre boolean
-    return isAdmin;
+      false;
+    const hasPermission =
+      usuarioLogado.perfis?.some((perfil) =>
+        perfil.permissoes?.some(
+          (permissao) => permissao.codigo === 'RESTORE_USUARIO',
+        ),
+      ) || false;
+    return isAdmin || hasPermission;
   }
 }

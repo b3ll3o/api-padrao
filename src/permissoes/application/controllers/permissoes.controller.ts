@@ -126,10 +126,10 @@ export class PermissoesController {
     if (!req.usuarioLogado) {
       throw new ForbiddenException('Usuário não autenticado');
     }
-    return this.permissoesService.update(+id, updatePermissaoDto, req.usuarioLogado);
+    return this.permissoesService.update(
+      +id,
+      updatePermissaoDto,
+      req.usuarioLogado,
+    );
   }
-
-  
-
-  
 }

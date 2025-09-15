@@ -126,7 +126,9 @@ export class PerfisService {
     if (updatePerfilDto.ativo !== undefined) {
       const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
       if (!isAdmin) {
-        throw new ForbiddenException('Você não tem permissão para alterar o status de ativo/inativo deste perfil');
+        throw new ForbiddenException(
+          'Você não tem permissão para alterar o status de ativo/inativo deste perfil',
+        );
       }
 
       if (updatePerfilDto.ativo === true) {
@@ -137,7 +139,8 @@ export class PerfisService {
         await this.perfilRepository.restore(id);
         // After restore, update the local 'perfil' object to reflect the change
         perfil.deletedAt = null;
-      } else { // updatePerfilDto.ativo === false
+      } else {
+        // updatePerfilDto.ativo === false
         // Attempt to soft delete
         if (perfil.deletedAt !== null) {
           throw new ConflictException(`Perfil com ID ${id} já está deletado.`);
@@ -166,6 +169,4 @@ export class PerfisService {
     }
     return updatedPerfil;
   }
-
-  
 }

@@ -147,9 +147,11 @@ describe('PermissoesController', () => {
 
       const result = await controller.update(id, updatePermissaoDto, req);
       expect(result).toEqual(expectedPermissao);
-      expect(service.update).toHaveBeenCalledWith(+id, updatePermissaoDto, req.usuarioLogado);
+      expect(service.update).toHaveBeenCalledWith(
+        +id,
+        updatePermissaoDto,
+        req.usuarioLogado,
+      );
     });
   });
-
-  
 });

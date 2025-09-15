@@ -96,15 +96,25 @@ export class UsuariosService {
       if (updateUsuarioDto.ativo === true) {
         // Attempt to restore
         if (usuario.deletedAt === null) {
-          throw new ConflictException(`Usuário com ID ${id} não está deletado.`);
+          throw new ConflictException(
+            `Usuário com ID ${id} não está deletado.`,
+          );
         }
-        if (!this.usuarioAuthorizationService.canRestoreUsuario(usuario.id, usuarioLogado)) {
-          throw new ForbiddenException('Você não tem permissão para restaurar este usuário');
+        if (
+          !this.usuarioAuthorizationService.canRestoreUsuario(
+            usuario.id,
+            usuarioLogado,
+          )
+        ) {
+          throw new ForbiddenException(
+            'Você não tem permissão para restaurar este usuário',
+          );
         }
         const restoredUsuario = await this.usuarioRepository.restore(id);
         delete restoredUsuario.senha;
         return restoredUsuario; // Return immediately after restore
-      } else { // updateUsuarioDto.ativo === false
+      } else {
+        // updateUsuarioDto.ativo === false
         // Attempt to soft delete
         if (usuario.deletedAt !== null) {
           throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
@@ -113,7 +123,9 @@ export class UsuariosService {
         // A regular user cannot soft-delete themselves via PATCH.
         const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
         if (!isAdmin) {
-          throw new ForbiddenException('Você não tem permissão para deletar este usuário');
+          throw new ForbiddenException(
+            'Você não tem permissão para deletar este usuário',
+          );
         }
         const softDeletedUsuario = await this.usuarioRepository.remove(id);
         delete softDeletedUsuario.senha;
@@ -180,63 +192,5 @@ export class UsuariosService {
 
     delete updatedUsuario.senha;
     return updatedUsuario;
-  }
-
-  async remove(id: number, usuarioLogado: UsuarioLogado): Promise<Usuario> {
-    // Changed return type to Usuario
-    const usuario = await this.usuarioRepository.findOne(id, true); // Find including deleted
-    if (!usuario) {
-      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
-    }
-    if (usuario.deletedAt !== null) {
-      throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
-    }
-
-    if (
-      !this.usuarioAuthorizationService.canDeleteUsuario(
-        usuario.id,
-        usuarioLogado,
-      )
-    ) {
-      throw new ForbiddenException(
-        'Você não tem permissão para deletar este usuário',
-      );
-    }
-
-    // Prevent a user from deleting themselves if they are the only admin
-    // (This is a more complex rule and might require additional logic,
-    // for now, just allow admin to delete any user, and user to delete self)
-    // Consider adding a check if the user is trying to delete the last admin account.
-
-    const softDeletedUsuario = await this.usuarioRepository.remove(id); // Call repository's soft delete
-    delete softDeletedUsuario.senha;
-    return softDeletedUsuario;
-  }
-
-  async restore(id: number, usuarioLogado: UsuarioLogado): Promise<Usuario> {
-    // New restore method
-    const usuario = await this.usuarioRepository.findOne(id, true); // Find including deleted
-    if (!usuario) {
-      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
-    }
-
-    if (usuario.deletedAt === null) {
-      throw new ConflictException(`Usuário com ID ${id} não está deletado.`);
-    }
-
-    if (
-      !this.usuarioAuthorizationService.canRestoreUsuario(
-        usuario.id,
-        usuarioLogado,
-      )
-    ) {
-      throw new ForbiddenException(
-        'Você não tem permissão para restaurar este usuário',
-      );
-    }
-
-    const restoredUsuario = await this.usuarioRepository.restore(id); // Call repository's restore
-    delete restoredUsuario.senha;
-    return restoredUsuario;
   }
 }

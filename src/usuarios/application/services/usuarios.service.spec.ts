@@ -354,9 +354,16 @@ describe('UsuariosService', () => {
       const softDeletedUser = { ...mockUser, deletedAt: new Date() };
       const updateDto: UpdateUsuarioDto = { ativo: true };
 
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(softDeletedUser);
-      mockUsuarioAuthorizationService.canRestoreUsuario.mockReturnValueOnce(true);
-      (mockUsuarioRepository.restore as jest.Mock).mockResolvedValue({ ...softDeletedUser, deletedAt: null });
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedUser,
+      );
+      mockUsuarioAuthorizationService.canRestoreUsuario.mockReturnValueOnce(
+        true,
+      );
+      (mockUsuarioRepository.restore as jest.Mock).mockResolvedValue({
+        ...softDeletedUser,
+        deletedAt: null,
+      });
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
 
@@ -369,11 +376,13 @@ describe('UsuariosService', () => {
       const nonDeletedUser = { ...mockUser, deletedAt: null };
       const updateDto: UpdateUsuarioDto = { ativo: true };
 
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedUser);
-
-      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
-        ConflictException,
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedUser,
       );
+
+      await expect(
+        service.update(1, updateDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(ConflictException);
       expect(mockUsuarioRepository.restore).not.toHaveBeenCalled();
     });
 
@@ -381,12 +390,16 @@ describe('UsuariosService', () => {
       const softDeletedUser = { ...mockUser, deletedAt: new Date() };
       const updateDto: UpdateUsuarioDto = { ativo: true };
 
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(softDeletedUser);
-      mockUsuarioAuthorizationService.canRestoreUsuario.mockReturnValueOnce(false);
-
-      await expect(service.update(1, updateDto, mockUsuarioLogado)).rejects.toThrow(
-        ForbiddenException,
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedUser,
       );
+      mockUsuarioAuthorizationService.canRestoreUsuario.mockReturnValueOnce(
+        false,
+      );
+
+      await expect(
+        service.update(1, updateDto, mockUsuarioLogado),
+      ).rejects.toThrow(ForbiddenException);
       expect(mockUsuarioRepository.restore).not.toHaveBeenCalled();
     });
 
@@ -394,9 +407,16 @@ describe('UsuariosService', () => {
       const nonDeletedUser = { ...mockUser, deletedAt: null };
       const updateDto: UpdateUsuarioDto = { ativo: false };
 
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedUser);
-      mockUsuarioAuthorizationService.canDeleteUsuario.mockReturnValueOnce(true);
-      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue({ ...nonDeletedUser, deletedAt: new Date() });
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedUser,
+      );
+      mockUsuarioAuthorizationService.canDeleteUsuario.mockReturnValueOnce(
+        true,
+      );
+      (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue({
+        ...nonDeletedUser,
+        deletedAt: new Date(),
+      });
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
 
@@ -409,11 +429,13 @@ describe('UsuariosService', () => {
       const softDeletedUser = { ...mockUser, deletedAt: new Date() };
       const updateDto: UpdateUsuarioDto = { ativo: false };
 
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(softDeletedUser);
-
-      await expect(service.update(1, updateDto, mockAdminUsuarioLogado)).rejects.toThrow(
-        ConflictException,
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedUser,
       );
+
+      await expect(
+        service.update(1, updateDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(ConflictException);
       expect(mockUsuarioRepository.remove).not.toHaveBeenCalled();
     });
 
@@ -421,15 +443,17 @@ describe('UsuariosService', () => {
       const nonDeletedUser = { ...mockUser, deletedAt: null };
       const updateDto: UpdateUsuarioDto = { ativo: false };
 
-      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(nonDeletedUser);
-      mockUsuarioAuthorizationService.canDeleteUsuario.mockReturnValueOnce(false);
-
-      await expect(service.update(1, updateDto, mockUsuarioLogado)).rejects.toThrow(
-        ForbiddenException,
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedUser,
       );
+      mockUsuarioAuthorizationService.canDeleteUsuario.mockReturnValueOnce(
+        false,
+      );
+
+      await expect(
+        service.update(1, updateDto, mockUsuarioLogado),
+      ).rejects.toThrow(ForbiddenException);
       expect(mockUsuarioRepository.remove).not.toHaveBeenCalled();
     });
   });
-
-  
 });
