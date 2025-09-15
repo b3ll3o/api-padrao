@@ -67,3 +67,4 @@ To ensure code quality, maintainability, and adherence to best practices, the fo
     *   **Documentation Update:** Always update the project documentation (Swagger annotations and `README.md`) before committing.
 *   **Test Message Language:** All descriptive messages within unit and integration tests (e.g., `describe` and `it` block descriptions) must be written in Brazilian Portuguese (pt-br).
 *   **Pagination for List Searches:** All searches returning a list of objects must be paginated. The default page size should be 10. Pagination should support ordering, and the response must include the total number of pages and total number of elements.
+*   **Entity Soft Delete:** All database entities must include `createdAt`, `updatedAt`, and `deletedAt` fields. Deletion should be a soft delete, controlled by setting a value in the `deletedAt` field. If an entity has been deactivated (soft-deleted) at least once, its `deletedAt` field must contain a timestamp.
