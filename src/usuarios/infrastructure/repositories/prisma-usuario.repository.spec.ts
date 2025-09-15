@@ -32,12 +32,12 @@ describe('PrismaUsuarioRepository', () => {
     repository = module.get<PrismaUsuarioRepository>(PrismaUsuarioRepository);
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(repository).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a new user with profiles', async () => {
+  describe('criação', () => {
+    it('deve criar um novo usuário com perfis', async () => {
       const createData: Partial<Usuario> = {
         email: 'test@example.com',
         senha: 'hashedPassword',
@@ -87,7 +87,7 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should create a new user without password and profiles', async () => {
+    it('deve criar um novo usuário sem senha e perfis', async () => {
       const createData: Partial<Usuario> = {
         email: 'test@example.com',
       };
@@ -121,7 +121,7 @@ describe('PrismaUsuarioRepository', () => {
     });
   });
 
-  describe('findOne', () => {
+  describe('busca por um', () => {
     const prismaResult = {
       id: 1,
       email: 'test@example.com',
@@ -134,7 +134,7 @@ describe('PrismaUsuarioRepository', () => {
       ],
     };
 
-    it('should return a user by ID (not deleted)', async () => {
+    it('deve retornar um usuário por ID (não excluído)', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(prismaResult);
 
       const result = await repository.findOne(1);
@@ -150,7 +150,7 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should return a user by ID including deleted', async () => {
+    it('deve retornar um usuário por ID, incluindo os excluídos', async () => {
       const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
       mockPrismaService.usuario.findUnique.mockResolvedValue(
         deletedPrismaResult,
@@ -169,14 +169,14 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should return undefined if user not found', async () => {
+    it('deve retornar undefined se o usuário não for encontrado', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(null);
 
       const result = await repository.findOne(999);
       expect(result).toBeUndefined();
     });
 
-    it('should return undefined if user is soft-deleted and not included', async () => {
+    it('deve retornar undefined se o usuário estiver com soft delete e não for incluído', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(null);
 
       const result = await repository.findOne(1, false);
@@ -184,7 +184,7 @@ describe('PrismaUsuarioRepository', () => {
     });
   });
 
-  describe('findAll', () => {
+  describe('busca de todos', () => {
     const prismaResults = [
       {
         id: 1,
@@ -208,7 +208,7 @@ describe('PrismaUsuarioRepository', () => {
       },
     ];
 
-    it('should return all non-deleted users by default', async () => {
+    it('deve retornar todos os usuários não excluídos por padrão', async () => {
       mockPrismaService.usuario.findMany.mockResolvedValue([prismaResults[0]]);
 
       const result = await repository.findAll();
@@ -225,7 +225,7 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should return all users including deleted when specified', async () => {
+    it('deve retornar todos os usuários, incluindo os excluídos, quando especificado', async () => {
       mockPrismaService.usuario.findMany.mockResolvedValue(prismaResults);
 
       const result = await repository.findAll(true);
@@ -243,7 +243,7 @@ describe('PrismaUsuarioRepository', () => {
     });
   });
 
-  describe('findByEmail', () => {
+  describe('busca por email', () => {
     const prismaResult = {
       id: 1,
       email: 'test@example.com',
@@ -253,7 +253,7 @@ describe('PrismaUsuarioRepository', () => {
       deletedAt: null,
     };
 
-    it('should return a user by email', async () => {
+    it('deve retornar um usuário por email', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(prismaResult);
 
       const result = await repository.findByEmail('test@example.com');
@@ -265,14 +265,14 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should return null if user not found by email', async () => {
+    it('deve retornar null se o usuário não for encontrado por email', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(null);
 
       const result = await repository.findByEmail('nonexistent@example.com');
       expect(result).toBeNull();
     });
 
-    it('should return null if user is soft-deleted', async () => {
+    it('deve retornar null se o usuário estiver com soft delete', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(null);
 
       const result = await repository.findByEmail('test@example.com');
@@ -280,7 +280,7 @@ describe('PrismaUsuarioRepository', () => {
     });
   });
 
-  describe('findByEmailWithPerfisAndPermissoes', () => {
+  describe('busca por email com perfis e permissões', () => {
     const prismaResult = {
       id: 1,
       email: 'test@example.com',
@@ -306,7 +306,7 @@ describe('PrismaUsuarioRepository', () => {
       ],
     };
 
-    it('should return a user with profiles and permissions', async () => {
+    it('deve retornar um usuário com perfis e permissões', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(prismaResult);
 
       const result =
@@ -332,7 +332,7 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should return a user with no profiles or permissions', async () => {
+    it('deve retornar um usuário sem perfis ou permissões', async () => {
       const prismaResultNoPerfis = { ...prismaResult, perfis: [] };
       mockPrismaService.usuario.findUnique.mockResolvedValue(
         prismaResultNoPerfis,
@@ -346,7 +346,7 @@ describe('PrismaUsuarioRepository', () => {
       expect(result!.perfis).toHaveLength(0);
     });
 
-    it('should return null if user not found by email', async () => {
+    it('deve retornar null se o usuário não for encontrado por email', async () => {
       mockPrismaService.usuario.findUnique.mockResolvedValue(null);
 
       const result = await repository.findByEmailWithPerfisAndPermissoes(
@@ -356,8 +356,8 @@ describe('PrismaUsuarioRepository', () => {
     });
   });
 
-  describe('update', () => {
-    it('should update a user email', async () => {
+  describe('atualização', () => {
+    it('deve atualizar o email de um usuário', async () => {
       const updateData: Partial<Usuario> = {
         email: 'updated@example.com',
       };
@@ -386,7 +386,7 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should update a user with new profiles', async () => {
+    it('deve atualizar um usuário com novos perfis', async () => {
       const updateData: Partial<Usuario> = {
         perfis: [
           {
@@ -426,7 +426,7 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should update a user with no profiles', async () => {
+    it('deve atualizar um usuário sem perfis', async () => {
       const updateData: Partial<Usuario> = {
         perfis: [],
       };
@@ -457,8 +457,8 @@ describe('PrismaUsuarioRepository', () => {
     });
   });
 
-  describe('remove', () => {
-    it('should soft delete a user', async () => {
+  describe('remoção', () => {
+    it('deve realizar soft delete de um usuário', async () => {
       const prismaResult = {
         id: 1,
         email: 'test@example.com',
@@ -482,7 +482,7 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should throw error if user not found during soft delete', async () => {
+    it('deve lançar um erro se o usuário não for encontrado durante o soft delete', async () => {
       mockPrismaService.usuario.update.mockRejectedValue({ code: 'P2025' });
 
       await expect(repository.remove(999)).rejects.toThrow(
@@ -491,8 +491,8 @@ describe('PrismaUsuarioRepository', () => {
     });
   });
 
-  describe('restore', () => {
-    it('should restore a soft-deleted user', async () => {
+  describe('restauração', () => {
+    it('deve restaurar um usuário com soft delete', async () => {
       const prismaResult = {
         id: 1,
         email: 'test@example.com',
@@ -516,7 +516,7 @@ describe('PrismaUsuarioRepository', () => {
       });
     });
 
-    it('should throw error if user not found during restore', async () => {
+    it('deve lançar um erro se o usuário não for encontrado durante a restauração', async () => {
       mockPrismaService.usuario.update.mockRejectedValue({ code: 'P2025' });
 
       await expect(repository.restore(999)).rejects.toThrow(

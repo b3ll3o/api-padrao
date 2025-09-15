@@ -3,7 +3,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
 describe('PaginationDto', () => {
-  it('should apply default values when no values are provided', async () => {
+  it('deve aplicar valores padrão quando nenhum valor for fornecido', async () => {
     const dto = plainToInstance(PaginationDto, {});
     const errors = await validate(dto);
 
@@ -12,7 +12,7 @@ describe('PaginationDto', () => {
     expect(dto.limit).toBe(10);
   });
 
-  it('should use provided values when they are valid', async () => {
+  it('deve usar os valores fornecidos quando forem válidos', async () => {
     const dto = plainToInstance(PaginationDto, { page: 2, limit: 5 });
     const errors = await validate(dto);
 
@@ -21,7 +21,7 @@ describe('PaginationDto', () => {
     expect(dto.limit).toBe(5);
   });
 
-  it('should convert string numbers to actual numbers', async () => {
+  it('deve converter números em string para números reais', async () => {
     const dto = plainToInstance(PaginationDto, { page: '3', limit: '15' });
     const errors = await validate(dto);
 
@@ -30,7 +30,7 @@ describe('PaginationDto', () => {
     expect(dto.limit).toBe(15);
   });
 
-  it('should return validation errors for invalid page', async () => {
+  it('deve retornar erros de validação para página inválida', async () => {
     const dto = plainToInstance(PaginationDto, { page: 0 });
     const errors = await validate(dto);
 
@@ -39,7 +39,7 @@ describe('PaginationDto', () => {
     expect(errors[0].constraints).toHaveProperty('min');
   });
 
-  it('should return validation errors for invalid limit', async () => {
+  it('deve retornar erros de validação para limite inválido', async () => {
     const dto = plainToInstance(PaginationDto, { limit: 0 });
     const errors = await validate(dto);
 

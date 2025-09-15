@@ -12,11 +12,11 @@ describe('PrismaService', () => {
     service = module.get<PrismaService>(PrismaService);
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(service).toBeDefined();
   });
 
-  it('should call $connect on onModuleInit', async () => {
+  it('deve chamar $connect em onModuleInit', async () => {
     // Mock the $connect method
     service.$connect = jest.fn().mockResolvedValue(undefined);
 

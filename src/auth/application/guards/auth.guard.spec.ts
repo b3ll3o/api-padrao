@@ -41,11 +41,11 @@ describe('AuthGuard', () => {
     passportAuthGuardCanActivateSpy.mockRestore(); // Clean up the spy after each test
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(guard).toBeDefined();
   });
 
-  it('should return true if route is public', async () => {
+  it('deve retornar true se a rota for pública', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
 
     const result = await guard.canActivate(mockExecutionContext);
@@ -58,7 +58,7 @@ describe('AuthGuard', () => {
     expect(passportAuthGuardCanActivateSpy).not.toHaveBeenCalled();
   });
 
-  it('should return true and set usuarioLogado if not public and authentication succeeds', async () => {
+  it('deve retornar true e definir usuarioLogado se não for pública e a autenticação for bem-sucedida', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
     passportAuthGuardCanActivateSpy.mockResolvedValue(true); // Simulate successful authentication
 
@@ -74,7 +74,7 @@ describe('AuthGuard', () => {
     expect(mockRequest.usuarioLogado).toEqual(mockRequest.user);
   });
 
-  it('should return false if not public and authentication fails', async () => {
+  it('deve retornar false se não for pública e a autenticação falhar', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
     passportAuthGuardCanActivateSpy.mockResolvedValue(false); // Simulate failed authentication
 
@@ -90,7 +90,7 @@ describe('AuthGuard', () => {
     expect(mockRequest.usuarioLogado).toBeUndefined();
   });
 
-  it('should re-throw error if super.canActivate throws an error', async () => {
+  it('deve relançar o erro se super.canActivate lançar um erro', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
     const error = new Error('Authentication failed');
     passportAuthGuardCanActivateSpy.mockRejectedValue(error);

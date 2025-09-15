@@ -35,12 +35,12 @@ describe('PrismaPerfilRepository', () => {
     repository = module.get<PrismaPerfilRepository>(PrismaPerfilRepository);
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(repository).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a new perfil', async () => {
+  describe('criação', () => {
+    it('deve criar um novo perfil', async () => {
       const createPerfilDto: CreatePerfilDto = {
         nome: 'Test Perfil',
         codigo: 'TEST_PERFIL',
@@ -86,7 +86,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should create a new perfil without permissions', async () => {
+    it('deve criar um novo perfil sem permissões', async () => {
       const createPerfilDto: CreatePerfilDto = {
         nome: 'Test Perfil',
         codigo: 'TEST_PERFIL',
@@ -119,7 +119,7 @@ describe('PrismaPerfilRepository', () => {
     });
   });
 
-  describe('findAll', () => {
+  describe('busca de todos', () => {
     const prismaResults = [
       {
         id: 1,
@@ -139,7 +139,7 @@ describe('PrismaPerfilRepository', () => {
       },
     ];
 
-    it('should return a list of non-deleted perfis and total count by default', async () => {
+    it('deve retornar uma lista de perfis não excluídos e a contagem total por padrão', async () => {
       mockPrismaService.perfil.findMany.mockResolvedValue([prismaResults[0]]); // Only return non-deleted
       mockPrismaService.perfil.count.mockResolvedValue(1);
 
@@ -159,7 +159,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should return all perfis including deleted when specified', async () => {
+    it('deve retornar todos os perfis, incluindo os excluídos, quando especificado', async () => {
       mockPrismaService.perfil.findMany.mockResolvedValue(prismaResults); // Return all
       mockPrismaService.perfil.count.mockResolvedValue(2);
 
@@ -181,7 +181,7 @@ describe('PrismaPerfilRepository', () => {
     });
   });
 
-  describe('findOne', () => {
+  describe('busca por um', () => {
     const prismaResult = {
       id: 1,
       nome: 'Perfil 1',
@@ -191,7 +191,7 @@ describe('PrismaPerfilRepository', () => {
       permissoes: [],
     };
 
-    it('should return a single perfil by ID (not deleted)', async () => {
+    it('deve retornar um único perfil por ID (não excluído)', async () => {
       mockPrismaService.perfil.findUnique.mockResolvedValue(prismaResult);
 
       const result = await repository.findOne(1);
@@ -203,7 +203,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should return a single perfil by ID including deleted', async () => {
+    it('deve retornar um único perfil por ID, incluindo os excluídos', async () => {
       const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
       mockPrismaService.perfil.findUnique.mockResolvedValue(
         deletedPrismaResult,
@@ -218,14 +218,14 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should return undefined if perfil not found', async () => {
+    it('deve retornar undefined se o perfil não for encontrado', async () => {
       mockPrismaService.perfil.findUnique.mockResolvedValue(null);
 
       const result = await repository.findOne(999);
       expect(result).toBeUndefined();
     });
 
-    it('should return undefined if perfil is soft-deleted and not included', async () => {
+    it('deve retornar undefined se o perfil estiver com soft delete e não for incluído', async () => {
       mockPrismaService.perfil.findUnique.mockResolvedValue(null);
 
       const result = await repository.findOne(1, false); // Explicitly not include deleted
@@ -233,8 +233,8 @@ describe('PrismaPerfilRepository', () => {
     });
   });
 
-  describe('update', () => {
-    it('should update an existing perfil', async () => {
+  describe('atualização', () => {
+    it('deve atualizar um perfil existente', async () => {
       const updatePerfilDto: UpdatePerfilDto = {
         nome: 'Updated Perfil',
         permissoesIds: [3],
@@ -269,7 +269,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should update an existing perfil without changing permissions', async () => {
+    it('deve atualizar um perfil existente sem alterar permissões', async () => {
       const updatePerfilDto: UpdatePerfilDto = { nome: 'Updated Perfil' };
       const expectedPerfil = new Perfil();
       Object.assign(expectedPerfil, {
@@ -297,7 +297,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should return undefined if perfil to update not found (P2025 error)', async () => {
+    it('deve retornar undefined se o perfil a ser atualizado não for encontrado (erro P2025)', async () => {
       const updatePerfilDto: UpdatePerfilDto = { nome: 'Non Existent' };
       const prismaError = new Error('Record not found');
       (prismaError as any).code = 'P2025';
@@ -308,7 +308,7 @@ describe('PrismaPerfilRepository', () => {
       expect(result).toBeUndefined();
     });
 
-    it('should rethrow other errors during update', async () => {
+    it('deve relançar outros erros durante a atualização', async () => {
       const updatePerfilDto: UpdatePerfilDto = { nome: 'Error Perfil' };
       const prismaError = new Error('Database error');
       (prismaError as any).code = 'P1000'; // Some other Prisma error
@@ -321,8 +321,8 @@ describe('PrismaPerfilRepository', () => {
     });
   });
 
-  describe('remove', () => {
-    it('should soft delete a perfil', async () => {
+  describe('remoção', () => {
+    it('deve realizar soft delete de um perfil', async () => {
       const prismaResult = {
         id: 1,
         nome: 'Test Perfil',
@@ -344,7 +344,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should throw error if perfil not found during soft delete', async () => {
+    it('deve lançar um erro se o perfil não for encontrado durante o soft delete', async () => {
       mockPrismaService.perfil.update.mockRejectedValue({ code: 'P2025' }); // Simulate not found
 
       await expect(repository.remove(999)).rejects.toThrow(
@@ -353,8 +353,8 @@ describe('PrismaPerfilRepository', () => {
     });
   });
 
-  describe('restore', () => {
-    it('should restore a soft-deleted perfil', async () => {
+  describe('restauração', () => {
+    it('deve restaurar um perfil com soft delete', async () => {
       const prismaResult = {
         id: 1,
         nome: 'Test Perfil',
@@ -376,7 +376,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should throw error if perfil not found during restore', async () => {
+    it('deve lançar um erro se o perfil não for encontrado durante a restauração', async () => {
       mockPrismaService.perfil.update.mockRejectedValue({ code: 'P2025' }); // Simulate not found
 
       await expect(repository.restore(999)).rejects.toThrow(
@@ -385,7 +385,7 @@ describe('PrismaPerfilRepository', () => {
     });
   });
 
-  describe('findByNome', () => {
+  describe('busca por nome', () => {
     const prismaResult = {
       id: 1,
       nome: 'Test Perfil',
@@ -395,7 +395,7 @@ describe('PrismaPerfilRepository', () => {
       permissoes: [],
     };
 
-    it('should return a perfil by name (not deleted)', async () => {
+    it('deve retornar um perfil por nome (não excluído)', async () => {
       mockPrismaService.perfil.findUnique.mockResolvedValue(prismaResult);
 
       const result = await repository.findByNome('Test Perfil');
@@ -407,7 +407,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should return a perfil by name including deleted', async () => {
+    it('deve retornar um perfil por nome, incluindo os excluídos', async () => {
       const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
       mockPrismaService.perfil.findUnique.mockResolvedValue(
         deletedPrismaResult,
@@ -422,14 +422,14 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should return null if perfil not found by name', async () => {
+    it('deve retornar null se o perfil não for encontrado por nome', async () => {
       mockPrismaService.perfil.findUnique.mockResolvedValue(null);
 
       const result = await repository.findByNome('Non Existent');
       expect(result).toBeNull();
     });
 
-    it('should return null if perfil is soft-deleted and not included', async () => {
+    it('deve retornar null se o perfil estiver com soft delete e não for incluído', async () => {
       mockPrismaService.perfil.findUnique.mockResolvedValue(null);
 
       const result = await repository.findByNome('Test Perfil', false); // Explicitly not include deleted
@@ -437,7 +437,7 @@ describe('PrismaPerfilRepository', () => {
     });
   });
 
-  describe('findByNomeContaining', () => {
+  describe('busca por nome contendo', () => {
     const prismaResults = [
       {
         id: 1,
@@ -457,7 +457,7 @@ describe('PrismaPerfilRepository', () => {
       },
     ];
 
-    it('should return a list of non-deleted perfis containing the name and total count by default', async () => {
+    it('deve retornar uma lista de perfis não excluídos contendo o nome e a contagem total por padrão', async () => {
       mockPrismaService.perfil.findMany.mockResolvedValue([prismaResults[0]]); // Only return non-deleted
       mockPrismaService.perfil.count.mockResolvedValue(1);
 
@@ -493,7 +493,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should return all perfis containing the name including deleted when specified', async () => {
+    it('deve retornar todos os perfis contendo o nome, incluindo os excluídos, quando especificado', async () => {
       mockPrismaService.perfil.findMany.mockResolvedValue(prismaResults); // Return all
       mockPrismaService.perfil.count.mockResolvedValue(2);
 
@@ -529,7 +529,7 @@ describe('PrismaPerfilRepository', () => {
       });
     });
 
-    it('should return an empty list and zero count if no perfis found by name', async () => {
+    it('deve retornar uma lista vazia e contagem zero se nenhum perfil for encontrado por nome', async () => {
       mockPrismaService.perfil.findMany.mockResolvedValue([]);
       mockPrismaService.perfil.count.mockResolvedValue(0);
 

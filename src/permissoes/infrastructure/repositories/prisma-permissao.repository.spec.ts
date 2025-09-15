@@ -36,12 +36,12 @@ describe('PrismaPermissaoRepository', () => {
     );
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(repository).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a new permissao', async () => {
+  describe('criação', () => {
+    it('deve criar uma nova permissão', async () => {
       const createPermissaoDto: CreatePermissaoDto = {
         nome: 'Test Permissao',
         codigo: 'TEST_PERMISSAO',
@@ -65,7 +65,7 @@ describe('PrismaPermissaoRepository', () => {
     });
   });
 
-  describe('findAll', () => {
+  describe('busca de todos', () => {
     const prismaResults = [
       {
         id: 1,
@@ -83,7 +83,7 @@ describe('PrismaPermissaoRepository', () => {
       },
     ];
 
-    it('should return a list of non-deleted permissoes and total count by default', async () => {
+        it('deve retornar uma lista de permissões não excluídas e a contagem total por padrão', async () => {
       mockPrismaService.permissao.findMany.mockResolvedValue([
         prismaResults[0],
       ]); // Only return non-deleted
@@ -104,7 +104,7 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should return all permissoes including deleted when specified', async () => {
+    it('deve retornar todas as permissões, incluindo as excluídas, quando especificado', async () => {
       mockPrismaService.permissao.findMany.mockResolvedValue(prismaResults);
       mockPrismaService.permissao.count.mockResolvedValue(2);
 
@@ -125,7 +125,7 @@ describe('PrismaPermissaoRepository', () => {
     });
   });
 
-  describe('findOne', () => {
+  describe('busca por um', () => {
     const prismaResult = {
       id: 1,
       nome: 'Permissao 1',
@@ -134,7 +134,7 @@ describe('PrismaPermissaoRepository', () => {
       deletedAt: null,
     };
 
-    it('should return a single permissao by ID (not deleted)', async () => {
+    it('deve retornar uma única permissão por ID (não excluída)', async () => {
       mockPrismaService.permissao.findUnique.mockResolvedValue(prismaResult);
 
       const result = await repository.findOne(1);
@@ -145,7 +145,7 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should return a single permissao by ID including deleted', async () => {
+    it('deve retornar uma única permissão por ID, incluindo as excluídas', async () => {
       const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
       mockPrismaService.permissao.findUnique.mockResolvedValue(
         deletedPrismaResult,
@@ -159,14 +159,14 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should return undefined if permissao not found', async () => {
+    it('deve retornar undefined se a permissão não for encontrada', async () => {
       mockPrismaService.permissao.findUnique.mockResolvedValue(null);
 
       const result = await repository.findOne(999);
       expect(result).toBeUndefined();
     });
 
-    it('should return undefined if permissao is soft-deleted and not included', async () => {
+    it('deve retornar undefined se a permissão estiver com soft delete e não for incluída', async () => {
       mockPrismaService.permissao.findUnique.mockResolvedValue(null);
 
       const result = await repository.findOne(1, false); // Explicitly not include deleted
@@ -174,8 +174,8 @@ describe('PrismaPermissaoRepository', () => {
     });
   });
 
-  describe('update', () => {
-    it('should update an existing permissao', async () => {
+  describe('atualização', () => {
+    it('deve atualizar uma permissão existente', async () => {
       const updatePermissaoDto: UpdatePermissaoDto = {
         nome: 'Updated Permissao',
         codigo: 'UPDATED_PERMISSAO',
@@ -199,7 +199,7 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should return undefined if permissao to update not found (P2025 error)', async () => {
+    it('deve retornar undefined se a permissão a ser atualizada não for encontrada (erro P2025)', async () => {
       const updatePermissaoDto: UpdatePermissaoDto = {
         nome: 'Non Existent',
         codigo: 'NON_EXISTENT',
@@ -214,7 +214,7 @@ describe('PrismaPermissaoRepository', () => {
       expect(result).toBeUndefined();
     });
 
-    it('should rethrow other errors during update', async () => {
+    it('deve relançar outros erros durante a atualização', async () => {
       const updatePermissaoDto: UpdatePermissaoDto = {
         nome: 'Error Permissao',
         codigo: 'ERROR_PERMISSAO',
@@ -231,8 +231,8 @@ describe('PrismaPermissaoRepository', () => {
     });
   });
 
-  describe('remove', () => {
-    it('should soft delete a permissao', async () => {
+  describe('remoção', () => {
+    it('deve realizar soft delete de uma permissão', async () => {
       const prismaResult = {
         id: 1,
         nome: 'Test Permissao',
@@ -252,7 +252,7 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should throw error if permissao not found during soft delete', async () => {
+    it('deve lançar um erro se a permissão não for encontrada durante o soft delete', async () => {
       mockPrismaService.permissao.update.mockRejectedValue({ code: 'P2025' }); // Simulate not found
 
       await expect(repository.remove(999)).rejects.toThrow(
@@ -261,8 +261,8 @@ describe('PrismaPermissaoRepository', () => {
     });
   });
 
-  describe('restore', () => {
-    it('should restore a soft-deleted permissao', async () => {
+  describe('restauração', () => {
+    it('deve restaurar uma permissão com soft delete', async () => {
       const prismaResult = {
         id: 1,
         nome: 'Test Permissao',
@@ -282,7 +282,7 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should throw error if permissao not found during restore', async () => {
+    it('deve lançar um erro se a permissão não for encontrada durante a restauração', async () => {
       mockPrismaService.permissao.update.mockRejectedValue({ code: 'P2025' }); // Simulate not found
 
       await expect(repository.restore(999)).rejects.toThrow(
@@ -291,7 +291,7 @@ describe('PrismaPermissaoRepository', () => {
     });
   });
 
-  describe('findByNome', () => {
+  describe('busca por nome', () => {
     const prismaResult = {
       id: 1,
       nome: 'Test Permissao',
@@ -300,7 +300,7 @@ describe('PrismaPermissaoRepository', () => {
       deletedAt: null,
     };
 
-    it('should return a permissao by name (not deleted)', async () => {
+    it('deve retornar uma permissão por nome (não excluída)', async () => {
       mockPrismaService.permissao.findUnique.mockResolvedValue(prismaResult);
 
       const result = await repository.findByNome('Test Permissao');
@@ -311,7 +311,7 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should return a permissao by name including deleted', async () => {
+    it('deve retornar uma permissão por nome, incluindo as excluídas', async () => {
       const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
       mockPrismaService.permissao.findUnique.mockResolvedValue(
         deletedPrismaResult,
@@ -325,14 +325,14 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should return null if permissao not found by name', async () => {
+    it('deve retornar null se a permissão não for encontrada por nome', async () => {
       mockPrismaService.permissao.findUnique.mockResolvedValue(null);
 
       const result = await repository.findByNome('Non Existent');
       expect(result).toBeNull();
     });
 
-    it('should return null if permissao is soft-deleted and not included', async () => {
+    it('deve retornar null se a permissão estiver com soft delete e não for incluída', async () => {
       mockPrismaService.permissao.findUnique.mockResolvedValue(null);
 
       const result = await repository.findByNome('Test Permissao', false); // Explicitly not include deleted
@@ -340,7 +340,7 @@ describe('PrismaPermissaoRepository', () => {
     });
   });
 
-  describe('findByNomeContaining', () => {
+  describe('busca por nome contendo', () => {
     const prismaResults = [
       {
         id: 1,
@@ -395,7 +395,7 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should return all permissoes containing the name including deleted when specified', async () => {
+    it('deve retornar todas as permissões contendo o nome, incluindo as excluídas, quando especificado', async () => {
       mockPrismaService.permissao.findMany.mockResolvedValue(prismaResults);
       mockPrismaService.permissao.count.mockResolvedValue(2);
 
@@ -430,7 +430,7 @@ describe('PrismaPermissaoRepository', () => {
       });
     });
 
-    it('should return an empty list and zero count if no permissoes found by name', async () => {
+    it('deve retornar uma lista vazia e contagem zero se nenhuma permissão for encontrada por nome', async () => {
       mockPrismaService.permissao.findMany.mockResolvedValue([]);
       mockPrismaService.permissao.count.mockResolvedValue(0);
 

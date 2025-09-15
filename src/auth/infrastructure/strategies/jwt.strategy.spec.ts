@@ -64,12 +64,12 @@ describe('JwtStrategy', () => {
     // usuariosService = module.get<UsuariosService>(UsuariosService); // Removed unused assignment
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(jwtStrategy).toBeDefined();
   });
 
-  describe('validate', () => {
-    it('should return a valid user payload with profiles and permissions', async () => {
+  describe('validação', () => {
+    it('deve retornar um payload de usuário válido com perfis e permissões', async () => {
       const payload: JwtPayload = {
         email: 'test@example.com',
         sub: 1,
@@ -103,7 +103,7 @@ describe('JwtStrategy', () => {
       });
     });
 
-    it('should return a valid user payload without profiles or permissions', async () => {
+    it('deve retornar um payload de usuário válido sem perfis ou permissões', async () => {
       const payload: JwtPayload = {
         email: 'test@example.com',
         sub: 1,
@@ -118,7 +118,7 @@ describe('JwtStrategy', () => {
       });
     });
 
-    it('should return a valid user payload with empty profiles array', async () => {
+    it('deve retornar um payload de usuário válido com array de perfis vazio', async () => {
       const payload: JwtPayload = {
         email: 'test@example.com',
         sub: 1,

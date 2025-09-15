@@ -51,12 +51,12 @@ describe('PermissoesController', () => {
     service = module.get<PermissoesService>(PermissoesService);
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a permissao', async () => {
+  describe('criação', () => {
+    it('deve criar uma permissão', async () => {
       const createPermissaoDto: CreatePermissaoDto = {
         nome: 'Test Permissao',
         codigo: 'TEST_PERMISSAO',
@@ -73,8 +73,8 @@ describe('PermissoesController', () => {
     });
   });
 
-  describe('findAll', () => {
-    it('should return a paginated list of permissoes', async () => {
+  describe('busca de todos', () => {
+    it('deve retornar uma lista paginada de permissões', async () => {
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       const expectedResponse: PaginatedResponseDto<Permissao> = {
         data: [{ id: 1, nome: 'Permissao 1' } as Permissao],
@@ -93,8 +93,8 @@ describe('PermissoesController', () => {
     });
   });
 
-  describe('findOne', () => {
-    it('should return a single permissao by ID', async () => {
+  describe('busca por um', () => {
+    it('deve retornar uma única permissão por ID', async () => {
       const id = '1';
       const expectedPermissao = { id: 1, nome: 'Test Permissao' } as Permissao;
       (mockPermissoesService.findOne as jest.Mock).mockResolvedValue(
@@ -107,8 +107,8 @@ describe('PermissoesController', () => {
     });
   });
 
-  describe('findByName', () => {
-    it('should return a paginated list of permissoes by name', async () => {
+  describe('busca por nome', () => {
+    it('deve retornar uma lista paginada de permissões por nome', async () => {
       const nome = 'Test';
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       const expectedResponse: PaginatedResponseDto<Permissao> = {
@@ -131,8 +131,8 @@ describe('PermissoesController', () => {
     });
   });
 
-  describe('update', () => {
-    it('should update a permissao', async () => {
+  describe('atualização', () => {
+    it('deve atualizar uma permissão', async () => {
       const id = '1';
       const updatePermissaoDto: UpdatePermissaoDto = {
         nome: 'Updated Permissao',
@@ -148,7 +148,7 @@ describe('PermissoesController', () => {
     });
   });
 
-  describe('remove', () => {
+  describe('remoção', () => {
     const mockPermissao = {
       id: 1,
       nome: 'Test Permissao',
@@ -161,7 +161,7 @@ describe('PermissoesController', () => {
       deletedAt: new Date(),
     } as Permissao;
 
-    it('should soft delete a permissao', async () => {
+    it('deve realizar soft delete de uma permissão', async () => {
       (mockPermissoesService.remove as jest.Mock).mockResolvedValue(
         softDeletedPermissao,
       );
@@ -172,7 +172,7 @@ describe('PermissoesController', () => {
       expect(service.remove).toHaveBeenCalledWith(1, req.usuarioLogado);
     });
 
-    it('should throw ForbiddenException if user is not authenticated', async () => {
+    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
       const req: Partial<Request> = { usuarioLogado: undefined };
       let error: any;
       try {
@@ -185,7 +185,7 @@ describe('PermissoesController', () => {
     });
   });
 
-  describe('restore', () => {
+  describe('restauração', () => {
     const mockPermissao = {
       id: 1,
       nome: 'Test Permissao',
@@ -198,7 +198,7 @@ describe('PermissoesController', () => {
       deletedAt: null,
     } as Permissao;
 
-    it('should restore a permissao', async () => {
+    it('deve restaurar uma permissão', async () => {
       (mockPermissoesService.restore as jest.Mock).mockResolvedValue(
         restoredPermissao,
       );
@@ -209,7 +209,7 @@ describe('PermissoesController', () => {
       expect(service.restore).toHaveBeenCalledWith(1, req.usuarioLogado);
     });
 
-    it('should throw ForbiddenException if user is not authenticated', async () => {
+    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
       const req: Partial<Request> = { usuarioLogado: undefined };
       let error: any;
       try {

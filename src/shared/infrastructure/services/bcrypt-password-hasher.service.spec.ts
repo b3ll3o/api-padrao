@@ -14,25 +14,25 @@ describe('BcryptPasswordHasherService', () => {
     );
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(service).toBeDefined();
   });
 
-  it('should hash a password', async () => {
+  it('deve fazer o hash de uma senha', async () => {
     const password = 'mysecretpassword';
     const hashedPassword = await service.hash(password);
     expect(hashedPassword).toBeDefined();
     expect(hashedPassword).not.toEqual(password);
   });
 
-  it('should compare a password with its hash successfully', async () => {
+  it('deve comparar uma senha com seu hash com sucesso', async () => {
     const password = 'mysecretpassword';
     const hashedPassword = await service.hash(password);
     const isMatch = await service.compare(password, hashedPassword);
     expect(isMatch).toBe(true);
   });
 
-  it('should fail to compare a password with a wrong hash', async () => {
+  it('deve falhar ao comparar uma senha com um hash errado', async () => {
     const password = 'mysecretpassword';
     const wrongPassword = 'wrongpassword';
     const hashedPassword = await service.hash(password);

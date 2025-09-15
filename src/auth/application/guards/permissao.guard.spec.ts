@@ -26,11 +26,11 @@ describe('PermissaoGuard', () => {
     } as ExecutionContext;
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(guard).toBeDefined();
   });
 
-  it('should return true if no required permissions are set for the route', () => {
+  it('deve retornar true se nenhuma permissão obrigatória for definida para a rota', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
 
     const result = guard.canActivate(mockExecutionContext);
@@ -41,7 +41,7 @@ describe('PermissaoGuard', () => {
     );
   });
 
-  it('should throw ForbiddenException if user is not logged in', () => {
+  it('deve lançar ForbiddenException se o usuário não estiver logado', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
       .mockReturnValue('some_permission');
@@ -54,7 +54,7 @@ describe('PermissaoGuard', () => {
     );
   });
 
-  it('should throw ForbiddenException if user has no profiles property', () => {
+  it('deve lançar ForbiddenException se o usuário não tiver a propriedade perfis', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
       .mockReturnValue('some_permission');
@@ -67,7 +67,7 @@ describe('PermissaoGuard', () => {
     );
   });
 
-  it('should throw ForbiddenException if user has profiles but no matching permissions', () => {
+  it('deve lançar ForbiddenException se o usuário tiver perfis, mas nenhuma permissão correspondente', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
       .mockReturnValue('REQUIRED_PERMISSION');
@@ -89,7 +89,7 @@ describe('PermissaoGuard', () => {
     );
   });
 
-  it('should return true if user has the required single permission', () => {
+  it('deve retornar true se o usuário tiver a permissão única necessária', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
       .mockReturnValue('REQUIRED_PERMISSION');
@@ -108,7 +108,7 @@ describe('PermissaoGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('should return true if user has one of the required multiple permissions', () => {
+  it('deve retornar true se o usuário tiver uma das múltiplas permissões necessárias', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
       .mockReturnValue(['PERMISSION_A', 'PERMISSION_B']);
@@ -127,7 +127,7 @@ describe('PermissaoGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('should throw ForbiddenException if user has profiles but none of the required multiple permissions', () => {
+  it('deve lançar ForbiddenException se o usuário tiver perfis, mas nenhuma das múltiplas permissões necessárias', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
       .mockReturnValue(['PERMISSION_A', 'PERMISSION_B']);

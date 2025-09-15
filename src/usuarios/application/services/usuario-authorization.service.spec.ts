@@ -15,14 +15,14 @@ describe('UsuarioAuthorizationService', () => {
     );
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(service).toBeDefined();
   });
 
-  describe('canAccessUsuario', () => {
+  describe('pode acessar usuário', () => {
     const usuarioId = 1;
 
-    it('should return true if user is owner', () => {
+    it('deve retornar true se o usuário for o proprietário', () => {
       const usuarioLogado: JwtPayload = {
         email: 'owner@example.com',
         sub: 1,
@@ -31,7 +31,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canAccessUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
 
-    it('should return true if user is admin', () => {
+    it('deve retornar true se o usuário for admin', () => {
       const usuarioLogado: JwtPayload = {
         email: 'admin@example.com',
         sub: 2,
@@ -41,7 +41,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canAccessUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
 
-    it('should return false if user is neither owner nor admin', () => {
+    it('deve retornar false se o usuário não for proprietário nem admin', () => {
       const usuarioLogado: JwtPayload = {
         email: 'user@example.com',
         sub: 2,
@@ -51,7 +51,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canAccessUsuario(usuarioId, usuarioLogado)).toBe(false);
     });
 
-    it('should return false if user is not owner and has no profiles', () => {
+    it('deve retornar false se o usuário não for proprietário e não tiver perfis', () => {
       const usuarioLogado: JwtPayload = {
         email: 'user@example.com',
         sub: 2,
@@ -61,10 +61,10 @@ describe('UsuarioAuthorizationService', () => {
     });
   });
 
-  describe('canUpdateUsuario', () => {
+  describe('pode atualizar usuário', () => {
     const usuarioId = 1;
 
-    it('should return true if user is owner', () => {
+    it('deve retornar true se o usuário for o proprietário', () => {
       const usuarioLogado: JwtPayload = {
         email: 'owner@example.com',
         sub: 1,
@@ -73,7 +73,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canUpdateUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
 
-    it('should return true if user is admin', () => {
+    it('deve retornar true se o usuário for admin', () => {
       const usuarioLogado: JwtPayload = {
         email: 'admin@example.com',
         sub: 2,
@@ -83,7 +83,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canUpdateUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
 
-    it('should return false if user is neither owner nor admin', () => {
+    it('deve retornar false se o usuário não for proprietário nem admin', () => {
       const usuarioLogado: JwtPayload = {
         email: 'user@example.com',
         sub: 2,
@@ -93,7 +93,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canUpdateUsuario(usuarioId, usuarioLogado)).toBe(false);
     });
 
-    it('should return false if user is not owner and has no profiles', () => {
+    it('deve retornar false se o usuário não for proprietário e não tiver perfis', () => {
       const usuarioLogado: JwtPayload = {
         email: 'user@example.com',
         sub: 2,
@@ -103,10 +103,10 @@ describe('UsuarioAuthorizationService', () => {
     });
   });
 
-  describe('canDeleteUsuario', () => {
+  describe('pode deletar usuário', () => {
     const usuarioId = 1;
 
-    it('should return true if user is owner', () => {
+    it('deve retornar true se o usuário for o proprietário', () => {
       const usuarioLogado: JwtPayload = {
         email: 'owner@example.com',
         sub: 1,
@@ -115,7 +115,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canDeleteUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
 
-    it('should return true if user is admin', () => {
+    it('deve retornar true se o usuário for admin', () => {
       const usuarioLogado: JwtPayload = {
         email: 'admin@example.com',
         sub: 2,
@@ -125,7 +125,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canDeleteUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
 
-    it('should return false if user is neither owner nor admin', () => {
+    it('deve retornar false se o usuário não for proprietário nem admin', () => {
       const usuarioLogado: JwtPayload = {
         email: 'user@example.com',
         sub: 2,
@@ -135,7 +135,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canDeleteUsuario(usuarioId, usuarioLogado)).toBe(false);
     });
 
-    it('should return false if user is not owner and has no profiles', () => {
+    it('deve retornar false se o usuário não for proprietário e não tiver perfis', () => {
       const usuarioLogado: JwtPayload = {
         email: 'user@example.com',
         sub: 2,
@@ -145,10 +145,10 @@ describe('UsuarioAuthorizationService', () => {
     });
   });
 
-  describe('canRestoreUsuario', () => {
+  describe('pode restaurar usuário', () => {
     const usuarioId = 1;
 
-    it('should return true if user is admin', () => {
+    it('deve retornar true se o usuário for admin', () => {
       const usuarioLogado: JwtPayload = {
         email: 'admin@example.com',
         sub: 2,
@@ -158,7 +158,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canRestoreUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
 
-    it('should return false if user is not admin', () => {
+    it('deve retornar false se o usuário não for admin', () => {
       const usuarioLogado: JwtPayload = {
         email: 'user@example.com',
         sub: 2,
@@ -168,7 +168,7 @@ describe('UsuarioAuthorizationService', () => {
       expect(service.canRestoreUsuario(usuarioId, usuarioLogado)).toBe(false);
     });
 
-    it('should return false if user has no profiles', () => {
+    it('deve retornar false se o usuário não tiver perfis', () => {
       const usuarioLogado: JwtPayload = {
         email: 'user@example.com',
         sub: 2,

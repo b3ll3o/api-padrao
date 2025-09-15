@@ -14,7 +14,7 @@ describe('TemPermissao Decorator', () => {
     reflector = module.get<Reflector>(Reflector);
   });
 
-  it('should set and retrieve a single permission code', () => {
+  it('deve definir e recuperar um único código de permissão', () => {
     const permission = 'admin';
 
     @Controller()
@@ -31,7 +31,7 @@ describe('TemPermissao Decorator', () => {
     expect(metadata).toBe(permission);
   });
 
-  it('should set and retrieve an array of permission codes', () => {
+  it('deve definir e recuperar um array de códigos de permissão', () => {
     const permissions = ['admin', 'user'];
 
     @Controller()
@@ -48,7 +48,7 @@ describe('TemPermissao Decorator', () => {
     expect(metadata).toEqual(permissions);
   });
 
-  it('should expose PERMISSAO_KEY constant', () => {
+  it('deve expor a constante PERMISSAO_KEY', () => {
     expect(PERMISSAO_KEY).toBe('permissao');
   });
 });

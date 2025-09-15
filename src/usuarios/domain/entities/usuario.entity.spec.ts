@@ -1,7 +1,7 @@
 import { Usuario } from './usuario.entity';
 
 describe('Usuario', () => {
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     const usuario = new Usuario();
     expect(usuario).toBeDefined();
   });

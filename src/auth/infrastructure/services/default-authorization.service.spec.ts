@@ -15,11 +15,11 @@ describe('DefaultAuthorizationService', () => {
     );
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(service).toBeDefined();
   });
 
-  it('should return true if user has ADMIN profile', () => {
+  it('deve retornar true se o usuário tiver perfil ADMIN', () => {
     const user: JwtPayload = {
       email: 'test@example.com',
       sub: 1,
@@ -28,7 +28,7 @@ describe('DefaultAuthorizationService', () => {
     expect(service.isAdmin(user)).toBe(true);
   });
 
-  it('should return false if user does not have ADMIN profile', () => {
+  it('deve retornar false se o usuário não tiver perfil ADMIN', () => {
     const user: JwtPayload = {
       email: 'test@example.com',
       sub: 1,
@@ -37,7 +37,7 @@ describe('DefaultAuthorizationService', () => {
     expect(service.isAdmin(user)).toBe(false);
   });
 
-  it('should return false if user has no profiles', () => {
+  it('deve retornar false se o usuário não tiver perfis', () => {
     const user: JwtPayload = {
       email: 'test@example.com',
       sub: 1,
@@ -46,7 +46,7 @@ describe('DefaultAuthorizationService', () => {
     expect(service.isAdmin(user)).toBe(false);
   });
 
-  it('should return false if user profiles is undefined', () => {
+  it('deve retornar false se os perfis do usuário forem indefinidos', () => {
     const user: JwtPayload = {
       email: 'test@example.com',
       sub: 1,

@@ -53,12 +53,12 @@ describe('PerfisService', () => {
     service = module.get<PerfisService>(PerfisService);
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(service).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a perfil', async () => {
+  describe('criação', () => {
+    it('deve criar um perfil', async () => {
       const createPerfilDto = {
         nome: 'Test Perfil',
         codigo: 'TEST_PERFIL',
@@ -92,7 +92,7 @@ describe('PerfisService', () => {
       expect(mockPermissoesService.findOne).toHaveBeenCalledWith(1);
     });
 
-    it('should create a perfil without permissions', async () => {
+    it('deve criar um perfil sem permissões', async () => {
       const createPerfilDto = {
         nome: 'Test Perfil',
         codigo: 'TEST_PERFIL',
@@ -118,7 +118,7 @@ describe('PerfisService', () => {
       expect(mockPermissoesService.findOne).not.toHaveBeenCalled();
     });
 
-    it('should throw ConflictException if perfil with same name already exists', async () => {
+    it('deve lançar ConflictException se um perfil com o mesmo nome já existir', async () => {
       const createPerfilDto = {
         nome: 'Existing Perfil',
         codigo: 'EXISTING_PERFIL',
@@ -141,7 +141,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.create).not.toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException if permissions do not exist', async () => {
+    it('deve lançar NotFoundException se as permissões não existirem', async () => {
       const createPerfilDto = {
         nome: 'Perfil with Invalid Perms',
         codigo: 'PERFIL_INVALID_PERMS',
@@ -161,7 +161,7 @@ describe('PerfisService', () => {
     });
   });
 
-  describe('findAll', () => {
+  describe('busca de todos', () => {
     const expectedPerfis = [
       {
         id: 1,
@@ -179,7 +179,7 @@ describe('PerfisService', () => {
       },
     ] as Perfil[];
 
-    it('should return a paginated list of non-deleted perfis by default', async () => {
+    it('deve retornar uma lista paginada de perfis não excluídos por padrão', async () => {
       const paginationDto = { page: 1, limit: 10 };
       (mockPerfilRepository.findAll as jest.Mock).mockResolvedValue([
         [expectedPerfis[0]],
@@ -193,7 +193,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.findAll).toHaveBeenCalledWith(0, 10, false); // Default includeDeleted is false
     });
 
-    it('should return a paginated list of all perfis including deleted', async () => {
+    it('deve retornar uma lista paginada de todos os perfis, incluindo os excluídos', async () => {
       const paginationDto = { page: 1, limit: 10 };
       (mockPerfilRepository.findAll as jest.Mock).mockResolvedValue([
         expectedPerfis,
@@ -208,7 +208,7 @@ describe('PerfisService', () => {
     });
   });
 
-  describe('findOne', () => {
+  describe('busca por um', () => {
     const expectedPerfil = {
       id: 1,
       nome: 'Test Perfil',
@@ -217,7 +217,7 @@ describe('PerfisService', () => {
       deletedAt: null,
     } as Perfil;
 
-    it('should return a single perfil (not deleted) by default', async () => {
+    it('deve retornar um único perfil (não excluído) por padrão', async () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
         expectedPerfil,
       );
@@ -228,7 +228,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, false); // Default includeDeleted is false
     });
 
-    it('should return a single perfil including deleted', async () => {
+    it('deve retornar um único perfil, incluindo os excluídos', async () => {
       const deletedPerfil = { ...expectedPerfil, deletedAt: new Date() };
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
         deletedPerfil,
@@ -240,7 +240,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true);
     });
 
-    it('should throw NotFoundException if perfil not found', async () => {
+    it('deve lançar NotFoundException se o perfil não for encontrado', async () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
@@ -248,7 +248,7 @@ describe('PerfisService', () => {
     });
   });
 
-  describe('findByNome', () => {
+  describe('busca por nome', () => {
     const expectedPerfis = [
       {
         id: 1,
@@ -266,7 +266,7 @@ describe('PerfisService', () => {
       },
     ] as Perfil[];
 
-    it('should return a paginated list of non-deleted perfis containing the name by default', async () => {
+    it('deve retornar uma lista paginada de perfis não excluídos contendo o nome por padrão', async () => {
       const paginationDto = { page: 1, limit: 10 };
       (
         mockPerfilRepository.findByNomeContaining as jest.Mock
@@ -284,7 +284,7 @@ describe('PerfisService', () => {
       );
     });
 
-    it('should return a paginated list of all perfis containing the name including deleted', async () => {
+    it('deve retornar uma lista paginada de todos os perfis contendo o nome, incluindo os excluídos', async () => {
       const paginationDto = { page: 1, limit: 10 };
       (
         mockPerfilRepository.findByNomeContaining as jest.Mock
@@ -307,7 +307,7 @@ describe('PerfisService', () => {
     });
   });
 
-  describe('update', () => {
+  describe('atualização', () => {
     const existingPerfil = {
       id: 1,
       nome: 'Old Perfil',
@@ -316,7 +316,7 @@ describe('PerfisService', () => {
       deletedAt: null,
     } as Perfil;
 
-    it('should update a perfil', async () => {
+    it('deve atualizar um perfil', async () => {
       const updatePerfilDto = {
         nome: 'Updated Perfil',
         codigo: 'UPDATED_PERFIL',
@@ -362,7 +362,7 @@ describe('PerfisService', () => {
       expect(mockPermissoesService.findOne).toHaveBeenCalledWith(1);
     });
 
-    it('should update a perfil without permissions', async () => {
+    it('deve atualizar um perfil sem permissões', async () => {
       const updatePerfilDto = {
         nome: 'Updated Perfil',
         codigo: 'UPDATED_PERFIL',
@@ -391,7 +391,7 @@ describe('PerfisService', () => {
       expect(mockPermissoesService.findOne).not.toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException if perfil to update not found', async () => {
+    it('deve lançar NotFoundException se o perfil a ser atualizado não for encontrado', async () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(
@@ -401,7 +401,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.update).not.toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException if permissions do not exist', async () => {
+    it('deve lançar NotFoundException se as permissões não existirem', async () => {
       const updatePerfilDto = {
         nome: 'Perfil with Invalid Perms',
         permissoesIds: [999],
@@ -421,7 +421,7 @@ describe('PerfisService', () => {
     });
   });
 
-  describe('remove', () => {
+  describe('remoção', () => {
     const mockPerfil = {
       id: 1,
       nome: 'Test Perfil',
@@ -442,7 +442,7 @@ describe('PerfisService', () => {
       perfis: [{ codigo: 'USER' }], // Corrected perfis structure
     };
 
-    it('should soft delete a perfil if admin', async () => {
+    it('deve realizar soft delete de um perfil se for admin', async () => {
       const softDeletedPerfil = { ...mockPerfil, deletedAt: new Date() };
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(mockPerfil); // Find only non-deleted
       (mockPerfilRepository.remove as jest.Mock).mockResolvedValue(
@@ -456,7 +456,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.remove).toHaveBeenCalledWith(1);
     });
 
-    it('should throw NotFoundException if perfil not found', async () => {
+    it('deve lançar NotFoundException se o perfil não for encontrado', async () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(service.remove(999, mockAdminUsuarioLogado)).rejects.toThrow(
@@ -466,7 +466,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.remove).not.toHaveBeenCalled();
     });
 
-    it('should throw ForbiddenException if not admin', async () => {
+    it('deve lançar ForbiddenException se não for admin', async () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(mockPerfil);
 
       await expect(service.remove(1, mockUserUsuarioLogado)).rejects.toThrow(
@@ -477,7 +477,7 @@ describe('PerfisService', () => {
     });
   });
 
-  describe('restore', () => {
+  describe('restauração', () => {
     const mockPerfil = {
       id: 1,
       nome: 'Test Perfil',
@@ -498,7 +498,7 @@ describe('PerfisService', () => {
       perfis: [{ codigo: 'USER' }], // Corrected perfis structure
     };
 
-    it('should restore a soft-deleted perfil if admin', async () => {
+    it('deve restaurar um perfil com soft delete se for admin', async () => {
       const restoredPerfil = { ...mockPerfil, deletedAt: null };
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(mockPerfil); // Find soft-deleted perfil
       (mockPerfilRepository.restore as jest.Mock).mockResolvedValue(
@@ -512,7 +512,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.restore).toHaveBeenCalledWith(1);
     });
 
-    it('should throw NotFoundException if perfil not found', async () => {
+    it('deve lançar NotFoundException se o perfil não for encontrado', async () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(
@@ -522,7 +522,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.restore).not.toHaveBeenCalled();
     });
 
-    it('should throw ConflictException if perfil is not soft-deleted', async () => {
+    it('deve lançar ConflictException se o perfil não estiver com soft delete', async () => {
       const nonDeletedPerfil = { ...mockPerfil, deletedAt: null };
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
         nonDeletedPerfil,
@@ -535,7 +535,7 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.restore).not.toHaveBeenCalled();
     });
 
-    it('should throw ForbiddenException if not admin', async () => {
+    it('deve lançar ForbiddenException se não for admin', async () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(mockPerfil);
 
       await expect(service.restore(1, mockUserUsuarioLogado)).rejects.toThrow(

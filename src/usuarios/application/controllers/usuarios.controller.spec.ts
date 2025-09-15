@@ -33,12 +33,12 @@ describe('UsuariosController', () => {
     service = module.get<UsuariosService>(UsuariosService);
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a user', async () => {
+  describe('criação', () => {
+    it('deve criar um usuário', async () => {
       const createDto: CreateUsuarioDto = {
         email: 'test@example.com',
         senha: 'Password123!',
@@ -53,8 +53,8 @@ describe('UsuariosController', () => {
     });
   });
 
-  describe('findOne', () => {
-    it('should return a user', async () => {
+  describe('busca por um', () => {
+    it('deve retornar um usuário', async () => {
       const user = new Usuario();
       mockUsuariosService.findOne.mockResolvedValue(user);
       const req = {
@@ -68,8 +68,8 @@ describe('UsuariosController', () => {
     });
   });
 
-  describe('update', () => {
-    it('should update a user', async () => {
+  describe('atualização', () => {
+    it('deve atualizar um usuário', async () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
       const updatedUser = new Usuario();
       mockUsuariosService.update.mockResolvedValue(updatedUser);
@@ -88,8 +88,8 @@ describe('UsuariosController', () => {
     });
   });
 
-  describe('remove', () => {
-    it('should remove a user', async () => {
+  describe('remoção', () => {
+    it('deve remover um usuário', async () => {
       const user = new Usuario();
       mockUsuariosService.remove.mockResolvedValue(user);
       const req = {
@@ -103,8 +103,8 @@ describe('UsuariosController', () => {
     });
   });
 
-  describe('restore', () => {
-    it('should restore a user', async () => {
+  describe('restauração', () => {
+    it('deve restaurar um usuário', async () => {
       const user = new Usuario();
       mockUsuariosService.restore.mockResolvedValue(user);
       const req = {

@@ -49,12 +49,12 @@ describe('AuthService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(service).toBeDefined();
   });
 
   describe('login', () => {
-    it('should return an access token with user, profiles, and permissions if login is successful', async () => {
+    it('deve retornar um token de acesso com usuário, perfis e permissões se o login for bem-sucedido', async () => {
       const mockPermissao: Permissao = {
         id: 1,
         nome: 'read:users',
@@ -118,7 +118,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw UnauthorizedException if user does not exist', async () => {
+    it('deve lançar UnauthorizedException se o usuário não existir', async () => {
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         null,
       );
@@ -137,7 +137,7 @@ describe('AuthService', () => {
       expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
 
-    it('should throw UnauthorizedException if password is invalid', async () => {
+    it('deve lançar UnauthorizedException se a senha for inválida', async () => {
       const mockUser: Usuario = {
         id: 1,
         email: 'test@example.com',

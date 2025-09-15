@@ -50,12 +50,12 @@ describe('PerfisController', () => {
     service = module.get<PerfisService>(PerfisService);
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a perfil', async () => {
+  describe('criação', () => {
+    it('deve criar um perfil', async () => {
       const createPerfilDto: CreatePerfilDto = {
         nome: 'Test Perfil',
         codigo: 'TEST_PERFIL',
@@ -74,8 +74,8 @@ describe('PerfisController', () => {
     });
   });
 
-  describe('findAll', () => {
-    it('should return a paginated list of perfis', async () => {
+  describe('busca de todos', () => {
+    it('deve retornar uma lista paginada de perfis', async () => {
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       const expectedResponse: PaginatedResponseDto<Perfil> = {
         data: [
@@ -102,8 +102,8 @@ describe('PerfisController', () => {
     });
   });
 
-  describe('findOne', () => {
-    it('should return a single perfil by ID', async () => {
+  describe('busca por um', () => {
+    it('deve retornar um único perfil por ID', async () => {
       const id = '1';
       const expectedPerfil = {
         id: 1,
@@ -122,8 +122,8 @@ describe('PerfisController', () => {
     });
   });
 
-  describe('findByName', () => {
-    it('should return a paginated list of perfis by name', async () => {
+  describe('busca por nome', () => {
+    it('deve retornar uma lista paginada de perfis por nome', async () => {
       const nome = 'Test';
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       const expectedResponse: PaginatedResponseDto<Perfil> = {
@@ -154,8 +154,8 @@ describe('PerfisController', () => {
     });
   });
 
-  describe('update', () => {
-    it('should update a perfil', async () => {
+  describe('atualização', () => {
+    it('deve atualizar um perfil', async () => {
       const id = '1';
       const updatePerfilDto: UpdatePerfilDto = {
         nome: 'Updated Perfil',
@@ -173,7 +173,7 @@ describe('PerfisController', () => {
     });
   });
 
-  describe('remove', () => {
+  describe('remoção', () => {
     const mockPerfil = {
       id: 1,
       nome: 'Test Perfil',
@@ -186,7 +186,7 @@ describe('PerfisController', () => {
       deletedAt: new Date(),
     } as Perfil;
 
-    it('should soft delete a perfil', async () => {
+    it('deve realizar soft delete de um perfil', async () => {
       (mockPerfisService.remove as jest.Mock).mockResolvedValue(
         softDeletedPerfil,
       );
@@ -197,7 +197,7 @@ describe('PerfisController', () => {
       expect(service.remove).toHaveBeenCalledWith(1, req.usuarioLogado);
     });
 
-    it('should throw ForbiddenException if user is not authenticated', async () => {
+    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
       const req: Partial<Request> = { usuarioLogado: undefined };
       let error: any;
       try {
@@ -210,7 +210,7 @@ describe('PerfisController', () => {
     });
   });
 
-  describe('restore', () => {
+  describe('restauração', () => {
     const mockPerfil = {
       id: 1,
       nome: 'Test Perfil',
@@ -220,7 +220,7 @@ describe('PerfisController', () => {
     } as Perfil; // Corrected
     const restoredPerfil = { ...mockPerfil, deletedAt: null } as Perfil;
 
-    it('should restore a perfil', async () => {
+    it('deve restaurar um perfil', async () => {
       (mockPerfisService.restore as jest.Mock).mockResolvedValue(
         restoredPerfil,
       );
@@ -231,7 +231,7 @@ describe('PerfisController', () => {
       expect(service.restore).toHaveBeenCalledWith(1, req.usuarioLogado);
     });
 
-    it('should throw ForbiddenException if user is not authenticated', async () => {
+    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
       const req: Partial<Request> = { usuarioLogado: undefined };
       let error: any;
       try {

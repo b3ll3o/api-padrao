@@ -78,12 +78,12 @@ describe('UsuariosService', () => {
     service = module.get<UsuariosService>(UsuariosService);
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(service).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a user', async () => {
+  describe('criação', () => {
+    it('deve criar um usuário', async () => {
       const createDto: CreateUsuarioDto = {
         email: 'test@example.com',
         senha: 'Password123!',
@@ -107,7 +107,7 @@ describe('UsuariosService', () => {
       expect(mockUsuarioRepository.create).toHaveBeenCalled();
     });
 
-    it('should throw ConflictException if email already exists', async () => {
+    it('deve lançar ConflictException se o email já existir', async () => {
       const createDto: CreateUsuarioDto = {
         email: 'test@example.com',
         senha: 'Password123!',
@@ -124,7 +124,7 @@ describe('UsuariosService', () => {
     });
   });
 
-  describe('findOne', () => {
+  describe('busca por um', () => {
     const mockUser = new Usuario();
     mockUser.id = 1;
     mockUser.email = 'test@example.com';
@@ -153,7 +153,7 @@ describe('UsuariosService', () => {
       perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
     };
 
-    it('should return a user if found and is owner', async () => {
+    it('deve retornar um usuário se encontrado e for o proprietário', async () => {
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
 
       const result = await service.findOne(1, mockUsuarioLogado);
@@ -162,7 +162,7 @@ describe('UsuariosService', () => {
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1, false); // Default includeDeleted is false
     });
 
-    it('should return a user if found and is admin', async () => {
+    it('deve retornar um usuário se encontrado e for admin', async () => {
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
 
       const result = await service.findOne(1, mockAdminUsuarioLogado);
@@ -171,7 +171,7 @@ describe('UsuariosService', () => {
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1, false);
     });
 
-    it('should return a user if found and includeDeleted is true', async () => {
+    it('deve retornar um usuário se encontrado e includeDeleted for true', async () => {
       const deletedUser = { ...mockUser, deletedAt: new Date() };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
         deletedUser,
@@ -183,7 +183,7 @@ describe('UsuariosService', () => {
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1, true);
     });
 
-    it('should throw NotFoundException if user not found', async () => {
+    it('deve lançar NotFoundException se o usuário não for encontrado', async () => {
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(service.findOne(999, mockUsuarioLogado)).rejects.toThrow(
@@ -191,7 +191,7 @@ describe('UsuariosService', () => {
       );
     });
 
-    it('should throw ForbiddenException if not owner and not admin', async () => {
+    it('deve lançar ForbiddenException se não for proprietário nem admin', async () => {
       const anotherUser = new Usuario();
       anotherUser.id = 3;
       anotherUser.email = 'another@example.com';
@@ -209,7 +209,7 @@ describe('UsuariosService', () => {
     });
   });
 
-  describe('update', () => {
+  describe('atualização', () => {
     const mockUser = new Usuario();
     mockUser.id = 1;
     mockUser.email = 'test@example.com';
@@ -238,7 +238,7 @@ describe('UsuariosService', () => {
       perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
     };
 
-    it('should update a user if found and is owner', async () => {
+    it('deve atualizar um usuário se encontrado e for o proprietário', async () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
       const updatedUser = { ...mockUser, email: 'updated@example.com' };
 
@@ -261,7 +261,7 @@ describe('UsuariosService', () => {
       );
     });
 
-    it('should update a user if found and is admin', async () => {
+    it('deve atualizar um usuário se encontrado e for admin', async () => {
       const updateDto: UpdateUsuarioDto = {
         email: 'admin_updated@example.com',
       };
@@ -286,7 +286,7 @@ describe('UsuariosService', () => {
       );
     });
 
-    it('should throw NotFoundException if user not found', async () => {
+    it('deve lançar NotFoundException se o usuário não for encontrado', async () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' }; // Defined within scope
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(null);
 
@@ -295,7 +295,7 @@ describe('UsuariosService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ForbiddenException if not owner and not admin', async () => {
+    it('deve lançar ForbiddenException se não for proprietário nem admin', async () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
       const anotherUser = new Usuario();
       anotherUser.id = 3;
@@ -316,7 +316,7 @@ describe('UsuariosService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should throw ConflictException if email already in use by another user', async () => {
+    it('deve lançar ConflictException se o email já estiver em uso por outro usuário', async () => {
       const updateDto: UpdateUsuarioDto = { email: 'existing@example.com' };
       const existingUser = new Usuario();
       existingUser.id = 2;
@@ -333,7 +333,7 @@ describe('UsuariosService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('should throw ForbiddenException if non-admin tries to change perfisIds', async () => {
+    it('deve lançar ForbiddenException se um não-admin tentar alterar perfisIds', async () => {
       const updateDto: UpdateUsuarioDto = { perfisIds: [99] };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
       mockUsuarioAuthorizationService.canUpdateUsuario.mockReturnValueOnce(
@@ -347,7 +347,7 @@ describe('UsuariosService', () => {
     });
   });
 
-  describe('remove', () => {
+  describe('remoção', () => {
     const mockUser = new Usuario();
     mockUser.id = 1;
     mockUser.email = 'test@example.com';
@@ -376,7 +376,7 @@ describe('UsuariosService', () => {
       perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
     };
 
-    it('should soft delete a user if found and is owner', async () => {
+    it('deve realizar soft delete de um usuário se encontrado e for o proprietário', async () => {
       const softDeletedUser = { ...mockUser, deletedAt: new Date() };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
       (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(
@@ -390,7 +390,7 @@ describe('UsuariosService', () => {
       expect(mockUsuarioRepository.remove).toHaveBeenCalledWith(1);
     });
 
-    it('should soft delete a user if found and is admin', async () => {
+    it('deve realizar soft delete de um usuário se encontrado e for admin', async () => {
       const softDeletedUser = { ...mockUser, deletedAt: new Date() };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
       (mockUsuarioRepository.remove as jest.Mock).mockResolvedValue(
@@ -404,7 +404,7 @@ describe('UsuariosService', () => {
       expect(mockUsuarioRepository.remove).toHaveBeenCalledWith(1);
     });
 
-    it('should throw NotFoundException if user not found', async () => {
+    it('deve lançar NotFoundException se o usuário não for encontrado', async () => {
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(service.remove(999, mockUsuarioLogado)).rejects.toThrow(
@@ -412,7 +412,7 @@ describe('UsuariosService', () => {
       );
     });
 
-    it('should throw ForbiddenException if not owner and not admin', async () => {
+    it('deve lançar ForbiddenException se não for proprietário nem admin', async () => {
       const anotherUser = new Usuario();
       anotherUser.id = 3;
       anotherUser.email = 'another@example.com';
@@ -433,7 +433,7 @@ describe('UsuariosService', () => {
     });
   });
 
-  describe('restore', () => {
+  describe('restauração', () => {
     const mockUser = new Usuario();
     mockUser.id = 1;
     mockUser.email = 'test@example.com';
@@ -448,7 +448,7 @@ describe('UsuariosService', () => {
       perfis: [{ codigo: 'ADMIN' }], // Corrected perfis structure
     };
 
-    it('should restore a soft-deleted user if admin', async () => {
+    it('deve restaurar um usuário com soft delete se for admin', async () => {
       const restoredUser = { ...mockUser, deletedAt: null };
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(mockUser); // Find soft-deleted user
       (mockUsuarioRepository.restore as jest.Mock).mockResolvedValue(
@@ -462,7 +462,7 @@ describe('UsuariosService', () => {
       expect(mockUsuarioRepository.restore).toHaveBeenCalledWith(1);
     });
 
-    it('should throw NotFoundException if user not found', async () => {
+    it('deve lançar NotFoundException se o usuário não for encontrado', async () => {
       (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(
@@ -470,7 +470,7 @@ describe('UsuariosService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ConflictException if user is not soft-deleted', async () => {
+    it('deve lançar ConflictException se o usuário não estiver com soft delete', async () => {
       const nonDeletedUser = new Usuario();
       nonDeletedUser.id = 1;
       nonDeletedUser.email = 'test@example.com';
@@ -484,7 +484,7 @@ describe('UsuariosService', () => {
       );
     });
 
-    it('should throw ForbiddenException if not admin', async () => {
+    it('deve lançar ForbiddenException se não for admin', async () => {
       const mockUsuarioLogado: JwtPayload = {
         userId: 1,
         email: 'test@example.com',

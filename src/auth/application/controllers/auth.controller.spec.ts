@@ -26,12 +26,12 @@ describe('AuthController', () => {
     authService = module.get<AuthService>(AuthService);
   });
 
-  it('should be defined', () => {
+  it('deve ser definido', () => {
     expect(controller).toBeDefined();
   });
 
   describe('login', () => {
-    it('should call authService.login and return the result', async () => {
+    it('deve chamar authService.login e retornar o resultado', async () => {
       const loginDto: LoginUsuarioDto = {
         email: 'test@example.com',
         senha: 'password123',
