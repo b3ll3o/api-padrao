@@ -66,3 +66,4 @@ To ensure code quality, maintainability, and adherence to best practices, the fo
     *   **Linting:** The linter must be run and pass without errors or warnings before every commit.
     *   **Documentation Update:** Always update the project documentation (Swagger annotations and `README.md`) before committing.
 *   **Test Message Language:** All descriptive messages within unit and integration tests (e.g., `describe` and `it` block descriptions) must be written in Brazilian Portuguese (pt-br).
+*   **Pagination for List Searches:** All searches returning a list of objects must be paginated. The default page size should be 10. Pagination should support ordering, and the response must include the total number of pages and total number of elements.

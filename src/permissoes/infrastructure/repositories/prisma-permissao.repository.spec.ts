@@ -83,7 +83,7 @@ describe('PrismaPermissaoRepository', () => {
       },
     ];
 
-        it('deve retornar uma lista de permissões não excluídas e a contagem total por padrão', async () => {
+    it('deve retornar uma lista de permissões não excluídas e a contagem total por padrão', async () => {
       mockPrismaService.permissao.findMany.mockResolvedValue([
         prismaResults[0],
       ]); // Only return non-deleted
