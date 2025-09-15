@@ -9,8 +9,8 @@ import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 import { PerfilRepository } from '../../domain/repositories/perfil.repository';
 import { Perfil } from '../../domain/entities/perfil.entity';
 import { PermissoesService } from '../../../permissoes/application/services/permissoes.service';
-import { PaginationDto } from '../../../dto/pagination.dto';
-import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
+import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 
 type UsuarioLogado = JwtPayload;

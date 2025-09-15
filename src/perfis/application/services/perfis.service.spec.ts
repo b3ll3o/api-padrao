@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PerfisService } from './perfis.service';
 import { PerfilRepository } from '../../domain/repositories/perfil.repository';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PermissoesService } from '../../../permissoes/application/services/permissoes.service'; // Corrected import
 import { Perfil } from '../../domain/entities/perfil.entity';
 import {
   ConflictException,
@@ -10,6 +9,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+import { PermissoesService } from '../../../permissoes/application/services/permissoes.service';
 
 describe('PerfisService', () => {
   let service: PerfisService;

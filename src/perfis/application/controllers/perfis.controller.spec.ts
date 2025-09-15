@@ -4,8 +4,8 @@ import { PerfisService } from '../services/perfis.service';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
 import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 import { Perfil } from '../../domain/entities/perfil.entity';
-import { PaginationDto } from '../../../dto/pagination.dto';
-import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
+import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { Request } from 'express'; // Import Request
 import { ForbiddenException } from '@nestjs/common'; // Import ForbiddenException
 

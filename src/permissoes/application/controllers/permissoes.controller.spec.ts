@@ -4,8 +4,8 @@ import { PermissoesService } from '../services/permissoes.service';
 import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
 import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';
 import { Permissao } from '../../domain/entities/permissao.entity';
-import { PaginationDto } from '../../../dto/pagination.dto';
-import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
+import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { Request } from 'express'; // Import Request
 import { ForbiddenException } from '@nestjs/common'; // Import ForbiddenException
 

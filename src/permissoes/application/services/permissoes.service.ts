@@ -8,8 +8,8 @@ import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
 import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';
 import { PermissaoRepository } from '../../domain/repositories/permissao.repository';
 import { Permissao } from '../../domain/entities/permissao.entity';
-import { PaginationDto } from '../../../dto/pagination.dto';
-import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
+import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { AuthorizationService } from 'src/shared/domain/services/authorization.service'; // Added
 

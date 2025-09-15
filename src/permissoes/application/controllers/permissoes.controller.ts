@@ -23,8 +23,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
-import { PaginationDto } from '../../../dto/pagination.dto';
-import { PaginatedResponseDto } from '../../../dto/paginated-response.dto';
+import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { Request } from 'express';
 
 @ApiTags('Permissoes')
