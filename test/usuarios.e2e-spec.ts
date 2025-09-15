@@ -36,6 +36,32 @@ async function setupAdminUserAndProfile(
   return { adminUser, adminToken };
 }
 
+async function findOrCreatePermissao(
+  prisma: PrismaService,
+  data: { nome: string; codigo: string; descricao: string },
+) {
+  let permissao = await prisma.permissao.findUnique({
+    where: { nome: data.nome },
+  });
+  if (!permissao) {
+    permissao = await prisma.permissao.create({ data });
+  }
+  return permissao;
+}
+
+async function findOrCreatePerfil(
+  prisma: PrismaService,
+  data: { nome: string; codigo: string; descricao: string; permissoes?: any },
+) {
+  let perfil = await prisma.perfil.findUnique({
+    where: { nome: data.nome },
+  });
+  if (!perfil) {
+    perfil = await prisma.perfil.create({ data });
+  }
+  return perfil;
+}
+
 describe('UsuariosController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -66,32 +92,25 @@ describe('UsuariosController (e2e)', () => {
   describe('POST /usuarios', () => {
     // Clean database before each test in this describe block
     beforeEach(async () => {
-      await cleanDatabase(prisma);
       // Create permissions for admin user setup
-      const permReadUsers = await prisma.permissao.create({
-        data: {
-          nome: 'read:users',
-          codigo: 'READ_USERS',
-          descricao: 'Permissão para ler usuários',
-        },
+      const permReadUsers = await findOrCreatePermissao(prisma, {
+        nome: 'read:users',
+        codigo: 'READ_USERS',
+        descricao: 'Permissão para ler usuários',
       });
-      const permWriteUsers = await prisma.permissao.create({
-        data: {
-          nome: 'write:users',
-          codigo: 'WRITE_USERS',
-          descricao: 'Permissão para escrever usuários',
-        },
+      const permWriteUsers = await findOrCreatePermissao(prisma, {
+        nome: 'write:users',
+        codigo: 'WRITE_USERS',
+        descricao: 'Permissão para escrever usuários',
       });
 
       // Create an admin profile with permissions
-      const adminProfile = await prisma.perfil.create({
-        data: {
-          nome: 'Admin',
-          codigo: 'ADMIN',
-          descricao: 'Perfil de administrador',
-          permissoes: {
-            connect: [{ id: permReadUsers.id }, { id: permWriteUsers.id }],
-          },
+      const adminProfile = await findOrCreatePerfil(prisma, {
+        nome: 'Admin',
+        codigo: 'ADMIN',
+        descricao: 'Perfil de administrador',
+        permissoes: {
+          connect: [{ id: permReadUsers.id }, { id: permWriteUsers.id }],
         },
       });
 
@@ -280,36 +299,29 @@ describe('UsuariosController (e2e)', () => {
     let deletedUser;
 
     beforeEach(async () => {
-      await cleanDatabase(prisma); // Clean database before each test in this describe block
 
       // Create permissions
-      const readUsuarioByIdPerm = await prisma.permissao.create({
-        data: {
-          nome: 'read:usuario_by_id',
-          codigo: 'READ_USUARIO_BY_ID',
-          descricao: 'Permissão para ler usuários por ID',
-        },
+      const readUsuarioByIdPerm = await findOrCreatePermissao(prisma, {
+        nome: 'read:usuario_by_id',
+        codigo: 'READ_USUARIO_BY_ID',
+        descricao: 'Permissão para ler usuários por ID',
       });
-      const deleteUsuarioPerm = await prisma.permissao.create({
-        data: {
-          nome: 'delete:usuario',
-          codigo: 'DELETE_USUARIO',
-          descricao: 'Permissão para deletar usuários',
-        },
+      const deleteUsuarioPerm = await findOrCreatePermissao(prisma, {
+        nome: 'delete:usuario',
+        codigo: 'DELETE_USUARIO',
+        descricao: 'Permissão para deletar usuários',
       });
 
       // Create an admin profile with permissions
-      const adminProfile = await prisma.perfil.create({
-        data: {
-          nome: 'Admin',
-          codigo: 'ADMIN',
-          descricao: 'Perfil de administrador',
-          permissoes: {
-            connect: [
-              { id: readUsuarioByIdPerm.id },
-              { id: deleteUsuarioPerm.id },
-            ],
-          },
+      const adminProfile = await findOrCreatePerfil(prisma, {
+        nome: 'Admin',
+        codigo: 'ADMIN',
+        descricao: 'Perfil de administrador',
+        permissoes: {
+          connect: [
+            { id: readUsuarioByIdPerm.id },
+            { id: deleteUsuarioPerm.id },
+          ],
         },
       });
 
@@ -444,44 +456,35 @@ describe('UsuariosController (e2e)', () => {
     let restoreUsuarioPerm;
 
     beforeEach(async () => {
-      await cleanDatabase(prisma); // Clean database before each test in this describe block
 
       // Create permissions
-      const updateUsuarioPerm = await prisma.permissao.create({
-        data: {
-          nome: 'update:usuario',
-          codigo: 'UPDATE_USUARIO',
-          descricao: 'Permissão para atualizar usuários',
-        },
+      const updateUsuarioPerm = await findOrCreatePermissao(prisma, {
+        nome: 'update:usuario',
+        codigo: 'UPDATE_USUARIO',
+        descricao: 'Permissão para atualizar usuários',
       });
-      const readUsuarioByIdPerm = await prisma.permissao.create({
-        data: {
-          nome: 'read:usuario_by_id',
-          codigo: 'READ_USUARIO_BY_ID',
-          descricao: 'Permissão para ler usuários por ID',
-        },
+      const readUsuarioByIdPerm = await findOrCreatePermissao(prisma, {
+        nome: 'read:usuario_by_id',
+        codigo: 'READ_USUARIO_BY_ID',
+        descricao: 'Permissão para ler usuários por ID',
       });
-      restoreUsuarioPerm = await prisma.permissao.create({
-        data: {
-          nome: 'restore:usuario',
-          codigo: 'RESTORE_USUARIO',
-          descricao: 'Permissão para restaurar usuários',
-        },
+      restoreUsuarioPerm = await findOrCreatePermissao(prisma, {
+        nome: 'restore:usuario',
+        codigo: 'RESTORE_USUARIO',
+        descricao: 'Permissão para restaurar usuários',
       });
 
       // Create an admin profile with permissions
-      const adminProfile = await prisma.perfil.create({
-        data: {
-          nome: 'Admin',
-          codigo: 'ADMIN',
-          descricao: 'Perfil de administrador',
-          permissoes: {
-            connect: [
-              { id: updateUsuarioPerm.id },
-              { id: restoreUsuarioPerm.id },
-              { id: readUsuarioByIdPerm.id },
-            ],
-          },
+      const adminProfile = await findOrCreatePerfil(prisma, {
+        nome: 'Admin',
+        codigo: 'ADMIN',
+        descricao: 'Perfil de administrador',
+        permissoes: {
+          connect: [
+            { id: updateUsuarioPerm.id },
+            { id: restoreUsuarioPerm.id },
+            { id: readUsuarioByIdPerm.id },
+          ],
         },
       });
 
@@ -659,44 +662,35 @@ describe('UsuariosController (e2e)', () => {
     let restoreUsuarioPerm;
 
     beforeEach(async () => {
-      await cleanDatabase(prisma); // Clean database before each test in this describe block
 
       // Create permissions
-      const deleteUsuarioPerm = await prisma.permissao.create({
-        data: {
-          nome: 'delete:usuario',
-          codigo: 'DELETE_USUARIO',
-          descricao: 'Permissão para deletar usuários',
-        },
+      const deleteUsuarioPerm = await findOrCreatePermissao(prisma, {
+        nome: 'delete:usuario',
+        codigo: 'DELETE_USUARIO',
+        descricao: 'Permissão para deletar usuários',
       });
-      const readUsuarioByIdPerm = await prisma.permissao.create({
-        data: {
-          nome: 'read:usuario_by_id',
-          codigo: 'READ_USUARIO_BY_ID',
-          descricao: 'Permissão para ler usuários por ID',
-        },
+      const readUsuarioByIdPerm = await findOrCreatePermissao(prisma, {
+        nome: 'read:usuario_by_id',
+        codigo: 'READ_USUARIO_BY_ID',
+        descricao: 'Permissão para ler usuários por ID',
       });
-      restoreUsuarioPerm = await prisma.permissao.create({
-        data: {
-          nome: 'restore:usuario',
-          codigo: 'RESTORE_USUARIO',
-          descricao: 'Permissão para restaurar usuários',
-        },
+      restoreUsuarioPerm = await findOrCreatePermissao(prisma, {
+        nome: 'restore:usuario',
+        codigo: 'RESTORE_USUARIO',
+        descricao: 'Permissão para restaurar usuários',
       });
 
       // Create an admin profile with permissions
-      const adminProfile = await prisma.perfil.create({
-        data: {
-          nome: 'Admin',
-          codigo: 'ADMIN',
-          descricao: 'Perfil de administrador',
-          permissoes: {
-            connect: [
-              { id: deleteUsuarioPerm.id },
-              { id: restoreUsuarioPerm.id },
-              { id: readUsuarioByIdPerm.id },
-            ],
-          },
+      const adminProfile = await findOrCreatePerfil(prisma, {
+        nome: 'Admin',
+        codigo: 'ADMIN',
+        descricao: 'Perfil de administrador',
+        permissoes: {
+          connect: [
+            { id: deleteUsuarioPerm.id },
+            { id: restoreUsuarioPerm.id },
+            { id: readUsuarioByIdPerm.id },
+          ],
         },
       });
 
@@ -727,6 +721,7 @@ describe('UsuariosController (e2e)', () => {
         },
         include: { perfis: { include: { permissoes: true } } },
       });
+
 
       // Create tokens
       userToken = jwtService.sign({

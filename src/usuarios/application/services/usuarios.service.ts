@@ -109,7 +109,10 @@ export class UsuariosService {
         if (usuario.deletedAt !== null) {
           throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
         }
-        if (!this.usuarioAuthorizationService.canDeleteUsuario(usuario.id, usuarioLogado)) {
+        // For soft-delete via PATCH, only admins should be able to do this.
+        // A regular user cannot soft-delete themselves via PATCH.
+        const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
+        if (!isAdmin) {
           throw new ForbiddenException('Você não tem permissão para deletar este usuário');
         }
         const softDeletedUsuario = await this.usuarioRepository.remove(id);
@@ -181,9 +184,12 @@ export class UsuariosService {
 
   async remove(id: number, usuarioLogado: UsuarioLogado): Promise<Usuario> {
     // Changed return type to Usuario
-    const usuario = await this.usuarioRepository.findOne(id); // Find only non-deleted
+    const usuario = await this.usuarioRepository.findOne(id, true); // Find including deleted
     if (!usuario) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+    if (usuario.deletedAt !== null) {
+      throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
     }
 
     if (

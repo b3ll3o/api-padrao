@@ -150,6 +150,11 @@ export class PerfisService {
       delete updatePerfilDto.ativo;
     }
 
+    // If there are no other fields to update besides 'ativo', return the locally modified 'perfil'
+    if (Object.keys(updatePerfilDto).length === 0) {
+      return perfil;
+    }
+
     const updatedPerfil = await this.perfilRepository.update(
       id,
       updatePerfilDto,

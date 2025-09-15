@@ -16,6 +16,34 @@ describe('PerfisService', () => {
   let mockPerfilRepository: Partial<PerfilRepository>;
   let mockPermissoesService: Partial<PermissoesService>;
 
+  const existingPerfil = {
+    id: 1,
+    nome: 'Old Perfil',
+    codigo: 'OLD_PERFIL',
+    descricao: 'Old Description',
+    deletedAt: null,
+  } as Perfil;
+
+  const mockAdminUsuarioLogado: JwtPayload = {
+    userId: 1,
+    email: 'admin@example.com',
+    perfis: [{ codigo: 'ADMIN' }],
+  };
+
+  const mockUserUsuarioLogado: JwtPayload = {
+    userId: 2,
+    email: 'user@example.com',
+    perfis: [{ codigo: 'USER' }],
+  };
+
+  type UpdatePerfilDto = {
+    nome?: string;
+    codigo?: string;
+    descricao?: string;
+    ativo?: boolean;
+    permissoesIds?: number[];
+  };
+
   beforeEach(async () => {
     mockPerfilRepository = {
       create: jest.fn(),
@@ -24,6 +52,8 @@ describe('PerfisService', () => {
       update: jest.fn(),
       findByNome: jest.fn(),
       findByNomeContaining: jest.fn(),
+      restore: jest.fn(),
+      remove: jest.fn(),
     };
 
     mockPermissoesService = {
@@ -382,33 +412,6 @@ describe('PerfisService', () => {
   });
 
   describe('atualização', () => {
-    const existingPerfil = {
-      id: 1,
-      nome: 'Old Perfil',
-      codigo: 'OLD_PERFIL',
-      descricao: 'Old Description',
-      deletedAt: null,
-    } as Perfil;
-
-    const mockAdminUsuarioLogado: JwtPayload = {
-      userId: 1,
-      email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }],
-    };
-
-    const mockUserUsuarioLogado: JwtPayload = {
-      userId: 2,
-      email: 'user@example.com',
-      perfis: [{ codigo: 'USER' }],
-    };
-
-    type UpdatePerfilDto = {
-      nome?: string;
-      codigo?: string;
-      descricao?: string;
-      ativo?: boolean;
-      permissoesIds?: number[];
-    };
 
     it('deve atualizar um perfil', async () => {
       const updatePerfilDto = {
@@ -507,7 +510,7 @@ describe('PerfisService', () => {
         new NotFoundException('Permissão com ID 999 não encontrada'),
       );
 
-      await expect(service.update(1, updatePerfilDto)).rejects.toThrow(
+      await expect(service.update(1, updatePerfilDto, mockAdminUsuarioLogado)).rejects.toThrow(
         NotFoundException,
       );
       expect(mockPermissoesService.findOne).toHaveBeenCalledWith(999);

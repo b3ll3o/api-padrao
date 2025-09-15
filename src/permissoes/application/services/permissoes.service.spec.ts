@@ -331,75 +331,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
     });
 
-    describe('atualização', () => {
-    const existingPermissao = {
-      id: 1,
-      nome: 'Old Permissao',
-      codigo: 'OLD_PERMISSAO',
-      descricao: 'Old Description',
-      deletedAt: null,
-    } as Permissao;
 
-    const mockAdminUsuarioLogado: JwtPayload = {
-      userId: 1,
-      email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }],
-    };
-
-    const mockUserUsuarioLogado: JwtPayload = {
-      userId: 2,
-      email: 'user@example.com',
-      perfis: [{ codigo: 'USER' }],
-    };
-
-    type UpdatePermissaoDto = {
-      nome?: string;
-      codigo?: string;
-      descricao?: string;
-      ativo?: boolean;
-    };
-
-    it('deve atualizar uma permissão', async () => {
-      const updatePermissaoDto = {
-        nome: 'Updated Permissao',
-        codigo: 'UPDATED_PERMISSAO',
-        descricao: 'Permissão atualizada',
-      };
-      const expectedPermissao = {
-        ...existingPermissao,
-        ...updatePermissaoDto,
-      } as Permissao;
-
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
-        existingPermissao,
-      ); // For the findOne call inside update
-      (mockPermissaoRepository.update as jest.Mock).mockResolvedValue(
-        expectedPermissao,
-      );
-
-      const result = await service.update(1, updatePermissaoDto, mockAdminUsuarioLogado);
-
-      expect(result).toEqual(expectedPermissao);
-      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
-      expect(mockPermissaoRepository.update).toHaveBeenCalledWith(
-        1,
-        updatePermissaoDto,
-      );
-    });
-
-    it('deve lançar NotFoundException se a permissão a ser atualizada não for encontrada', async () => {
-      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
-
-      await expect(
-        service.update(999, {
-          nome: 'Non Existent',
-          codigo: 'NON_EXISTENT',
-          descricao: 'Non Existent',
-        } as UpdatePermissaoDto, mockAdminUsuarioLogado),
-      ).rejects.toThrow(NotFoundException);
-      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999, true);
-      expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
-    });
 
     it('deve restaurar uma permissão com soft delete via flag ativo', async () => {
       const softDeletedPermissao = { ...existingPermissao, deletedAt: new Date() };

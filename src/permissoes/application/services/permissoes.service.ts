@@ -143,6 +143,11 @@ export class PermissoesService {
       delete updatePermissaoDto.ativo;
     }
 
+    // If there are no other fields to update besides 'ativo', return the locally modified 'permissao'
+    if (Object.keys(updatePermissaoDto).length === 0) {
+      return permissao;
+    }
+
     // The existing update logic for other fields
     const updatedPermissao = await this.permissaoRepository.update(
       id,

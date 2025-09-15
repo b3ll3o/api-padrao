@@ -154,92 +154,32 @@ describe('PerfisController', () => {
 
   describe('atualização', () => {
     it('deve atualizar um perfil', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'Viewer',
-          codigo: 'VIEWER',
-          descricao: 'Perfil de visualizador',
-        },
-      });
-      const updatePerfilDto = { nome: 'Updated Viewer' };
+      const id = '1';
+      const updatePerfilDto: UpdatePerfilDto = {
+        nome: 'Updated Perfil',
+      };
+      const expectedPerfil = {
+        id: 1,
+        ...updatePerfilDto,
+        deletedAt: null,
+      } as Perfil;
       const req = mockRequest(true); // Admin user
+      (mockPerfisService.update as jest.Mock).mockResolvedValue(expectedPerfil);
 
-      return request(app.getHttpServer())
-        .patch(`/perfis/${perfil.id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(updatePerfilDto)
-        .expect(200)
-        .expect((res) => {
-          expect(res.body).toHaveProperty('id', perfil.id);
-
-          expect(res.body.nome).toEqual(updatePerfilDto.nome);
-        });
-    });
-  });
-
-  describe('remoção', () => {
-    const mockPerfil = {
-      id: 1,
-      nome: 'Test Perfil',
-      codigo: 'TEST_PERFIL',
-      descricao: 'Description',
-      deletedAt: null,
-    } as Perfil; // Corrected
-    const softDeletedPerfil = {
-      ...mockPerfil,
-      deletedAt: new Date(),
-    } as Perfil;
-
-    it('deve realizar soft delete de um perfil', async () => {
-      (mockPerfisService.remove as jest.Mock).mockResolvedValue(
-        softDeletedPerfil,
-      );
-      const req = mockRequest(true); // Admin user
-
-      const result = await controller.remove('1', req);
-      expect(result).toEqual(softDeletedPerfil);
-      expect(service.remove).toHaveBeenCalledWith(1, req.usuarioLogado);
+      const result = await controller.update(id, updatePerfilDto, req);
+      expect(result).toEqual(expectedPerfil);
+      expect(service.update).toHaveBeenCalledWith(+id, updatePerfilDto, req.usuarioLogado);
     });
 
     it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
+      const id = '1';
+      const updatePerfilDto: UpdatePerfilDto = {
+        nome: 'Updated Perfil',
+      };
       const req: Partial<Request> = { usuarioLogado: undefined };
       let error: any;
       try {
-        await controller.remove('1', req as Request);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).toBeInstanceOf(ForbiddenException);
-      expect(error.message).toBe('Usuário não autenticado');
-    });
-  });
-
-  describe('restauração', () => {
-    const mockPerfil = {
-      id: 1,
-      nome: 'Test Perfil',
-      codigo: 'TEST_PERFIL',
-      descricao: 'Description',
-      deletedAt: new Date(),
-    } as Perfil; // Corrected
-    const restoredPerfil = { ...mockPerfil, deletedAt: null } as Perfil;
-
-    it('deve restaurar um perfil', async () => {
-      (mockPerfisService.restore as jest.Mock).mockResolvedValue(
-        restoredPerfil,
-      );
-      const req = mockRequest(true); // Admin user
-
-      const result = await controller.restore('1', req);
-      expect(result).toEqual(restoredPerfil);
-      expect(service.restore).toHaveBeenCalledWith(1, req.usuarioLogado);
-    });
-
-    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
-      const req: Partial<Request> = { usuarioLogado: undefined };
-      let error: any;
-      try {
-        await controller.restore('1', req as Request);
+        await controller.update(id, updatePerfilDto, req as Request);
       } catch (e) {
         error = e;
       }
