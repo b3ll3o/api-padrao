@@ -25,12 +25,16 @@ import { TemPermissao } from '../../../auth/application/decorators/temPermissao.
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { Request } from 'express';
+import { AuthorizationService } from '../../../shared/domain/services/authorization.service';
 
 @ApiTags('Permissoes')
 @ApiBearerAuth()
 @Controller('permissoes')
 export class PermissoesController {
-  constructor(private readonly permissoesService: PermissoesService) {}
+  constructor(
+    private readonly permissoesService: PermissoesService,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   @TemPermissao('CREATE_PERMISSAO')
   @Post()
@@ -125,6 +129,17 @@ export class PermissoesController {
     if (!req.usuarioLogado) {
       throw new ForbiddenException('Usuário não autenticado');
     }
+
+    // If 'ativo' is being set to true, and the user is not an admin, forbid the action
+    if (
+      updatePermissaoDto.ativo === true &&
+      !this.authorizationService.isAdmin(req.usuarioLogado)
+    ) {
+      throw new ForbiddenException(
+        'Somente administradores podem restaurar permissões.',
+      );
+    }
+
     return this.permissoesService.update(
       +id,
       updatePermissaoDto,

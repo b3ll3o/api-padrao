@@ -7,6 +7,7 @@ import { Permissao } from '../../domain/entities/permissao.entity';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { Request } from 'express'; // Import Request
+import { AuthorizationService } from '../../../shared/domain/services/authorization.service';
 
 describe('PermissoesController', () => {
   let controller: PermissoesController;
@@ -42,6 +43,12 @@ describe('PermissoesController', () => {
         {
           provide: PermissoesService,
           useValue: mockPermissoesService,
+        },
+        {
+          provide: AuthorizationService,
+          useValue: {
+            isAdmin: jest.fn(() => true), // Mock isAdmin to return true for testing purposes
+          },
         },
       ],
     }).compile();

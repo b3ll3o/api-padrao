@@ -136,26 +136,27 @@ export class PerfisService {
         if (perfil.deletedAt === null) {
           throw new ConflictException(`Perfil com ID ${id} não está deletado.`);
         }
-        await this.perfilRepository.restore(id);
-        // After restore, update the local 'perfil' object to reflect the change
-        perfil.deletedAt = null;
+        const restoredPerfil = await this.perfilRepository.restore(id);
+        if (!restoredPerfil) {
+          throw new NotFoundException(
+            `Perfil com ID ${id} não encontrado após restauração.`,
+          );
+        }
+        return restoredPerfil;
       } else {
         // updatePerfilDto.ativo === false
         // Attempt to soft delete
         if (perfil.deletedAt !== null) {
           throw new ConflictException(`Perfil com ID ${id} já está deletado.`);
         }
-        await this.perfilRepository.remove(id);
-        // After soft delete, update the local 'perfil' object to reflect the change
-        perfil.deletedAt = new Date(); // Set a dummy date for local object consistency
+        const softDeletedPerfil = await this.perfilRepository.remove(id);
+        if (!softDeletedPerfil) {
+          throw new NotFoundException(
+            `Perfil com ID ${id} não encontrado após soft delete.`,
+          );
+        }
+        return softDeletedPerfil;
       }
-      // Remove 'ativo' from DTO to prevent it from being passed to repository update
-      delete updatePerfilDto.ativo;
-    }
-
-    // If there are no other fields to update besides 'ativo', return the locally modified 'perfil'
-    if (Object.keys(updatePerfilDto).length === 0) {
-      return perfil;
     }
 
     const updatedPerfil = await this.perfilRepository.update(

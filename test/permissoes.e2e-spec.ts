@@ -439,7 +439,7 @@ describe('PermissoesController (e2e)', () => {
           await request(app.getHttpServer())
             .get(`/permissoes/${permissao.id}`)
             .set('Authorization', `Bearer ${adminToken}`)
-            .expect(404);
+            .expect(200);
         });
     });
 

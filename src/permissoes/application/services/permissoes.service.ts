@@ -128,12 +128,14 @@ export class PermissoesService {
             'Você não tem permissão para restaurar esta permissão',
           );
         }
-        await this.permissaoRepository.restore(id);
-        // After restore, update the local 'permissao' object to reflect the change
-        permissao.deletedAt = null;
+        const restoredPermissao = await this.permissaoRepository.restore(id);
+        if (!restoredPermissao) {
+          throw new NotFoundException(
+            `Permissão com ID ${id} não encontrada após restauração.`,
+          );
+        }
+        return restoredPermissao;
       } else {
-        // updatePermissaoDto.ativo === false
-        // Attempt to soft delete
         if (permissao.deletedAt !== null) {
           throw new ConflictException(
             `Permissão com ID ${id} já está deletada.`,
@@ -144,20 +146,16 @@ export class PermissoesService {
             'Você não tem permissão para deletar esta permissão',
           );
         }
-        await this.permissaoRepository.remove(id);
-        // After soft delete, update the local 'permissao' object to reflect the change
-        permissao.deletedAt = new Date(); // Set a dummy date for local object consistency
+        const softDeletedPermissao = await this.permissaoRepository.remove(id);
+        if (!softDeletedPermissao) {
+          throw new NotFoundException(
+            `Permissão com ID ${id} não encontrada após soft delete.`,
+          );
+        }
+        return softDeletedPermissao;
       }
-      // Remove 'ativo' from DTO to prevent it from being passed to repository update
-      delete updatePermissaoDto.ativo;
     }
 
-    // If there are no other fields to update besides 'ativo', return the locally modified 'permissao'
-    if (Object.keys(updatePermissaoDto).length === 0) {
-      return permissao;
-    }
-
-    // The existing update logic for other fields
     const updatedPermissao = await this.permissaoRepository.update(
       id,
       updatePermissaoDto,
