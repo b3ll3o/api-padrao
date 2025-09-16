@@ -34,7 +34,7 @@ The project includes unit and end-to-end (E2E) tests. Tests are executed in a se
     ```bash
     npm run test
     ```
-*   **Test Coverage:**
+*   **Test Coverage:
     ```bash
     npm run test:cov
     ```
@@ -62,9 +62,19 @@ To ensure code quality, maintainability, and adherence to best practices, the fo
 *   **SOLID Principles:** Apply SOLID principles (Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion) to design and implement robust, maintainable, and scalable solutions.
 *   **Unit Test Coverage:** Unit test coverage must be equal to or greater than 80%. Ensure that new code maintains or improves this coverage.
 *   **Pre-Commit Checks:**
+    To ensure code quality and prevent regressions, pre-commit hooks are configured using Husky and lint-staged. These hooks automatically run checks on staged files before a commit is allowed.
+    *   **Linting:** The linter (`eslint --fix`) is run on staged `.ts` and `.tsx` files. Any fixable issues will be automatically corrected. If unfixable errors remain, the commit will be aborted.
+    *   **Unit Tests:** Relevant unit tests (`jest --findRelatedTests`) are run on staged `.ts` and `.tsx` files. If any tests fail, the commit will be aborted.
     *   **Passing Tests:** No code should be committed if any tests (unit or E2E) are failing. All tests must pass before committing.
-    *   **Linting:** The linter must be run and pass without errors or warnings before every commit.
     *   **Documentation Update:** Always update the project documentation (Swagger annotations and `README.md`) before committing.
 *   **Test Message Language:** All descriptive messages within unit and integration tests (e.g., `describe` and `it` block descriptions) must be written in Brazilian Portuguese (pt-br).
 *   **Pagination for List Searches:** All searches returning a list of objects must be paginated. The default page size should be 10. Pagination should support ordering, and the response must include the total number of pages and total number of elements.
 *   **Entity Soft Delete:** All database entities must include `createdAt`, `updatedAt`, `deletedAt` fields, and a boolean flag named `ativo` (active). Deletion should be a soft delete, controlled by setting a value in the `deletedAt` field and setting `ativo` to `false`. If an entity has been deactivated (soft-deleted) at least once, its `deletedAt` field must contain a timestamp.
+
+## Continuous Integration (CI)
+
+A GitHub Actions workflow is configured to ensure code quality and prevent regressions on every pull request to the `main` branch. The CI pipeline performs the following checks:
+
+*   **Linting:** Runs ESLint to enforce code style and identify potential issues.
+*   **Unit Tests:** Executes all unit tests to verify the correctness of individual components.
+*   **E2E Tests:** Runs end-to-end tests against a dedicated test database to ensure the application's overall functionality.
