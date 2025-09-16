@@ -12,7 +12,7 @@ describe('PrismaPermissaoRepository', () => {
     permissao: {
       create: jest.fn(),
       findMany: jest.fn(),
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(), // Modified for soft delete and restore
       delete: jest.fn(), // Original delete, now replaced by update for soft delete
       count: jest.fn(),
@@ -135,39 +135,39 @@ describe('PrismaPermissaoRepository', () => {
     };
 
     it('deve retornar uma única permissão por ID (não excluída)', async () => {
-      mockPrismaService.permissao.findUnique.mockResolvedValue(prismaResult);
+      mockPrismaService.permissao.findFirst.mockResolvedValue(prismaResult);
 
       const result = await repository.findOne(1);
       expect(result).toEqual(prismaResult);
       expect(result!.deletedAt).toBeNull();
-      expect(mockPrismaService.permissao.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.permissao.findFirst).toHaveBeenCalledWith({
         where: { id: 1, deletedAt: null }, // Assert filter
       });
     });
 
     it('deve retornar uma única permissão por ID, incluindo as excluídas', async () => {
       const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
-      mockPrismaService.permissao.findUnique.mockResolvedValue(
+      mockPrismaService.permissao.findFirst.mockResolvedValue(
         deletedPrismaResult,
       );
 
       const result = await repository.findOne(1, true); // Pass true for includeDeleted
       expect(result).toEqual(deletedPrismaResult);
       expect(result!.deletedAt).toEqual(deletedPrismaResult.deletedAt);
-      expect(mockPrismaService.permissao.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.permissao.findFirst).toHaveBeenCalledWith({
         where: { id: 1 }, // No deletedAt filter
       });
     });
 
     it('deve retornar undefined se a permissão não for encontrada', async () => {
-      mockPrismaService.permissao.findUnique.mockResolvedValue(null);
+      mockPrismaService.permissao.findFirst.mockResolvedValue(null);
 
       const result = await repository.findOne(999);
       expect(result).toBeUndefined();
     });
 
     it('deve retornar undefined se a permissão estiver com soft delete e não for incluída', async () => {
-      mockPrismaService.permissao.findUnique.mockResolvedValue(null);
+      mockPrismaService.permissao.findFirst.mockResolvedValue(null);
 
       const result = await repository.findOne(1, false); // Explicitly not include deleted
       expect(result).toBeUndefined();
@@ -189,7 +189,7 @@ describe('PrismaPermissaoRepository', () => {
         deletedAt: null,
       } as Permissao;
       mockPrismaService.permissao.update.mockResolvedValue(expectedPermissao);
-      mockPrismaService.permissao.findUnique.mockResolvedValue({ id: 1 }); // Mock existingPermissao for update method
+      mockPrismaService.permissao.findFirst.mockResolvedValue({ id: 1 }); // Mock existingPermissao for update method
 
       const result = await repository.update(1, updatePermissaoDto);
       expect(result).toEqual(expectedPermissao);
@@ -208,7 +208,7 @@ describe('PrismaPermissaoRepository', () => {
       const prismaError = new Error('Record not found');
       (prismaError as any).code = 'P2025';
       mockPrismaService.permissao.update.mockRejectedValue(prismaError);
-      mockPrismaService.permissao.findUnique.mockResolvedValue(null); // Mock existingPermissao for update method
+      mockPrismaService.permissao.findFirst.mockResolvedValue(null); // Mock existingPermissao for update method
 
       const result = await repository.update(999, updatePermissaoDto);
       expect(result).toBeUndefined();
@@ -223,7 +223,7 @@ describe('PrismaPermissaoRepository', () => {
       const prismaError = new Error('Database error');
       (prismaError as any).code = 'P1000'; // Some other Prisma error
       mockPrismaService.permissao.update.mockRejectedValue(prismaError);
-      mockPrismaService.permissao.findUnique.mockResolvedValue({ id: 1 }); // Mock existingPermissao for update method
+      mockPrismaService.permissao.findFirst.mockResolvedValue({ id: 1 }); // Mock existingPermissao for update method
 
       await expect(repository.update(1, updatePermissaoDto)).rejects.toThrow(
         prismaError,
@@ -301,39 +301,39 @@ describe('PrismaPermissaoRepository', () => {
     };
 
     it('deve retornar uma permissão por nome (não excluída)', async () => {
-      mockPrismaService.permissao.findUnique.mockResolvedValue(prismaResult);
+      mockPrismaService.permissao.findFirst.mockResolvedValue(prismaResult);
 
       const result = await repository.findByNome('Test Permissao');
       expect(result).toEqual(prismaResult);
       expect(result!.deletedAt).toBeNull();
-      expect(mockPrismaService.permissao.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.permissao.findFirst).toHaveBeenCalledWith({
         where: { nome: 'Test Permissao', deletedAt: null }, // Assert filter
       });
     });
 
     it('deve retornar uma permissão por nome, incluindo as excluídas', async () => {
       const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
-      mockPrismaService.permissao.findUnique.mockResolvedValue(
+      mockPrismaService.permissao.findFirst.mockResolvedValue(
         deletedPrismaResult,
       );
 
       const result = await repository.findByNome('Test Permissao', true); // Pass true for includeDeleted
       expect(result).toEqual(deletedPrismaResult);
       expect(result!.deletedAt).toEqual(deletedPrismaResult.deletedAt);
-      expect(mockPrismaService.permissao.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.permissao.findFirst).toHaveBeenCalledWith({
         where: { nome: 'Test Permissao' }, // No deletedAt filter
       });
     });
 
     it('deve retornar null se a permissão não for encontrada por nome', async () => {
-      mockPrismaService.permissao.findUnique.mockResolvedValue(null);
+      mockPrismaService.permissao.findFirst.mockResolvedValue(null);
 
       const result = await repository.findByNome('Non Existent');
       expect(result).toBeNull();
     });
 
     it('deve retornar null se a permissão estiver com soft delete e não for incluída', async () => {
-      mockPrismaService.permissao.findUnique.mockResolvedValue(null);
+      mockPrismaService.permissao.findFirst.mockResolvedValue(null);
 
       const result = await repository.findByNome('Test Permissao', false); // Explicitly not include deleted
       expect(result).toBeNull();

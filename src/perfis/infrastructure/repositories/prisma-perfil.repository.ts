@@ -71,7 +71,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
       whereClause.deletedAt = null;
     }
 
-    const perfil = await this.prisma.perfil.findUnique({
+    const perfil = await this.prisma.perfil.findFirst({
       where: whereClause,
       include: { permissoes: true },
     });
@@ -82,7 +82,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
     const { permissoesIds, ...perfilData } = data;
     try {
       // Allow updating soft-deleted profiles
-      const existingPerfil = await this.prisma.perfil.findUnique({
+      const existingPerfil = await this.prisma.perfil.findFirst({
         where: { id },
       });
       if (!existingPerfil) {
@@ -148,7 +148,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
     if (!includeDeleted) {
       whereClause.deletedAt = null;
     }
-    const perfil = await this.prisma.perfil.findUnique({
+    const perfil = await this.prisma.perfil.findFirst({
       where: whereClause,
       include: { permissoes: true },
     });

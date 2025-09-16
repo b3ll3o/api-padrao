@@ -626,6 +626,4 @@ describe('UsuariosController (e2e)', () => {
         .expect(409);
     });
   });
-
-  
 });

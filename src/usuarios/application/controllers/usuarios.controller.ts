@@ -7,9 +7,6 @@ import {
   Req,
   ForbiddenException,
   Patch,
-  Delete,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import { UsuariosService } from '../services/usuarios.service';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';

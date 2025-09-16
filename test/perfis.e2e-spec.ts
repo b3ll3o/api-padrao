@@ -420,7 +420,7 @@ describe('PerfisController (e2e)', () => {
         .set('Authorization', `Bearer ${userToken}`)
         .send(restoreDto)
         .expect(403)
-        .expect(async (res) => {
+        .expect(async () => {
           // Verify it's still not accessible via normal GET
           await request(app.getHttpServer())
             .get(`/perfis/${perfil.id}`)

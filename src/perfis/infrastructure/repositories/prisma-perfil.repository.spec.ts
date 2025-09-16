@@ -13,7 +13,7 @@ describe('PrismaPerfilRepository', () => {
     perfil: {
       create: jest.fn(),
       findMany: jest.fn(),
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(), // Modified for soft delete and restore
       delete: jest.fn(), // Original delete, now replaced by update for soft delete
       count: jest.fn(),
@@ -192,12 +192,12 @@ describe('PrismaPerfilRepository', () => {
     };
 
     it('deve retornar um único perfil por ID (não excluído)', async () => {
-      mockPrismaService.perfil.findUnique.mockResolvedValue(prismaResult);
+      mockPrismaService.perfil.findFirst.mockResolvedValue(prismaResult);
 
       const result = await repository.findOne(1);
       expect(result).toEqual(prismaResult);
       expect(result!.deletedAt).toBeNull();
-      expect(mockPrismaService.perfil.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.perfil.findFirst).toHaveBeenCalledWith({
         where: { id: 1, deletedAt: null }, // Assert filter
         include: { permissoes: true },
       });
@@ -205,28 +205,26 @@ describe('PrismaPerfilRepository', () => {
 
     it('deve retornar um único perfil por ID, incluindo os excluídos', async () => {
       const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
-      mockPrismaService.perfil.findUnique.mockResolvedValue(
-        deletedPrismaResult,
-      );
+      mockPrismaService.perfil.findFirst.mockResolvedValue(deletedPrismaResult);
 
       const result = await repository.findOne(1, true); // Pass true for includeDeleted
       expect(result).toEqual(deletedPrismaResult);
       expect(result!.deletedAt).toEqual(deletedPrismaResult.deletedAt);
-      expect(mockPrismaService.perfil.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.perfil.findFirst).toHaveBeenCalledWith({
         where: { id: 1 }, // No deletedAt filter
         include: { permissoes: true },
       });
     });
 
     it('deve retornar undefined se o perfil não for encontrado', async () => {
-      mockPrismaService.perfil.findUnique.mockResolvedValue(null);
+      mockPrismaService.perfil.findFirst.mockResolvedValue(null);
 
       const result = await repository.findOne(999);
       expect(result).toBeUndefined();
     });
 
     it('deve retornar undefined se o perfil estiver com soft delete e não for incluído', async () => {
-      mockPrismaService.perfil.findUnique.mockResolvedValue(null);
+      mockPrismaService.perfil.findFirst.mockResolvedValue(null);
 
       const result = await repository.findOne(1, false); // Explicitly not include deleted
       expect(result).toBeUndefined();
@@ -253,7 +251,7 @@ describe('PrismaPerfilRepository', () => {
         }),
       });
       mockPrismaService.perfil.update.mockResolvedValue(expectedPerfil);
-      mockPrismaService.perfil.findUnique.mockResolvedValue({ id: 1 }); // Mock existingPerfil for update method
+      mockPrismaService.perfil.findFirst.mockResolvedValue({ id: 1 }); // Mock existingPerfil for update method
 
       const result = await repository.update(1, updatePerfilDto);
       expect(result).toEqual(expectedPerfil);
@@ -281,7 +279,7 @@ describe('PrismaPerfilRepository', () => {
         permissoes: [],
       });
       mockPrismaService.perfil.update.mockResolvedValue(expectedPerfil);
-      mockPrismaService.perfil.findUnique.mockResolvedValue({ id: 1 }); // Mock existingPerfil for update method
+      mockPrismaService.perfil.findFirst.mockResolvedValue({ id: 1 }); // Mock existingPerfil for update method
 
       const result = await repository.update(1, updatePerfilDto);
       expect(result).toEqual(expectedPerfil);
@@ -302,7 +300,7 @@ describe('PrismaPerfilRepository', () => {
       const prismaError = new Error('Record not found');
       (prismaError as any).code = 'P2025';
       mockPrismaService.perfil.update.mockRejectedValue(prismaError);
-      mockPrismaService.perfil.findUnique.mockResolvedValue(null); // Mock existingPerfil for update method
+      mockPrismaService.perfil.findFirst.mockResolvedValue(null); // Mock existingPerfil for update method
 
       const result = await repository.update(999, updatePerfilDto);
       expect(result).toBeUndefined();
@@ -313,7 +311,7 @@ describe('PrismaPerfilRepository', () => {
       const prismaError = new Error('Database error');
       (prismaError as any).code = 'P1000'; // Some other Prisma error
       mockPrismaService.perfil.update.mockRejectedValue(prismaError);
-      mockPrismaService.perfil.findUnique.mockResolvedValue({ id: 1 }); // Mock existingPerfil for update method
+      mockPrismaService.perfil.findFirst.mockResolvedValue({ id: 1 }); // Mock existingPerfil for update method
 
       await expect(repository.update(1, updatePerfilDto)).rejects.toThrow(
         prismaError,
@@ -396,12 +394,12 @@ describe('PrismaPerfilRepository', () => {
     };
 
     it('deve retornar um perfil por nome (não excluído)', async () => {
-      mockPrismaService.perfil.findUnique.mockResolvedValue(prismaResult);
+      mockPrismaService.perfil.findFirst.mockResolvedValue(prismaResult);
 
       const result = await repository.findByNome('Test Perfil');
       expect(result).toEqual(prismaResult);
       expect(result!.deletedAt).toBeNull();
-      expect(mockPrismaService.perfil.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.perfil.findFirst).toHaveBeenCalledWith({
         where: { nome: 'Test Perfil', deletedAt: null }, // Assert filter
         include: { permissoes: true },
       });
@@ -409,28 +407,26 @@ describe('PrismaPerfilRepository', () => {
 
     it('deve retornar um perfil por nome, incluindo os excluídos', async () => {
       const deletedPrismaResult = { ...prismaResult, deletedAt: new Date() };
-      mockPrismaService.perfil.findUnique.mockResolvedValue(
-        deletedPrismaResult,
-      );
+      mockPrismaService.perfil.findFirst.mockResolvedValue(deletedPrismaResult);
 
       const result = await repository.findByNome('Test Perfil', true); // Pass true for includeDeleted
       expect(result).toEqual(deletedPrismaResult);
       expect(result!.deletedAt).toEqual(deletedPrismaResult.deletedAt);
-      expect(mockPrismaService.perfil.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.perfil.findFirst).toHaveBeenCalledWith({
         where: { nome: 'Test Perfil' }, // No deletedAt filter
         include: { permissoes: true },
       });
     });
 
     it('deve retornar null se o perfil não for encontrado por nome', async () => {
-      mockPrismaService.perfil.findUnique.mockResolvedValue(null);
+      mockPrismaService.perfil.findFirst.mockResolvedValue(null);
 
       const result = await repository.findByNome('Non Existent');
       expect(result).toBeNull();
     });
 
     it('deve retornar null se o perfil estiver com soft delete e não for incluído', async () => {
-      mockPrismaService.perfil.findUnique.mockResolvedValue(null);
+      mockPrismaService.perfil.findFirst.mockResolvedValue(null);
 
       const result = await repository.findByNome('Test Perfil', false); // Explicitly not include deleted
       expect(result).toBeNull();

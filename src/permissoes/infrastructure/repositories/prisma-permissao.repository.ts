@@ -52,7 +52,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
       whereClause.deletedAt = null;
     }
 
-    const permissao = await this.prisma.permissao.findUnique({
+    const permissao = await this.prisma.permissao.findFirst({
       where: whereClause,
     });
     return permissao ? this.toDomain(permissao) : undefined;
@@ -64,7 +64,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
   ): Promise<Permissao | undefined> {
     try {
       // Allow updating soft-deleted permissions
-      const existingPermissao = await this.prisma.permissao.findUnique({
+      const existingPermissao = await this.prisma.permissao.findFirst({
         where: { id },
       });
       if (!existingPermissao) {
@@ -122,7 +122,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     if (!includeDeleted) {
       whereClause.deletedAt = null;
     }
-    const permissao = await this.prisma.permissao.findUnique({
+    const permissao = await this.prisma.permissao.findFirst({
       where: whereClause,
     });
     return permissao ? this.toDomain(permissao) : null;

@@ -7,7 +7,6 @@ import { Permissao } from '../../domain/entities/permissao.entity';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { Request } from 'express'; // Import Request
-import { ForbiddenException } from '@nestjs/common'; // Import ForbiddenException
 
 describe('PermissoesController', () => {
   let controller: PermissoesController;
