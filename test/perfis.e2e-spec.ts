@@ -5,15 +5,15 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { PaginatedResponseDto } from '../src/shared/dto/paginated-response.dto';
 import { Perfil } from '../src/perfis/domain/entities/perfil.entity';
-import { cleanDatabase } from './e2e-utils';
-import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt'; // Import JwtService
+import { cleanDatabase, setupE2ETestData } from './e2e-utils';
+import { TestDataBuilder } from './test-data-builder';
 
 describe('PerfisController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let adminToken: string; // Renamed to adminToken for clarity
-  let userToken: string; // Token for a user with limited permissions
+  let adminToken: string;
+  let userToken: string;
+  let testDataBuilder: TestDataBuilder;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -22,135 +22,17 @@ describe('PerfisController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     prisma = app.get<PrismaService>(PrismaService);
-    const jwtService = app.get<JwtService>(JwtService); // Get JwtService instance
+    testDataBuilder = new TestDataBuilder(app);
 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
 
-    // Setup for admin user and token (moved from beforeEach to beforeAll for efficiency)
+    // Clean and setup common test data once for the entire suite
     await cleanDatabase(prisma);
-
-    const permissionsData = [
-      {
-        nome: 'read:users',
-        codigo: 'READ_USERS',
-        descricao: 'Permissão para ler usuários',
-      },
-      {
-        nome: 'write:users',
-        codigo: 'WRITE_USERS',
-        descricao: 'Permissão para escrever usuários',
-      },
-      {
-        nome: 'create:perfis',
-        codigo: 'CREATE_PERFIL',
-        descricao: 'Permissão para criar perfis',
-      },
-      {
-        nome: 'read:perfis',
-        codigo: 'READ_PERFIS',
-        descricao: 'Permissão para ler perfis',
-      },
-      {
-        nome: 'read:perfis_by_id',
-        codigo: 'READ_PERFIL_BY_ID',
-        descricao: 'Permissão para ler perfis por id',
-      },
-      {
-        nome: 'read:perfis_by_nome',
-        codigo: 'READ_PERFIL_BY_NOME',
-        descricao: 'Permissão para ler perfis por nome',
-      },
-      {
-        nome: 'update:perfis',
-        codigo: 'UPDATE_PERFIL',
-        descricao: 'Permissão para atualizar perfis',
-      },
-      {
-        nome: 'delete:perfis',
-        codigo: 'DELETE_PERFIL',
-        descricao: 'Permissão para deletar perfis',
-      },
-    ];
-    const permissions = await Promise.all(
-      permissionsData.map((p) => prisma.permissao.create({ data: p })),
-    );
-
-    let adminProfile = await prisma.perfil.create({
-      data: {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
-        permissoes: {
-          connect: permissions.map((p) => ({ id: p.id })),
-        },
-      },
-    });
-    adminProfile = await prisma.perfil.findUniqueOrThrow({
-      where: { id: adminProfile.id },
-      include: { permissoes: true },
-    });
-
-    // Create an admin user
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    await prisma.usuario.create({
-      data: {
-        email: 'admin@example.com',
-        senha: hashedPassword,
-        perfis: {
-          connect: { id: adminProfile.id },
-        },
-      },
-      include: { perfis: { include: { permissoes: true } } },
-    });
-
-    const loginDto = {
-      email: 'admin@example.com',
-      senha: 'admin123',
-    };
-
-    const res = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send(loginDto)
-      .expect(201);
-
-    adminToken = res.body.access_token;
-
-    // Setup for a regular user with limited permissions
-    const limitedPerms = await prisma.permissao.create({
-      data: {
-        nome: 'read:limited_resource',
-        codigo: 'READ_LIMITED_RESOURCE',
-        descricao: 'Permissão para ler um recurso limitado',
-      },
-    });
-    const limitedProfile = await prisma.perfil.create({
-      data: {
-        nome: 'LimitedUser',
-        codigo: 'LIMITED_USER',
-        descricao: 'Perfil de usuário com acesso limitado',
-        permissoes: {
-          connect: { id: limitedPerms.id },
-        },
-      },
-    });
-    const limitedUserHashedPassword = await bcrypt.hash('Limited123!', 10);
-    const limitedUser = await prisma.usuario.create({
-      data: {
-        email: 'limited@example.com',
-        senha: limitedUserHashedPassword,
-        perfis: {
-          connect: { id: limitedProfile.id },
-        },
-      },
-      include: { perfis: { include: { permissoes: true } } },
-    });
-    userToken = jwtService.sign({
-      sub: limitedUser.id,
-      email: limitedUser.email,
-      perfis: limitedUser.perfis,
-    });
+    const tokens = await setupE2ETestData(app);
+    adminToken = tokens.adminToken;
+    userToken = tokens.userToken;
   });
 
   afterAll(async () => {
@@ -158,15 +40,25 @@ describe('PerfisController (e2e)', () => {
   });
 
   beforeEach(async () => {
-    await cleanDatabase(prisma);
+    // Clean up data created by individual tests if necessary, but not global data
+    // The setupE2ETestData in beforeAll ensures base data is present.
+    // For tests that modify base data, they should clean up after themselves
+    // or create their own isolated data.
+    await prisma.perfil.deleteMany({
+      where: {
+        codigo: {
+          notIn: ['ADMIN', 'LIMITED_USER'],
+        },
+      },
+    });
   });
 
   describe('POST /perfis', () => {
     it('deve criar um perfil', async () => {
       const createPerfilDto = {
-        nome: `Admin-${Date.now()}`,
-        codigo: `ADMIN_${Date.now()}`,
-        descricao: 'Perfil de administrador',
+        nome: `Test Perfil ${Date.now()}`,
+        codigo: `TEST_PERFIL_${Date.now()}`,
+        descricao: 'Perfil de teste',
       };
 
       return request(app.getHttpServer())
@@ -176,15 +68,14 @@ describe('PerfisController (e2e)', () => {
         .expect(201)
         .expect((res) => {
           expect(res.body).toHaveProperty('id');
-
           expect(res.body.nome).toEqual(createPerfilDto.nome);
         });
     });
 
-    it('deve retornar 403 se o usuário não tiver permissão para criar perfil', () => {
+    it('deve retornar 403 se o usuário não tiver permissão para criar perfil', async () => {
       const createPerfilDto = {
-        nome: `NoPerms-${Date.now()}`,
-        codigo: `NO_PERMS_${Date.now()}`,
+        nome: `NoPermsPerfil ${Date.now()}`,
+        codigo: `NO_PERMS_PERFIL_${Date.now()}`,
         descricao: 'Perfil sem permissão',
       };
       return request(app.getHttpServer())
@@ -195,7 +86,10 @@ describe('PerfisController (e2e)', () => {
     });
 
     it('deve retornar 400 se o nome estiver faltando', () => {
-      const createPerfilDto = {};
+      const createPerfilDto = {
+        codigo: `MISSING_NAME_${Date.now()}`,
+        descricao: 'Descrição',
+      };
 
       return request(app.getHttpServer())
         .post('/perfis')
@@ -205,9 +99,10 @@ describe('PerfisController (e2e)', () => {
     });
 
     it('deve retornar 409 se o perfil com o mesmo nome já existir', async () => {
+      const uniqueName = `DuplicatePerfil ${Date.now()}`;
       const createPerfilDto = {
-        nome: 'duplicate:name',
-        codigo: 'DUPLICATE_NAME',
+        nome: uniqueName,
+        codigo: `DUPLICATE_PERFIL_${Date.now()}`,
         descricao: 'Perfil duplicado',
       };
       await request(app.getHttpServer())
@@ -223,15 +118,15 @@ describe('PerfisController (e2e)', () => {
         .expect(409)
         .expect((res) => {
           expect(res.body.message).toEqual(
-            `Perfil com o nome '${createPerfilDto.nome}' já existe.`,
+            `Perfil com o nome '${uniqueName}' já existe.`,
           );
         });
     });
 
     it('deve retornar 404 se as permissões não existirem', async () => {
       const createPerfilDto = {
-        nome: 'Perfil com Permissões Inválidas',
-        codigo: 'PERFIL_PERMISSOES_INVALIDAS',
+        nome: `PerfilComPermissoesInvalidas ${Date.now()}`,
+        codigo: `PERFIL_INVALID_PERMS_${Date.now()}`,
         descricao: 'Perfil com permissões que não existem',
         permissoesIds: [99999],
       };
@@ -251,13 +146,11 @@ describe('PerfisController (e2e)', () => {
 
   describe('GET /perfis', () => {
     it('deve retornar uma lista paginada de perfis', async () => {
-      await prisma.perfil.create({
-        data: {
-          nome: 'User',
-          codigo: 'USER',
-          descricao: 'Perfil de usuário comum',
-        },
-      });
+      await testDataBuilder.createProfile(
+        'User',
+        'USER_PROFILE',
+        'Perfil de usuário comum',
+      );
 
       return request(app.getHttpServer())
         .get('/perfis')
@@ -283,13 +176,11 @@ describe('PerfisController (e2e)', () => {
 
   describe('GET /perfis/:id', () => {
     it('deve retornar um único perfil', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'Editor',
-          codigo: 'EDITOR',
-          descricao: 'Perfil de editor',
-        },
-      });
+      const perfil = await testDataBuilder.createProfile(
+        'Editor',
+        'EDITOR_PROFILE',
+        'Perfil de editor',
+      );
 
       return request(app.getHttpServer())
         .get(`/perfis/${perfil.id}`)
@@ -297,19 +188,16 @@ describe('PerfisController (e2e)', () => {
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('id', perfil.id);
-
           expect(res.body.nome).toEqual(perfil.nome);
         });
     });
 
     it('deve retornar 403 se o usuário não tiver permissão para ler perfil por ID', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'Editor',
-          codigo: 'EDITOR',
-          descricao: 'Perfil de editor',
-        },
-      });
+      const perfil = await testDataBuilder.createProfile(
+        'EditorNoPerms',
+        'EDITOR_NO_PERMS',
+        'Perfil de editor sem permissão',
+      );
       return request(app.getHttpServer())
         .get(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${userToken}`)
@@ -326,13 +214,11 @@ describe('PerfisController (e2e)', () => {
 
   describe('PATCH /perfis/:id', () => {
     it('deve atualizar um perfil', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'Viewer',
-          codigo: 'VIEWER',
-          descricao: 'Perfil de visualizador',
-        },
-      });
+      const perfil = await testDataBuilder.createProfile(
+        'Viewer',
+        'VIEWER_PROFILE',
+        'Perfil de visualizador',
+      );
       const updatePerfilDto = { nome: 'Updated Viewer' };
 
       return request(app.getHttpServer())
@@ -342,19 +228,16 @@ describe('PerfisController (e2e)', () => {
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('id', perfil.id);
-
           expect(res.body.nome).toEqual(updatePerfilDto.nome);
         });
     });
 
     it('deve retornar 403 se o usuário não tiver permissão para atualizar perfil', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'Viewer',
-          codigo: 'VIEWER',
-          descricao: 'Perfil de visualizador',
-        },
-      });
+      const perfil = await testDataBuilder.createProfile(
+        'ViewerNoPerms',
+        'VIEWER_NO_PERMS',
+        'Perfil de visualizador sem permissão',
+      );
       const updatePerfilDto = { nome: 'Updated Viewer' };
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
@@ -403,9 +286,9 @@ describe('PerfisController (e2e)', () => {
     it('deve retornar 403 se não for admin ao tentar restaurar via PATCH', async () => {
       const perfil = await prisma.perfil.create({
         data: {
-          nome: 'restore:test',
-          codigo: 'RESTORE_TEST',
-          descricao: 'Perfil de teste para restauração',
+          nome: 'restore:test-no-admin',
+          codigo: 'RESTORE_TEST_NO_ADMIN',
+          descricao: 'Perfil de teste para restauração sem admin',
           deletedAt: new Date(),
         },
       });
@@ -422,22 +305,19 @@ describe('PerfisController (e2e)', () => {
             where: { id: perfil.id },
             select: { deletedAt: true },
           });
-          expect(updatedPerfil).not.toBeNull(); // Add this check
+          expect(updatedPerfil).not.toBeNull();
           if (updatedPerfil) {
-            // Add this check
             expect(updatedPerfil.deletedAt).not.toBeNull();
           }
         });
     });
 
     it('deve retornar 409 se tentar restaurar um perfil não deletado via PATCH', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'non-deleted:test',
-          codigo: 'NON_DELETED_TEST',
-          descricao: 'Perfil de teste não deletado',
-        },
-      });
+      const perfil = await testDataBuilder.createProfile(
+        'non-deleted:test',
+        'NON_DELETED_TEST',
+        'Perfil de teste não deletado',
+      );
       const restoreDto = { ativo: true };
 
       return request(app.getHttpServer())
@@ -448,13 +328,11 @@ describe('PerfisController (e2e)', () => {
     });
 
     it('deve realizar soft delete de um perfil via PATCH /perfis/:id com { ativo: false }', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'softdelete:test',
-          codigo: 'SOFTDELETE_TEST',
-          descricao: 'Perfil de teste para soft delete',
-        },
-      });
+      const perfil = await testDataBuilder.createProfile(
+        'softdelete:test',
+        'SOFTDELETE_TEST',
+        'Perfil de teste para soft delete',
+      );
       const deleteDto = { ativo: false };
 
       return request(app.getHttpServer())
@@ -474,13 +352,11 @@ describe('PerfisController (e2e)', () => {
     });
 
     it('deve retornar 403 se não for admin ao tentar deletar via PATCH', async () => {
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'softdelete:test',
-          codigo: 'SOFTDELETE_TEST',
-          descricao: 'Perfil de teste para soft delete',
-        },
-      });
+      const perfil = await testDataBuilder.createProfile(
+        'softdelete:test-no-admin',
+        'SOFTDELETE_TEST_NO_ADMIN',
+        'Perfil de teste para soft delete sem admin',
+      );
       const deleteDto = { ativo: false };
 
       return request(app.getHttpServer())
@@ -511,25 +387,21 @@ describe('PerfisController (e2e)', () => {
 
   describe('GET /perfis/nome/:nome', () => {
     it('deve retornar perfis que contêm a string no nome', async () => {
-      await prisma.perfil.createMany({
-        data: [
-          {
-            nome: 'perfil_teste_1',
-            codigo: 'PERFIL_TESTE_1',
-            descricao: 'Perfil de teste 1',
-          },
-          {
-            nome: 'outro_perfil',
-            codigo: 'OUTRO_PERFIL',
-            descricao: 'Outro perfil de teste',
-          },
-          {
-            nome: 'perfil_teste_2',
-            codigo: 'PERFIL_TESTE_2',
-            descricao: 'Perfil de teste 2',
-          },
-        ],
-      });
+      await testDataBuilder.createProfile(
+        'perfil_teste_1',
+        'PERFIL_TESTE_1',
+        'Perfil de teste 1',
+      );
+      await testDataBuilder.createProfile(
+        'outro_perfil',
+        'OUTRO_PERFIL',
+        'Outro perfil de teste',
+      );
+      await testDataBuilder.createProfile(
+        'perfil_teste_2',
+        'PERFIL_TESTE_2',
+        'Perfil de teste 2',
+      );
       const paginationDto = { page: 1, limit: 10 };
 
       return request(app.getHttpServer())

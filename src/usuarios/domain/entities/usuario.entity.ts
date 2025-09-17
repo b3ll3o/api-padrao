@@ -19,7 +19,7 @@ export class Usuario {
     example: 'senha123',
     writeOnly: true,
   })
-  senha?: string;
+  senha?: string | null;
 
   @ApiProperty({
     description: 'Data de criação do registro',

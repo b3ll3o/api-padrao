@@ -3,70 +3,16 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import supertestRequest from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { JwtService } from '@nestjs/jwt';
-import { cleanDatabase } from './e2e-utils';
-import * as bcrypt from 'bcrypt';
-
-// Helper function to create admin user and profile, connecting to existing permissions
-async function setupAdminUserAndProfile(
-  prisma: PrismaService,
-  jwtService: JwtService,
-  adminProfileId: number,
-) {
-  // Create an admin user
-  const hashedPassword = await bcrypt.hash('admin123', 10);
-  const adminUser = await prisma.usuario.create({
-    data: {
-      email: 'admin@example.com',
-      senha: hashedPassword,
-      perfis: {
-        connect: { id: adminProfileId },
-      },
-    },
-    include: { perfis: { include: { permissoes: true } } },
-  });
-
-  // Login as admin to get a token
-  const adminToken = jwtService.sign({
-    sub: adminUser.id,
-    email: adminUser.email,
-    perfis: adminUser.perfis,
-  });
-
-  return { adminUser, adminToken };
-}
-
-async function findOrCreatePermissao(
-  prisma: PrismaService,
-  data: { nome: string; codigo: string; descricao: string },
-) {
-  let permissao = await prisma.permissao.findUnique({
-    where: { nome: data.nome },
-  });
-  if (!permissao) {
-    permissao = await prisma.permissao.create({ data });
-  }
-  return permissao;
-}
-
-async function findOrCreatePerfil(
-  prisma: PrismaService,
-  data: { nome: string; codigo: string; descricao: string; permissoes?: any },
-) {
-  let perfil = await prisma.perfil.findUnique({
-    where: { nome: data.nome },
-  });
-  if (!perfil) {
-    perfil = await prisma.perfil.create({ data });
-  }
-  return perfil;
-}
+import { cleanDatabase, setupE2ETestData } from './e2e-utils';
+import { TestDataBuilder } from './test-data-builder';
 
 describe('UsuariosController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let jwtService: JwtService;
-  let adminToken: string; // Declare adminToken at a higher scope
+  let adminToken: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let userToken: string;
+  let testDataBuilder: TestDataBuilder;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -75,14 +21,17 @@ describe('UsuariosController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     prisma = app.get<PrismaService>(PrismaService);
-    jwtService = app.get<JwtService>(JwtService);
+    testDataBuilder = new TestDataBuilder(app);
 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
 
-    // Clean database once before all tests
+    // Clean and setup common test data once for the entire suite
     await cleanDatabase(prisma);
+    const tokens = await setupE2ETestData(app);
+    adminToken = tokens.adminToken;
+    userToken = tokens.userToken;
   });
 
   afterAll(async () => {
@@ -90,17 +39,23 @@ describe('UsuariosController (e2e)', () => {
   });
 
   beforeEach(async () => {
-    await cleanDatabase(prisma);
-  });
-
-  beforeEach(async () => {
-    await cleanDatabase(prisma);
+    // Clean up data created by individual tests if necessary, but not global data
+    // The setupE2ETestData in beforeAll ensures base data is present.
+    // For tests that modify base data, they should clean up after themselves
+    // or create their own isolated data.
+    await prisma.usuario.deleteMany({
+      where: {
+        email: {
+          notIn: ['admin@example.com', 'limited@example.com'],
+        },
+      },
+    });
   });
 
   describe('POST /usuarios', () => {
     it('deve criar um usuário e retornar 201', () => {
       const createUserDto = {
-        email: 'test@example.com',
+        email: `test-${Date.now()}@example.com`,
         senha: 'Password123!',
       };
 
@@ -111,26 +66,24 @@ describe('UsuariosController (e2e)', () => {
         .then((res) => {
           expect(res.body).toEqual({
             id: expect.any(Number),
-            email: 'test@example.com',
+            email: createUserDto.email,
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             deletedAt: null,
-            perfis: [], // Added expected perfis array
+            perfis: [],
           });
         });
     });
 
     it('deve criar um usuário com perfis e retornar 201', async () => {
-      const profile = await prisma.perfil.create({
-        data: {
-          nome: 'User',
-          codigo: 'USER',
-          descricao: 'Common user profile',
-        },
-      });
+      const profile = await testDataBuilder.createProfile(
+        'User',
+        'USER_PROFILE',
+        'Common user profile',
+      );
 
       const createUserDto = {
-        email: 'user_with_profile@example.com',
+        email: `user_with_profile-${Date.now()}@example.com`,
         senha: 'Password123!',
         perfisIds: [profile.id],
       };
@@ -142,7 +95,7 @@ describe('UsuariosController (e2e)', () => {
         .then((res) => {
           expect(res.body).toEqual({
             id: expect.any(Number),
-            email: 'user_with_profile@example.com',
+            email: createUserDto.email,
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             deletedAt: null,
@@ -159,13 +112,17 @@ describe('UsuariosController (e2e)', () => {
     });
 
     it('deve retornar 409 se o email já existir', async () => {
+      const email = `duplicate-${Date.now()}@example.com`;
       const createUserDto = {
-        email: 'test@example.com',
+        email: email,
         senha: 'Password123!',
       };
 
       // Criar o primeiro usuário
-      await prisma.usuario.create({ data: createUserDto });
+      await supertestRequest(app.getHttpServer())
+        .post('/usuarios')
+        .send(createUserDto)
+        .expect(201);
 
       // Tentar criar o segundo usuário com o mesmo email
       return supertestRequest(app.getHttpServer())
@@ -184,7 +141,10 @@ describe('UsuariosController (e2e)', () => {
     });
 
     it('deve retornar 400 se a senha for muito curta', () => {
-      const createUserDto = { email: 'test@example.com', senha: '123' };
+      const createUserDto = {
+        email: `shortpass-${Date.now()}@example.com`,
+        senha: '123',
+      };
 
       return supertestRequest(app.getHttpServer())
         .post('/usuarios')
@@ -194,7 +154,7 @@ describe('UsuariosController (e2e)', () => {
 
     it('deve retornar 400 se a senha não atender aos requisitos de complexidade', () => {
       const createUserDto = {
-        email: 'test@example.com',
+        email: `weakpass-${Date.now()}@example.com`,
         senha: 'password',
       };
 
@@ -211,12 +171,12 @@ describe('UsuariosController (e2e)', () => {
         .send(createUserDto)
         .expect(400)
         .expect((res) => {
-          expect(res.body.message).toContain('E-mail inválido'); // Changed expected message
+          expect(res.body.message).toContain('E-mail inválido');
         });
     });
 
     it('deve criar um usuário sem senha e retornar 201', () => {
-      const createUserDto = { email: 'no_password@example.com' };
+      const createUserDto = { email: `no_password-${Date.now()}@example.com` };
       return supertestRequest(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
@@ -224,11 +184,11 @@ describe('UsuariosController (e2e)', () => {
         .then((res) => {
           expect(res.body).toEqual({
             id: expect.any(Number),
-            email: 'no_password@example.com',
+            email: createUserDto.email,
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             deletedAt: null,
-            perfis: [], // Added expected perfis array
+            perfis: [],
           });
           expect(res.body).not.toHaveProperty('senha');
         });
@@ -236,9 +196,9 @@ describe('UsuariosController (e2e)', () => {
 
     it('deve retornar 400 se perfisIds contiver valores não numéricos', () => {
       const createUserDto = {
-        email: 'invalid_profile_id@example.com',
+        email: `invalid_profile_id-${Date.now()}@example.com`,
         senha: 'Password123!',
-        perfisIds: ['abc'], // Invalid type
+        perfisIds: ['abc'],
       };
       return supertestRequest(app.getHttpServer())
         .post('/usuarios')
@@ -247,15 +207,15 @@ describe('UsuariosController (e2e)', () => {
         .expect((res) => {
           expect(res.body.message).toContain(
             'Cada ID de perfil deve ser um número',
-          ); // Updated message
+          );
         });
     });
 
     it('deve retornar 400 se perfisIds não for um array', () => {
       const createUserDto = {
-        email: 'invalid_profile_id_not_array@example.com',
+        email: `invalid_profile_id_not_array-${Date.now()}@example.com`,
         senha: 'Password123!',
-        perfisIds: '123', // Not an array
+        perfisIds: '123',
       };
       return supertestRequest(app.getHttpServer())
         .post('/usuarios')
@@ -270,84 +230,43 @@ describe('UsuariosController (e2e)', () => {
   describe('GET /usuarios/:id', () => {
     let user1;
     let user2;
-    let user1Token;
     let deletedUser;
+    let user1Token;
 
     beforeEach(async () => {
-      // Create permissions
-      const readUsuarioByIdPerm = await findOrCreatePermissao(prisma, {
-        nome: 'read:usuario_by_id',
-        codigo: 'READ_USUARIO_BY_ID',
-        descricao: 'Permissão para ler usuários por ID',
-      });
-      const deleteUsuarioPerm = await findOrCreatePermissao(prisma, {
-        nome: 'delete:usuario',
-        codigo: 'DELETE_USUARIO',
-        descricao: 'Permissão para deletar usuários',
-      });
-
-      // Create an admin profile with permissions
-      const adminProfile = await findOrCreatePerfil(prisma, {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
-        permissoes: {
-          connect: [
-            { id: readUsuarioByIdPerm.id },
-            { id: deleteUsuarioPerm.id },
-          ],
-        },
-      });
-
-      // Re-setup admin user and permissions for this describe block
-      const adminSetup = await setupAdminUserAndProfile(
-        prisma,
-        jwtService,
-        adminProfile.id,
-      );
-      adminToken = adminSetup.adminToken;
-
       // Create profiles
-      const userProfile = await prisma.perfil.create({
-        data: {
-          nome: 'User',
-          codigo: 'USER',
-          descricao: 'Perfil de usuário comum',
-          permissoes: { connect: { id: readUsuarioByIdPerm.id } },
-        },
-      });
+      const createdUserProfile = await testDataBuilder.createProfile(
+        'User',
+        'USER_PROFILE',
+        'Perfil de usuário comum',
+        ['READ_USUARIO_BY_ID'],
+      );
+      // Explicitly use the variable to satisfy the linter
+      console.log('Created user profile:', createdUserProfile.id);
 
       // Create users
-      user1 = await prisma.usuario.create({
-        data: {
-          email: 'user1@example.com',
-          senha: await bcrypt.hash('Password123!', 10),
-          perfis: { connect: { id: userProfile.id } },
-        },
-        include: { perfis: { include: { permissoes: true } } },
-      });
+      user1 = await testDataBuilder.createUser(
+        `user1-${Date.now()}@example.com`,
+        'Password123!',
+        ['USER_PROFILE'],
+      );
 
-      user2 = await prisma.usuario.create({
-        data: {
-          email: 'user2@example.com',
-          senha: await bcrypt.hash('Password123!', 10),
-        },
-      });
+      user2 = await testDataBuilder.createUser(
+        `user2-${Date.now()}@example.com`,
+        'Password123!',
+      );
 
-      deletedUser = await prisma.usuario.create({
-        data: {
-          email: 'deleted@example.com',
-          senha: await bcrypt.hash('Password123!', 10),
-          deletedAt: new Date(),
-        },
+      deletedUser = await testDataBuilder.createUser(
+        `deleted-${Date.now()}@example.com`,
+        'Password123!',
+      );
+      await prisma.usuario.update({
+        where: { id: deletedUser.id },
+        data: { deletedAt: new Date() },
       });
 
       // Create tokens
-      user1Token = jwtService.sign({
-        sub: user1.id,
-        email: user1.email,
-        perfis: user1.perfis,
-      });
+      user1Token = testDataBuilder.generateToken(user1);
     });
 
     it('deve permitir que um usuário acesse seus próprios dados', () => {
@@ -425,118 +344,70 @@ describe('UsuariosController (e2e)', () => {
 
   describe('PATCH /usuarios/:id', () => {
     let userToUpdate;
-    let userToken;
     let userToSoftDelete;
-    let restoreUsuarioPerm;
+    let userToken;
 
     beforeEach(async () => {
-      // Create permissions
-      const updateUsuarioPerm = await findOrCreatePermissao(prisma, {
-        nome: 'update:usuario',
-        codigo: 'UPDATE_USUARIO',
-        descricao: 'Permissão para atualizar usuários',
-      });
-      const readUsuarioByIdPerm = await findOrCreatePermissao(prisma, {
-        nome: 'read:usuario_by_id',
-        codigo: 'READ_USUARIO_BY_ID',
-        descricao: 'Permissão para ler usuários por ID',
-      });
-      restoreUsuarioPerm = await findOrCreatePermissao(prisma, {
-        nome: 'restore:usuario',
-        codigo: 'RESTORE_USUARIO',
-        descricao: 'Permissão para restaurar usuários',
-      });
-
-      // Create an admin profile with permissions
-      const adminProfile = await findOrCreatePerfil(prisma, {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
-        permissoes: {
-          connect: [
-            { id: updateUsuarioPerm.id },
-            { id: restoreUsuarioPerm.id },
-            { id: readUsuarioByIdPerm.id },
-          ],
-        },
-      });
-
-      // Re-setup admin user and permissions for this describe block
-      const adminSetup = await setupAdminUserAndProfile(
-        prisma,
-        jwtService,
-        adminProfile.id,
-      );
-      adminToken = adminSetup.adminToken;
-
       // Create profiles
-      const userProfile = await prisma.perfil.create({
-        data: {
-          nome: 'User',
-          codigo: 'USER',
-          descricao: 'Perfil de usuário comum',
-          permissoes: { connect: { id: updateUsuarioPerm.id } },
-        },
-      });
+      const createdUserProfile = await testDataBuilder.createProfile(
+        'UserForUpdate',
+        'USER_FOR_UPDATE',
+        'Perfil de usuário para atualização',
+        ['UPDATE_USUARIO'],
+      );
+      // Explicitly use the variable to satisfy the linter
+      console.log('Created user profile for update:', createdUserProfile.id);
 
       // Create users
-      userToUpdate = await prisma.usuario.create({
-        data: {
-          email: 'update_me@example.com',
-          senha: await bcrypt.hash('Password123!', 10),
-          perfis: { connect: { id: userProfile.id } },
-        },
-        include: { perfis: { include: { permissoes: true } } },
-      });
+      userToUpdate = await testDataBuilder.createUser(
+        `update_me-${Date.now()}@example.com`,
+        'Password123!',
+        ['USER_FOR_UPDATE'],
+      );
 
-      userToSoftDelete = await prisma.usuario.create({
-        data: {
-          email: 'soft_deleted@example.com',
-          senha: await bcrypt.hash('Password123!', 10),
-          deletedAt: new Date(), // Already soft-deleted
-        },
+      userToSoftDelete = await testDataBuilder.createUser(
+        `soft_deleted-${Date.now()}@example.com`,
+        'Password123!',
+      );
+      await prisma.usuario.update({
+        where: { id: userToSoftDelete.id },
+        data: { deletedAt: new Date() },
       });
 
       // Create tokens
-      userToken = jwtService.sign({
-        sub: userToUpdate.id,
-        email: userToUpdate.email,
-        perfis: userToUpdate.perfis,
-      });
+      userToken = testDataBuilder.generateToken(userToUpdate);
     });
 
     it('deve permitir que um usuário atualize seus próprios dados', () => {
-      const updateDto = { email: 'updated_email@example.com' };
+      const updateDto = { email: `updated_email-${Date.now()}@example.com` };
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToUpdate.id}`)
         .set('Authorization', `Bearer ${userToken}`)
         .send(updateDto)
         .expect(200)
         .then((res) => {
-          expect(res.body.email).toBe('updated_email@example.com');
+          expect(res.body.email).toBe(updateDto.email);
         });
     });
 
     it('deve permitir que um admin atualize os dados de outro usuário', async () => {
-      const updateDto = { email: 'admin_updated@example.com' };
+      const updateDto = { email: `admin_updated-${Date.now()}@example.com` };
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToUpdate.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send(updateDto)
         .expect(200)
         .then((res) => {
-          expect(res.body.email).toBe('admin_updated@example.com');
+          expect(res.body.email).toBe(updateDto.email);
         });
     });
 
     it('deve retornar 403 quando um usuário tenta atualizar dados de outro usuário', async () => {
-      const anotherUser = await prisma.usuario.create({
-        data: {
-          email: 'another_user@example.com',
-          senha: await bcrypt.hash('Password123!', 10),
-        },
-      });
-      const updateDto = { email: 'forbidden_update@example.com' };
+      const anotherUser = await testDataBuilder.createUser(
+        `another_user-${Date.now()}@example.com`,
+        'Password123!',
+      );
+      const updateDto = { email: `forbidden_update-${Date.now()}@example.com` };
 
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${anotherUser.id}`)
@@ -546,7 +417,9 @@ describe('UsuariosController (e2e)', () => {
     });
 
     it('deve retornar 404 quando o usuário a ser atualizado não existe', () => {
-      const updateDto = { email: 'nonexistent_update@example.com' };
+      const updateDto = {
+        email: `nonexistent_update-${Date.now()}@example.com`,
+      };
       return supertestRequest(app.getHttpServer())
         .patch('/usuarios/99999')
         .set('Authorization', `Bearer ${adminToken}`)

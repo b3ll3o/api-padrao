@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import { INestApplication } from '@nestjs/common';
+import { TestDataBuilder } from './test-data-builder';
 
 export async function cleanDatabase(prisma: PrismaClient) {
   const tablenames = await prisma.$queryRaw<
@@ -12,8 +14,20 @@ export async function cleanDatabase(prisma: PrismaClient) {
     .join(', ');
 
   try {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
+    if (tables) {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
+    }
   } catch (error) {
-    console.log({ error });
+    console.error({ error });
   }
+}
+
+export async function setupE2ETestData(app: INestApplication) {
+  const testDataBuilder = new TestDataBuilder(app);
+
+  const { token: adminToken } = await testDataBuilder.createAdminUserAndToken();
+  const { token: userToken } =
+    await testDataBuilder.createLimitedUserAndToken();
+
+  return { adminToken, userToken };
 }

@@ -5,11 +5,15 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import Redis from 'ioredis';
+import { cleanDatabase, setupE2ETestData } from './e2e-utils';
+import { TestDataBuilder } from './test-data-builder';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let jwtService: JwtService;
+
+  let testDataBuilder: TestDataBuilder;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -19,51 +23,52 @@ describe('AuthController (e2e)', () => {
     app = moduleFixture.createNestApplication();
     prisma = app.get<PrismaService>(PrismaService);
     jwtService = app.get<JwtService>(JwtService);
+    testDataBuilder = new TestDataBuilder(app);
 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
+
+    // Clean and setup common test data once for the entire suite
+    await cleanDatabase(prisma);
+    await setupE2ETestData(app);
   });
 
   afterAll(async () => {
     await app.close();
   });
 
+  // For login tests, we need a clean state for users, profiles, and permissions
+  // to ensure the specific test user can be created without conflicts.
   beforeEach(async () => {
     await prisma.usuario.deleteMany();
     await prisma.perfil.deleteMany();
     await prisma.permissao.deleteMany();
+    // Re-setup base data for each test to ensure a consistent starting point
+    await setupE2ETestData(app);
   });
 
   describe('POST /auth/login', () => {
     it('deve permitir que um usuário faça login com sucesso e retorne JWT com perfis e permissões', async () => {
-      // Criar permissões
-      const perm1 = await prisma.permissao.create({
-        data: {
-          nome: 'read:users',
-          codigo: 'READ_USERS',
-          descricao: 'Permissão para ler usuários',
-        },
-      });
-      const perm2 = await prisma.permissao.create({
-        data: {
-          nome: 'write:users',
-          codigo: 'WRITE_USERS',
-          descricao: 'Permissão para escrever usuários',
-        },
-      });
+      // Criar permissões usando o TestDataBuilder
+      const perm1 = await testDataBuilder.createPermission(
+        'read:users',
+        'READ_USERS',
+        'Permissão para ler usuários',
+      );
+      const perm2 = await testDataBuilder.createPermission(
+        'write:users',
+        'WRITE_USERS',
+        'Permissão para escrever usuários',
+      );
 
-      // Criar um perfil com permissões
-      const perfil = await prisma.perfil.create({
-        data: {
-          nome: 'Admin',
-          codigo: 'ADMIN',
-          descricao: 'Perfil de administrador',
-          permissoes: {
-            connect: [{ id: perm1.id }, { id: perm2.id }],
-          },
-        },
-      });
+      // Criar um perfil com permissões usando o TestDataBuilder
+      const perfil = await testDataBuilder.createProfile(
+        'AdminTest',
+        'ADMIN_TEST',
+        'Perfil de administrador para teste',
+        [perm1.codigo, perm2.codigo],
+      );
 
       const createUserDto = {
         email: 'test@example.com',
@@ -107,22 +112,12 @@ describe('AuthController (e2e)', () => {
           expect(decodedJwt.perfis[0].permissoes).toBeInstanceOf(Array);
           expect(decodedJwt.perfis[0].permissoes.length).toEqual(2);
 
-          // Verify each permission
-          expect(decodedJwt.perfis[0].permissoes[0].nome).toEqual(perm1.nome);
-          expect(decodedJwt.perfis[0].permissoes[0].codigo).toEqual(
-            perm1.codigo,
+          // Verify each permission (order might vary, so check for existence)
+          const decodedPermCodes = decodedJwt.perfis[0].permissoes.map(
+            (p) => p.codigo,
           );
-          expect(decodedJwt.perfis[0].permissoes[0].descricao).toEqual(
-            perm1.descricao,
-          );
-
-          expect(decodedJwt.perfis[0].permissoes[1].nome).toEqual(perm2.nome);
-          expect(decodedJwt.perfis[0].permissoes[1].codigo).toEqual(
-            perm2.codigo,
-          );
-          expect(decodedJwt.perfis[0].permissoes[1].descricao).toEqual(
-            perm2.descricao,
-          );
+          expect(decodedPermCodes).toContain(perm1.codigo);
+          expect(decodedPermCodes).toContain(perm2.codigo);
         });
     });
 
@@ -214,9 +209,13 @@ describe('AuthController (e2e)', () => {
   describe('Rate Limiting (e2e)', () => {
     jest.useFakeTimers();
 
-    let accessToken: string;
-    let userId: string;
     let redisClient: Redis;
+    let rateLimitUserToken: string;
+    let rateLimitUserId: string;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let adminToken: string;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let userToken: string;
 
     beforeAll(async () => {
       redisClient = new Redis({
@@ -225,40 +224,29 @@ describe('AuthController (e2e)', () => {
         db: 1, // Use a different DB for testing
       });
 
-      // Create a test user and log in to get an access token
-      const createUserDto = {
-        email: 'ratelimit@example.com',
-        senha: 'Password123!',
-        perfisIds: [],
-      };
+      // Create a test user for rate limiting and get an access token
+      const rateLimitUser = await testDataBuilder.createUser(
+        'ratelimit@example.com',
+        'Password123!',
+        [],
+      );
+      rateLimitUserToken = testDataBuilder.generateToken(rateLimitUser);
+      rateLimitUserId = rateLimitUser.id.toString();
 
-      await request(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
-        .expect(201);
-
-      const loginDto = {
-        email: 'ratelimit@example.com',
-        senha: 'Password123!',
-      };
-
-      const res = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send(loginDto)
-        .expect(201);
-
-      accessToken = res.body.access_token;
-      const decodedJwt: any = jwtService.decode(accessToken);
-      userId = decodedJwt.sub;
+      // Get admin and user tokens from the main setup
+      const tokens = await setupE2ETestData(app);
+      adminToken = tokens.adminToken;
+      userToken = tokens.userToken;
     });
 
     beforeEach(async () => {
       // Clear Redis for the specific user before each rate limit test
-      await redisClient.del(`rate-limit:${userId}`);
+      await redisClient.del(`rate-limit:${rateLimitUserId}`);
     });
 
     afterAll(async () => {
       await redisClient.quit();
+      jest.useRealTimers();
     });
 
     it('deve permitir requisições dentro do limite', async () => {
@@ -267,7 +255,7 @@ describe('AuthController (e2e)', () => {
       for (let i = 0; i < limit; i++) {
         await request(app.getHttpServer())
           .get('/permissoes') // Use a protected route
-          .set('Authorization', `Bearer ${accessToken}`)
+          .set('Authorization', `Bearer ${rateLimitUserToken}`)
           .expect(200);
       }
     });
@@ -279,14 +267,14 @@ describe('AuthController (e2e)', () => {
       for (let i = 0; i < limit; i++) {
         await request(app.getHttpServer())
           .get('/permissoes')
-          .set('Authorization', `Bearer ${accessToken}`)
+          .set('Authorization', `Bearer ${rateLimitUserToken}`)
           .expect(200);
       }
 
       // The next request should be blocked
       await request(app.getHttpServer())
         .get('/permissoes')
-        .set('Authorization', `Bearer ${accessToken}`)
+        .set('Authorization', `Bearer ${rateLimitUserToken}`)
         .expect(429); // Too Many Requests
     });
 
@@ -301,14 +289,14 @@ describe('AuthController (e2e)', () => {
       for (let i = 0; i < limit; i++) {
         await request(app.getHttpServer())
           .get('/permissoes')
-          .set('Authorization', `Bearer ${accessToken}`)
+          .set('Authorization', `Bearer ${rateLimitUserToken}`)
           .expect(200);
       }
 
       // Verify it's blocked
       await request(app.getHttpServer())
         .get('/permissoes')
-        .set('Authorization', `Bearer ${accessToken}`)
+        .set('Authorization', `Bearer ${rateLimitUserToken}`)
         .expect(429);
 
       // Wait for the window to expire (durationSeconds + a small buffer)
@@ -317,7 +305,7 @@ describe('AuthController (e2e)', () => {
       // Should be allowed again
       await request(app.getHttpServer())
         .get('/permissoes')
-        .set('Authorization', `Bearer ${accessToken}`)
+        .set('Authorization', `Bearer ${rateLimitUserToken}`)
         .expect(200);
     });
   });

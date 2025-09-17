@@ -5,15 +5,15 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { PaginatedResponseDto } from '../src/shared/dto/paginated-response.dto';
 import { Permissao } from '../src/permissoes/domain/entities/permissao.entity';
-import { cleanDatabase } from './e2e-utils';
-import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt'; // Import JwtService
+import { cleanDatabase, setupE2ETestData } from './e2e-utils';
+import { TestDataBuilder } from './test-data-builder';
 
 describe('PermissoesController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let adminToken: string; // Renamed to adminToken for clarity
-  let userToken: string; // Token for a user with limited permissions
+  let adminToken: string;
+  let userToken: string;
+  let testDataBuilder: TestDataBuilder;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -22,125 +22,17 @@ describe('PermissoesController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     prisma = app.get<PrismaService>(PrismaService);
-    const jwtService = app.get<JwtService>(JwtService); // Get JwtService instance
+    testDataBuilder = new TestDataBuilder(app);
 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
 
-    // Setup for admin user and token (moved from beforeEach to beforeAll for efficiency)
+    // Clean and setup common test data once for the entire suite
     await cleanDatabase(prisma);
-
-    const permissionsData = [
-      {
-        nome: 'create:permissao',
-        codigo: 'CREATE_PERMISSAO',
-        descricao: 'Permissão para criar permissões',
-      },
-      {
-        nome: 'read:permissoes',
-        codigo: 'READ_PERMISSOES',
-        descricao: 'Permissão para ler permissões',
-      },
-      {
-        nome: 'read:permissao_by_id',
-        codigo: 'READ_PERMISSAO_BY_ID',
-        descricao: 'Permissão para ler permissão por ID',
-      },
-      {
-        nome: 'read:permissao_by_nome',
-        codigo: 'READ_PERMISSAO_BY_NOME',
-        descricao: 'Permissão para ler permissão por nome',
-      },
-      {
-        nome: 'update:permissao',
-        codigo: 'UPDATE_PERMISSAO',
-        descricao: 'Permissão para atualizar permissão',
-      },
-      {
-        nome: 'delete:permissao',
-        codigo: 'DELETE_PERMISSAO',
-        descricao: 'Permissão para deletar permissão',
-      },
-    ];
-    const permissions = await Promise.all(
-      permissionsData.map((p) => prisma.permissao.create({ data: p })),
-    );
-
-    let adminProfile = await prisma.perfil.create({
-      data: {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
-        permissoes: {
-          connect: permissions.map((p) => ({ id: p.id })),
-        },
-      },
-    });
-    adminProfile = await prisma.perfil.findUniqueOrThrow({
-      where: { id: adminProfile.id },
-      include: { permissoes: true },
-    });
-
-    // Create an admin user
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    await prisma.usuario.create({
-      data: {
-        email: 'admin@example.com',
-        senha: hashedPassword,
-        perfis: {
-          connect: { id: adminProfile.id },
-        },
-      },
-      include: { perfis: { include: { permissoes: true } } },
-    });
-
-    const loginDto = {
-      email: 'admin@example.com',
-      senha: 'admin123',
-    };
-
-    const res = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send(loginDto)
-      .expect(201);
-
-    adminToken = res.body.access_token;
-
-    // Setup for a regular user with limited permissions
-    const limitedPerms = await prisma.permissao.create({
-      data: {
-        nome: 'read:limited_resource',
-        codigo: 'READ_LIMITED_RESOURCE',
-        descricao: 'Permissão para ler um recurso limitado',
-      },
-    });
-    const limitedProfile = await prisma.perfil.create({
-      data: {
-        nome: 'LimitedUser',
-        codigo: 'LIMITED_USER',
-        descricao: 'Perfil de usuário com acesso limitado',
-        permissoes: {
-          connect: { id: limitedPerms.id },
-        },
-      },
-    });
-    const limitedUserHashedPassword = await bcrypt.hash('Limited123!', 10);
-    const limitedUser = await prisma.usuario.create({
-      data: {
-        email: 'limited@example.com',
-        senha: limitedUserHashedPassword,
-        perfis: {
-          connect: { id: limitedProfile.id },
-        },
-      },
-      include: { perfis: { include: { permissoes: true } } },
-    });
-    userToken = jwtService.sign({
-      sub: limitedUser.id,
-      email: limitedUser.email,
-      perfis: limitedUser.perfis,
-    });
+    const tokens = await setupE2ETestData(app);
+    adminToken = tokens.adminToken;
+    userToken = tokens.userToken;
   });
 
   afterAll(async () => {
@@ -149,6 +41,9 @@ describe('PermissoesController (e2e)', () => {
 
   beforeEach(async () => {
     // Clean up data created by individual tests if necessary, but not global data
+    // The setupE2ETestData in beforeAll ensures base data is present.
+    // For tests that modify base data, they should clean up after themselves
+    // or create their own isolated data.
     await prisma.permissao.deleteMany({
       where: {
         codigo: {
@@ -181,7 +76,6 @@ describe('PermissoesController (e2e)', () => {
         .expect(201)
         .expect((res) => {
           expect(res.body).toHaveProperty('id');
-
           expect(res.body.nome).toEqual(createPermissaoDto.nome);
         });
     });
@@ -200,7 +94,10 @@ describe('PermissoesController (e2e)', () => {
     });
 
     it('deve retornar 400 se o nome estiver faltando', () => {
-      const createPermissaoDto = {};
+      const createPermissaoDto = {
+        codigo: `MISSING_NAME_${Date.now()}`,
+        descricao: 'Descrição',
+      };
 
       return request(app.getHttpServer())
         .post('/permissoes')
@@ -210,9 +107,10 @@ describe('PermissoesController (e2e)', () => {
     });
 
     it('deve retornar 409 se a permissão com o mesmo nome já existir', async () => {
+      const uniqueName = `duplicate:name-${Date.now()}`;
       const createPermissaoDto = {
-        nome: 'duplicate:name',
-        codigo: 'DUPLICATE_NAME',
+        nome: uniqueName,
+        codigo: `DUPLICATE_NAME_${Date.now()}`,
         descricao: 'Permissão duplicada',
       };
       // Criar a primeira permissão
@@ -230,7 +128,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(409)
         .expect((res) => {
           expect(res.body.message).toEqual(
-            `Permissão com o nome '${createPermissaoDto.nome}' já existe.`,
+            `Permissão com o nome '${uniqueName}' já existe.`,
           );
         });
     });
@@ -262,13 +160,11 @@ describe('PermissoesController (e2e)', () => {
 
   describe('GET /permissoes/:id', () => {
     it('deve retornar uma única permissão', async () => {
-      const permissao = await prisma.permissao.create({
-        data: {
-          nome: 'delete:users',
-          codigo: 'DELETE_USERS',
-          descricao: 'Permissão para deletar usuários',
-        },
-      });
+      const permissao = await testDataBuilder.createPermission(
+        'delete:users',
+        'DELETE_USERS',
+        'Permissão para deletar usuários',
+      );
 
       return request(app.getHttpServer())
         .get(`/permissoes/${permissao.id}`)
@@ -276,19 +172,16 @@ describe('PermissoesController (e2e)', () => {
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('id', permissao.id);
-
           expect(res.body.nome).toEqual(permissao.nome);
         });
     });
 
     it('deve retornar 403 se o usuário não tiver permissão para ler permissão por ID', async () => {
-      const permissao = await prisma.permissao.create({
-        data: {
-          nome: 'delete:users',
-          codigo: 'DELETE_USERS',
-          descricao: 'Permissão para deletar usuários',
-        },
-      });
+      const permissao = await testDataBuilder.createPermission(
+        'delete:users-no-perms',
+        'DELETE_USERS_NO_PERMS',
+        'Permissão para deletar usuários sem permissão',
+      );
       return request(app.getHttpServer())
         .get(`/permissoes/${permissao.id}`)
         .set('Authorization', `Bearer ${userToken}`)
@@ -305,25 +198,21 @@ describe('PermissoesController (e2e)', () => {
 
   describe('GET /permissoes/nome/:nome', () => {
     it('deve retornar permissões que contêm a string no nome', async () => {
-      await prisma.permissao.createMany({
-        data: [
-          {
-            nome: 'permissao_teste_1',
-            codigo: 'PERMISSAO_TESTE_1',
-            descricao: 'Permissão de teste 1',
-          },
-          {
-            nome: 'outra_permissao',
-            codigo: 'OUTRA_PERMISSAO',
-            descricao: 'Outra permissão de teste',
-          },
-          {
-            nome: 'permissao_teste_2',
-            codigo: 'PERMISSAO_TESTE_2',
-            descricao: 'Permissão de teste 2',
-          },
-        ],
-      });
+      await testDataBuilder.createPermission(
+        'permissao_teste_1',
+        'PERMISSAO_TESTE_1',
+        'Permissão de teste 1',
+      );
+      await testDataBuilder.createPermission(
+        'outra_permissao',
+        'OUTRA_PERMISSAO',
+        'Outra permissão de teste',
+      );
+      await testDataBuilder.createPermission(
+        'permissao_teste_2',
+        'PERMISSAO_TESTE_2',
+        'Permissão de teste 2',
+      );
       const paginationDto = { page: 1, limit: 10 };
 
       return request(app.getHttpServer())
@@ -371,13 +260,11 @@ describe('PermissoesController (e2e)', () => {
 
   describe('PATCH /permissoes/:id', () => {
     it('deve atualizar uma permissão', async () => {
-      const permissao = await prisma.permissao.create({
-        data: {
-          nome: 'update:test',
-          codigo: 'UPDATE_TEST',
-          descricao: 'Permissão de teste para atualização',
-        },
-      });
+      const permissao = await testDataBuilder.createPermission(
+        'update:test',
+        'UPDATE_TEST',
+        'Permissão de teste para atualização',
+      );
       const updatePermissaoDto = { nome: 'updated:test' };
 
       return request(app.getHttpServer())
@@ -392,13 +279,11 @@ describe('PermissoesController (e2e)', () => {
     });
 
     it('deve retornar 403 se o usuário não tiver permissão para atualizar permissão', async () => {
-      const permissao = await prisma.permissao.create({
-        data: {
-          nome: 'update:test',
-          codigo: 'UPDATE_TEST',
-          descricao: 'Permissão de teste para atualização',
-        },
-      });
+      const permissao = await testDataBuilder.createPermission(
+        'update:test-no-perms',
+        'UPDATE_TEST_NO_PERMS',
+        'Permissão de teste para atualização sem permissão',
+      );
       const updatePermissaoDto = { nome: 'updated:test' };
       return request(app.getHttpServer())
         .patch(`/permissoes/${permissao.id}`)
@@ -446,8 +331,8 @@ describe('PermissoesController (e2e)', () => {
     it('deve retornar 403 se não for admin ao tentar restaurar via PATCH', async () => {
       const permissao = await prisma.permissao.create({
         data: {
-          nome: 'restore:test',
-          codigo: 'RESTORE_TEST',
+          nome: 'restore:test-no-admin',
+          codigo: 'RESTORE_TEST_NO_ADMIN',
           descricao: 'Permissão de teste para restauração',
           deletedAt: new Date(),
         },
@@ -462,13 +347,11 @@ describe('PermissoesController (e2e)', () => {
     });
 
     it('deve retornar 409 se tentar restaurar uma permissão não deletada via PATCH', async () => {
-      const permissao = await prisma.permissao.create({
-        data: {
-          nome: 'non-deleted:test',
-          codigo: 'NON_DELETED_TEST',
-          descricao: 'Permissão de teste não deletada',
-        },
-      });
+      const permissao = await testDataBuilder.createPermission(
+        'non-deleted:test',
+        'NON_DELETED_TEST',
+        'Permissão de teste não deletada',
+      );
       const restoreDto = { ativo: true };
 
       return request(app.getHttpServer())
@@ -479,13 +362,11 @@ describe('PermissoesController (e2e)', () => {
     });
 
     it('deve realizar soft delete de uma permissão via PATCH /permissoes/:id com { ativo: false }', async () => {
-      const permissao = await prisma.permissao.create({
-        data: {
-          nome: 'softdelete:test',
-          codigo: 'SOFTDELETE_TEST',
-          descricao: 'Permissão de teste para soft delete',
-        },
-      });
+      const permissao = await testDataBuilder.createPermission(
+        'softdelete:test',
+        'SOFTDELETE_TEST',
+        'Permissão de teste para soft delete',
+      );
       const deleteDto = { ativo: false };
 
       return request(app.getHttpServer())
@@ -505,13 +386,11 @@ describe('PermissoesController (e2e)', () => {
     });
 
     it('deve retornar 403 se não for admin ao tentar deletar via PATCH', async () => {
-      const permissao = await prisma.permissao.create({
-        data: {
-          nome: 'softdelete:test',
-          codigo: 'SOFTDELETE_TEST',
-          descricao: 'Permissão de teste para soft delete',
-        },
-      });
+      const permissao = await testDataBuilder.createPermission(
+        'softdelete:test-no-admin',
+        'SOFTDELETE_TEST_NO_ADMIN',
+        'Permissão de teste para soft delete sem admin',
+      );
       const deleteDto = { ativo: false };
 
       return request(app.getHttpServer())
