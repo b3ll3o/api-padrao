@@ -10,6 +10,8 @@ import { PerfisModule } from './perfis/perfis.module';
 import { PermissaoGuard } from './auth/application/guards/permissao.guard';
 import { PasswordHasher } from './shared/domain/services/password-hasher.service';
 import { BcryptPasswordHasherService } from './shared/infrastructure/services/bcrypt-password-hasher.service';
+import { RateLimitGuard } from './auth/application/guards/rate-limit.guard';
+import { SharedModule } from './shared/shared.module';
 
 @Module({
   imports: [
@@ -18,6 +20,7 @@ import { BcryptPasswordHasherService } from './shared/infrastructure/services/bc
     AuthModule,
     PermissoesModule,
     PerfisModule,
+    SharedModule,
   ],
   controllers: [],
   providers: [
@@ -28,6 +31,10 @@ import { BcryptPasswordHasherService } from './shared/infrastructure/services/bc
     {
       provide: APP_GUARD,
       useClass: PermissaoGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
     },
     {
       provide: PasswordHasher,

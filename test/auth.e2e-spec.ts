@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import Redis from 'ioredis';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
@@ -207,6 +208,117 @@ describe('AuthController (e2e)', () => {
         .expect((res) => {
           expect(res.body.message).toContain('A senha não pode ser vazia');
         });
+    });
+  });
+
+  describe('Rate Limiting (e2e)', () => {
+    jest.useFakeTimers();
+
+    let accessToken: string;
+    let userId: string;
+    let redisClient: Redis;
+
+    beforeAll(async () => {
+      redisClient = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        db: 1, // Use a different DB for testing
+      });
+
+      // Create a test user and log in to get an access token
+      const createUserDto = {
+        email: 'ratelimit@example.com',
+        senha: 'Password123!',
+        perfisIds: [],
+      };
+
+      await request(app.getHttpServer())
+        .post('/usuarios')
+        .send(createUserDto)
+        .expect(201);
+
+      const loginDto = {
+        email: 'ratelimit@example.com',
+        senha: 'Password123!',
+      };
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginDto)
+        .expect(201);
+
+      accessToken = res.body.access_token;
+      const decodedJwt: any = jwtService.decode(accessToken);
+      userId = decodedJwt.sub;
+    });
+
+    beforeEach(async () => {
+      // Clear Redis for the specific user before each rate limit test
+      await redisClient.del(`rate-limit:${userId}`);
+    });
+
+    afterAll(async () => {
+      await redisClient.quit();
+    });
+
+    it('deve permitir requisições dentro do limite', async () => {
+      const limit = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '10', 10);
+
+      for (let i = 0; i < limit; i++) {
+        await request(app.getHttpServer())
+          .get('/permissoes') // Use a protected route
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+      }
+    });
+
+    it('deve bloquear requisições quando o limite é excedido', async () => {
+      const limit = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '10', 10);
+
+      // Make requests up to the limit
+      for (let i = 0; i < limit; i++) {
+        await request(app.getHttpServer())
+          .get('/permissoes')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+      }
+
+      // The next request should be blocked
+      await request(app.getHttpServer())
+        .get('/permissoes')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(429); // Too Many Requests
+    });
+
+    it('deve permitir requisições novamente após a janela de tempo expirar', async () => {
+      const limit = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '10', 10);
+      const durationSeconds = parseInt(
+        process.env.RATE_LIMIT_WINDOW_SECONDS || '60',
+        10,
+      );
+
+      // Make requests up to the limit
+      for (let i = 0; i < limit; i++) {
+        await request(app.getHttpServer())
+          .get('/permissoes')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+      }
+
+      // Verify it's blocked
+      await request(app.getHttpServer())
+        .get('/permissoes')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(429);
+
+      // Wait for the window to expire (durationSeconds + a small buffer)
+      jest.advanceTimersByTime(durationSeconds * 1000 + 500);
+
+      // Should be allowed again
+      await request(app.getHttpServer())
+        .get('/permissoes')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
     });
   });
 });
