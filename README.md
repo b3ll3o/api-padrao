@@ -142,13 +142,44 @@ O projeto inclui testes unitários e de integração (E2E). Os testes são execu
     npm run test:cov
     ```
 *   **Testes End-to-End (E2E):**
-    ```bash
-    npm run test:e2e
-    ```
+    1.  Execute as migrações para o banco de dados de teste:
+        ```bash
+        npm run test:migrate
+        ```
+    2.  Execute os testes E2E:
+        ```bash
+        npm run test:e2e
+        ```
 
 ### Estilo de Código
 
 O projeto utiliza ESLint para linting e Prettier para formatação de código. Os arquivos de configuração são `eslint.config.js` e `.prettierrc`.
+
+## Diretrizes de Desenvolvimento
+
+Para garantir a qualidade do código, manutenibilidade e aderência às melhores práticas, as seguintes diretrizes devem ser seguidas durante o desenvolvimento:
+
+*   **Desenvolvimento Orientado a Testes (TDD):** Todas as novas funcionalidades e correções de bugs devem ser desenvolvidas seguindo a metodologia Test-Driven Development (TDD). Escreva os testes antes de escrever o código de produção.
+*   **Princípios de Clean Code:** Adira estritamente aos princípios de Clean Code, focando em legibilidade, manutenibilidade e simplicidade.
+*   **Princípios SOLID:** Aplique os princípios SOLID (Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion) para projetar e implementar soluções robustas, manuteníveis e escaláveis.
+*   **Cobertura de Testes Unitários:** A cobertura de testes unitários deve ser igual ou superior a 80%. Garanta que o novo código mantenha ou melhore essa cobertura.
+*   **Verificações de Pré-Commit:**
+    Para garantir a qualidade do código e prevenir regressões, hooks de pré-commit são configurados usando Husky e lint-staged. Esses hooks executam automaticamente verificações em arquivos staged antes que um commit seja permitido.
+    *   **Linting:** O linter (`eslint --fix`) é executado em arquivos `.ts` e `.tsx` staged. Quaisquer problemas corrigíveis serão automaticamente corrigidos. Se erros não corrigíveis permanecerem, o commit será abortado.
+    *   **Testes Unitários:** Testes unitários relevantes (`jest --findRelatedTests`) são executados em arquivos `.ts` e `.tsx` staged. Se algum teste falhar, o commit será abortado.
+    *   **Testes Aprovados:** Nenhum código deve ser commitado se quaisquer testes (unitários ou E2E) estiverem falhando. Todos os testes devem passar antes de commitar.
+    *   **Atualização da Documentação:** Sempre atualize a documentação do projeto (anotações Swagger e `README.md`) antes de commitar.
+*   **Linguagem das Mensagens de Teste:** Todas as mensagens descritivas dentro dos testes unitários e de integração (por exemplo, descrições dos blocos `describe` e `it`) devem ser escritas em Português do Brasil (pt-br).
+*   **Paginação para Buscas de Lista:** Todas as buscas que retornam uma lista de objetos devem ser paginadas. O tamanho padrão da página deve ser 10. A paginação deve suportar ordenação, e a resposta deve incluir o número total de páginas e o número total de elementos.
+*   **Soft Delete de Entidades:** Todas as entidades de banco de dados devem incluir os campos `createdAt`, `updatedAt`, `deletedAt`, e uma flag booleana chamada `ativo` (active). A exclusão deve ser um soft delete, controlada pela definição de um valor no campo `deletedAt` e definindo `ativo` como `false`. Se uma entidade foi desativada (soft-deleted) pelo menos uma vez, seu campo `deletedAt` deve conter um timestamp.
+
+## Integração Contínua (CI)
+
+Um workflow do GitHub Actions é configurado para garantir a qualidade do código e prevenir regressões em cada pull request para a branch `main`. O pipeline de CI realiza as seguintes verificações:
+
+*   **Linting:** Executa o ESLint para impor o estilo do código e identificar potenciais problemas.
+*   **Testes Unitários:** Executa todos os testes unitários para verificar a correção dos componentes individuais.
+*   **Testes E2E:** Executa testes end-to-end contra um banco de dados de teste dedicado para garantir a funcionalidade geral da aplicação.
 
 ## Licença
 
