@@ -127,6 +127,7 @@ describe('PrismaPerfilRepository', () => {
         codigo: 'PERFIL_1',
         descricao: 'Desc 1',
         deletedAt: null,
+        ativo: true,
         permissoes: [],
       },
       {
@@ -135,6 +136,7 @@ describe('PrismaPerfilRepository', () => {
         codigo: 'PERFIL_2',
         descricao: 'Desc 2',
         deletedAt: new Date(), // Soft deleted
+        ativo: false,
         permissoes: [],
       },
     ];
@@ -188,6 +190,7 @@ describe('PrismaPerfilRepository', () => {
       codigo: 'PERFIL_1',
       descricao: 'Desc 1',
       deletedAt: null,
+      ativo: true,
       permissoes: [],
     };
 
@@ -326,8 +329,8 @@ describe('PrismaPerfilRepository', () => {
         nome: 'Test Perfil',
         codigo: 'TEST_PERFIL',
         descricao: 'Description',
-        deletedAt: new Date(), // Expected to be set
         permissoes: [],
+        ativo: false,
       };
       mockPrismaService.perfil.update.mockResolvedValue(prismaResult);
 
@@ -337,7 +340,7 @@ describe('PrismaPerfilRepository', () => {
       expect(result.deletedAt).not.toBeNull(); // Assert deletedAt is set
       expect(mockPrismaService.perfil.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { deletedAt: expect.any(Date) },
+        data: { deletedAt: expect.any(Date), ativo: false },
         include: { permissoes: true }, // Added include expectation
       });
     });
@@ -360,6 +363,7 @@ describe('PrismaPerfilRepository', () => {
         descricao: 'Description',
         deletedAt: null, // Expected to be null after restore
         permissoes: [],
+        ativo: true,
       };
       mockPrismaService.perfil.update.mockResolvedValue(prismaResult);
 
@@ -369,7 +373,7 @@ describe('PrismaPerfilRepository', () => {
       expect(result.deletedAt).toBeNull(); // Assert deletedAt is null
       expect(mockPrismaService.perfil.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { deletedAt: null },
+        data: { deletedAt: null, ativo: true },
         include: { permissoes: true }, // Added include expectation
       });
     });
@@ -390,6 +394,7 @@ describe('PrismaPerfilRepository', () => {
       codigo: 'TEST_PERFIL',
       descricao: 'Description',
       deletedAt: null,
+      ativo: true,
       permissoes: [],
     };
 
@@ -441,6 +446,7 @@ describe('PrismaPerfilRepository', () => {
         codigo: 'TEST_PERFIL_1',
         descricao: 'Desc 1',
         deletedAt: null,
+        ativo: true,
         permissoes: [],
       },
       {
@@ -449,6 +455,7 @@ describe('PrismaPerfilRepository', () => {
         codigo: 'ANOTHER_TEST_PERFIL',
         descricao: 'Desc 2',
         deletedAt: new Date(), // Soft deleted
+        ativo: false,
         permissoes: [],
       },
     ];
