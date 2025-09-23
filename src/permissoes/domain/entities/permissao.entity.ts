@@ -22,4 +22,7 @@ export class Permissao {
     nullable: true,
   })
   deletedAt?: Date | null; // Added
+
+  @ApiProperty({ description: 'Status ativo da permissão', example: true })
+  ativo: boolean;
 }

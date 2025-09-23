@@ -16,6 +16,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     newPermissao.codigo = permissao.codigo;
     newPermissao.descricao = permissao.descricao;
     newPermissao.deletedAt = permissao.deletedAt;
+    newPermissao.ativo = permissao.ativo;
     return newPermissao;
   }
 
@@ -88,7 +89,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     try {
       const softDeletedPermissao = await this.prisma.permissao.update({
         where: { id },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: new Date(), ativo: false },
       });
       return this.toDomain(softDeletedPermissao);
     } catch (error) {
@@ -103,7 +104,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     try {
       const restoredPermissao = await this.prisma.permissao.update({
         where: { id },
-        data: { deletedAt: null },
+        data: { deletedAt: null, ativo: true },
       });
       return this.toDomain(restoredPermissao);
     } catch (error) {
