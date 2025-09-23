@@ -239,6 +239,7 @@ describe('PrismaPermissaoRepository', () => {
         codigo: 'TEST_PERMISSAO',
         descricao: 'Description',
         deletedAt: new Date(), // Expected to be set
+        ativo: false,
       };
       mockPrismaService.permissao.update.mockResolvedValue(prismaResult);
 
@@ -248,7 +249,7 @@ describe('PrismaPermissaoRepository', () => {
       expect(result.deletedAt).not.toBeNull(); // Assert deletedAt is set
       expect(mockPrismaService.permissao.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { deletedAt: expect.any(Date) },
+        data: { deletedAt: expect.any(Date), ativo: false },
       });
     });
 
@@ -269,6 +270,7 @@ describe('PrismaPermissaoRepository', () => {
         codigo: 'TEST_PERMISSAO',
         descricao: 'Description',
         deletedAt: null, // Expected to be null after restore
+        ativo: true,
       };
       mockPrismaService.permissao.update.mockResolvedValue(prismaResult);
 
@@ -278,7 +280,7 @@ describe('PrismaPermissaoRepository', () => {
       expect(result.deletedAt).toBeNull(); // Assert deletedAt is null
       expect(mockPrismaService.permissao.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { deletedAt: null },
+        data: { deletedAt: null, ativo: true },
       });
     });
 

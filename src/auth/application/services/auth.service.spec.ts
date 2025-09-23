@@ -60,12 +60,14 @@ describe('AuthService', () => {
         nome: 'read:users',
         codigo: 'READ_USERS',
         descricao: 'Permite ler usuários',
+        ativo: true,
       };
       const mockPerfil: Perfil = {
         id: 1,
         nome: 'Admin',
         codigo: 'ADMIN',
         descricao: 'Perfil de administrador',
+        ativo: true,
         permissoes: [mockPermissao],
       };
       const mockUser: Usuario = {

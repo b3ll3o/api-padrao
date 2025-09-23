@@ -22,6 +22,7 @@ describe('PerfisService', () => {
     codigo: 'OLD_PERFIL',
     descricao: 'Old Description',
     deletedAt: null,
+    ativo: true,
   } as Perfil;
 
   const mockAdminUsuarioLogado: JwtPayload = {
@@ -97,6 +98,7 @@ describe('PerfisService', () => {
         id: 1,
         ...createPerfilDto,
         deletedAt: null, // Added
+        ativo: true,
       } as Perfil;
       (mockPerfilRepository.findByNome as jest.Mock).mockResolvedValue(null);
       (mockPerfilRepository.create as jest.Mock).mockResolvedValue(
@@ -108,6 +110,7 @@ describe('PerfisService', () => {
         codigo: 'PERM_1',
         descricao: 'Desc 1',
         deletedAt: null,
+        ativo: true,
       });
 
       const result = await service.create(createPerfilDto);
@@ -130,6 +133,7 @@ describe('PerfisService', () => {
         id: 1,
         ...createPerfilDto,
         deletedAt: null, // Added
+        ativo: true,
       } as Perfil;
       (mockPerfilRepository.findByNome as jest.Mock).mockResolvedValue(null);
       (mockPerfilRepository.create as jest.Mock).mockResolvedValue(
@@ -198,6 +202,7 @@ describe('PerfisService', () => {
       (mockPerfilRepository.restore as jest.Mock).mockResolvedValue({
         ...softDeletedPerfil,
         deletedAt: null,
+        ativo: true,
       });
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
@@ -245,6 +250,7 @@ describe('PerfisService', () => {
       (mockPerfilRepository.remove as jest.Mock).mockResolvedValue({
         ...nonDeletedPerfil,
         deletedAt: new Date(),
+        ativo: false,
       });
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
@@ -291,6 +297,7 @@ describe('PerfisService', () => {
         codigo: 'PERFIL_1',
         descricao: 'Desc 1',
         deletedAt: null,
+        ativo: true,
       },
       {
         id: 2,
@@ -298,6 +305,7 @@ describe('PerfisService', () => {
         codigo: 'PERFIL_2',
         descricao: 'Desc 2',
         deletedAt: new Date(),
+        ativo: false,
       },
     ] as Perfil[];
 
@@ -337,6 +345,7 @@ describe('PerfisService', () => {
       codigo: 'TEST_PERFIL',
       descricao: 'Description',
       deletedAt: null,
+      ativo: true,
     } as Perfil;
 
     it('deve retornar um único perfil (não excluído) por padrão', async () => {
@@ -378,6 +387,7 @@ describe('PerfisService', () => {
         codigo: 'TEST_PERFIL_1',
         descricao: 'Desc 1',
         deletedAt: null,
+        ativo: true,
       },
       {
         id: 2,
@@ -385,6 +395,7 @@ describe('PerfisService', () => {
         codigo: 'ANOTHER_TEST_PERFIL',
         descricao: 'Desc 2',
         deletedAt: new Date(),
+        ativo: false,
       },
     ] as Perfil[];
 
@@ -447,6 +458,7 @@ describe('PerfisService', () => {
             nome: 'Permissao 1',
             descricao: 'Desc 1',
             deletedAt: null,
+            ativo: true,
           },
         ], // Added full Permissao object
       } as Perfil;
@@ -463,6 +475,7 @@ describe('PerfisService', () => {
         codigo: 'PERM_1',
         descricao: 'Desc 1',
         deletedAt: null,
+        ativo: true,
       });
 
       const result = await service.update(

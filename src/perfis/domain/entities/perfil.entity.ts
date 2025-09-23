@@ -24,6 +24,9 @@ export class Perfil {
   })
   deletedAt?: Date | null; // Added
 
+  @ApiProperty({ description: 'Status ativo do perfil', example: true })
+  ativo: boolean;
+
   @ApiProperty({
     description: 'Permissões associadas ao perfil',
     type: [Permissao],

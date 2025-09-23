@@ -10,6 +10,17 @@ import { Permissao } from '../../../permissoes/domain/entities/permissao.entity'
 export class PrismaPerfilRepository implements PerfilRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private toPermissaoDomain(permissao: any): Permissao {
+    const newPermissao = new Permissao();
+    newPermissao.id = permissao.id;
+    newPermissao.nome = permissao.nome;
+    newPermissao.codigo = permissao.codigo;
+    newPermissao.descricao = permissao.descricao;
+    newPermissao.deletedAt = permissao.deletedAt;
+    newPermissao.ativo = permissao.ativo;
+    return newPermissao;
+  }
+
   private toDomain(perfil: any): Perfil {
     const newPerfil = new Perfil();
     newPerfil.id = perfil.id;
@@ -17,14 +28,10 @@ export class PrismaPerfilRepository implements PerfilRepository {
     newPerfil.codigo = perfil.codigo;
     newPerfil.descricao = perfil.descricao;
     newPerfil.deletedAt = perfil.deletedAt;
-    newPerfil.permissoes = perfil.permissoes?.map((p) => {
-      const newPermissao = new Permissao();
-      newPermissao.id = p.id;
-      newPermissao.nome = p.nome;
-      newPermissao.codigo = p.codigo;
-      newPermissao.descricao = p.descricao;
-      return newPermissao;
-    });
+    newPerfil.ativo = perfil.ativo;
+    newPerfil.permissoes = perfil.permissoes?.map((p) =>
+      this.toPermissaoDomain(p),
+    );
     return newPerfil;
   }
 
@@ -112,7 +119,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
     try {
       const softDeletedPerfil = await this.prisma.perfil.update({
         where: { id },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: new Date(), ativo: false },
         include: { permissoes: true },
       });
       return this.toDomain(softDeletedPerfil);
@@ -128,7 +135,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
     try {
       const restoredPerfil = await this.prisma.perfil.update({
         where: { id },
-        data: { deletedAt: null },
+        data: { deletedAt: null, ativo: true },
         include: { permissoes: true },
       });
       return this.toDomain(restoredPerfil);

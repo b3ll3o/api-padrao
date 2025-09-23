@@ -70,6 +70,7 @@ describe('PermissoesService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null, // Added
+        ativo: true, // Added
       } as Permissao;
       (mockPermissaoRepository.findByNome as jest.Mock).mockResolvedValue(null);
       (mockPermissaoRepository.create as jest.Mock).mockResolvedValue(
@@ -119,6 +120,7 @@ describe('PermissoesService', () => {
         codigo: 'PERMISSAO_1',
         descricao: 'Desc 1',
         deletedAt: null,
+        ativo: true,
       },
       {
         id: 2,
@@ -126,6 +128,7 @@ describe('PermissoesService', () => {
         codigo: 'PERMISSAO_2',
         descricao: 'Desc 2',
         deletedAt: new Date(),
+        ativo: false,
       },
     ] as Permissao[];
 
@@ -169,6 +172,7 @@ describe('PermissoesService', () => {
       codigo: 'TEST_PERMISSAO',
       descricao: 'Description',
       deletedAt: null,
+      ativo: true,
     } as Permissao;
 
     it('deve retornar uma única permissão (não excluída) por padrão', async () => {
@@ -210,6 +214,7 @@ describe('PermissoesService', () => {
         codigo: 'TEST_PERMISSAO_1',
         descricao: 'Desc 1',
         deletedAt: null,
+        ativo: true,
       },
       {
         id: 2,
@@ -217,6 +222,7 @@ describe('PermissoesService', () => {
         codigo: 'ANOTHER_TEST_PERMISSAO',
         descricao: 'Desc 2',
         deletedAt: new Date(),
+        ativo: false,
       },
     ] as Permissao[];
 
@@ -268,8 +274,8 @@ describe('PermissoesService', () => {
       codigo: 'OLD_PERMISSAO',
       descricao: 'Old Description',
       deletedAt: null,
+      ativo: true,
     } as Permissao;
-
     const mockAdminUsuarioLogado: JwtPayload = {
       userId: 1,
       email: 'admin@example.com',
@@ -353,6 +359,7 @@ describe('PermissoesService', () => {
       (mockPermissaoRepository.restore as jest.Mock).mockResolvedValue({
         ...softDeletedPermissao,
         deletedAt: null,
+        ativo: true,
       });
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
@@ -405,6 +412,7 @@ describe('PermissoesService', () => {
       (mockPermissaoRepository.remove as jest.Mock).mockResolvedValue({
         ...nonDeletedPermissao,
         deletedAt: new Date(),
+        ativo: false,
       });
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);

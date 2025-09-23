@@ -133,7 +133,13 @@ describe('UsuariosService', () => {
     mockUser.id = 1;
     mockUser.email = 'test@example.com';
     mockUser.perfis = [
-      { id: 1, codigo: 'USER', nome: 'User', descricao: 'User Profile' },
+      {
+        id: 1,
+        codigo: 'USER',
+        nome: 'User',
+        descricao: 'User Profile',
+        ativo: true,
+      },
     ];
     mockUser.deletedAt = null; // Added
 
@@ -141,7 +147,13 @@ describe('UsuariosService', () => {
     mockAdminUser.id = 2;
     mockAdminUser.email = 'admin@example.com';
     mockAdminUser.perfis = [
-      { id: 2, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' },
+      {
+        id: 2,
+        codigo: 'ADMIN',
+        nome: 'Admin',
+        descricao: 'Admin Profile',
+        ativo: true,
+      },
     ];
     mockAdminUser.deletedAt = null; // Added
 
@@ -218,7 +230,13 @@ describe('UsuariosService', () => {
     mockUser.id = 1;
     mockUser.email = 'test@example.com';
     mockUser.perfis = [
-      { id: 1, codigo: 'USER', nome: 'User', descricao: 'User Profile' },
+      {
+        id: 1,
+        codigo: 'USER',
+        nome: 'User',
+        descricao: 'User Profile',
+        ativo: true,
+      },
     ];
     mockUser.deletedAt = null; // Added
 
@@ -226,7 +244,13 @@ describe('UsuariosService', () => {
     mockAdminUser.id = 2;
     mockAdminUser.email = 'admin@example.com';
     mockAdminUser.perfis = [
-      { id: 2, codigo: 'ADMIN', nome: 'Admin', descricao: 'Admin Profile' },
+      {
+        id: 2,
+        codigo: 'ADMIN',
+        nome: 'Admin',
+        descricao: 'Admin Profile',
+        ativo: true,
+      },
     ];
     mockAdminUser.deletedAt = null; // Added
 
