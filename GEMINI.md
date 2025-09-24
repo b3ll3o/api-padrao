@@ -70,6 +70,14 @@ To ensure code quality, maintainability, and adherence to best practices, the fo
 *   **Test Message Language:** All descriptive messages within unit and integration tests (e.g., `describe` and `it` block descriptions) must be written in Brazilian Portuguese (pt-br).
 *   **Pagination for List Searches:** All searches returning a list of objects must be paginated. The default page size should be 10. Pagination should support ordering, and the response must include the total number of pages and total number of elements.
 *   **Entity Soft Delete:** All database entities must include `createdAt`, `updatedAt`, `deletedAt` fields, and a boolean flag named `ativo` (active). Deletion should be a soft delete, controlled by setting a value in the `deletedAt` field and setting `ativo` to `false`. If an entity has been deactivated (soft-deleted) at least once, its `deletedAt` field must contain a timestamp.
+*   **Boas Práticas de Logging:**
+    *   **Tipos de Logs:** Coletar logs de aplicação (DEBUG, INFO, WARN, ERROR, FATAL), logs de acesso, logs de auditoria, logs de sistema/infraestrutura, traces distribuídos e métricas.
+    *   **Contexto:** Incluir sempre contexto relevante nos logs (ex: ID da requisição, ID do usuário, ID da sessão, nome do serviço, versão da aplicação).
+    *   **Formato Estruturado:** Utilizar formato JSON para logs para facilitar ingestão, pesquisa e análise.
+    *   **Centralização:** Enviar todos os logs para um sistema de gerenciamento de logs centralizado.
+    *   **Correlação:** Garantir que logs, métricas e traces possam ser correlacionados (ex: usando IDs de trace do OpenTelemetry).
+    *   **Níveis Apropriados:** Usar os níveis de log corretamente para gerenciar a verbosidade.
+    *   **Não Logar Dados Sensíveis:** Nunca registrar informações sensíveis como senhas ou dados pessoais.
 
 ## Continuous Integration (CI)
 
