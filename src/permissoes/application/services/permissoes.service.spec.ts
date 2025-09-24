@@ -454,4 +454,170 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
     });
   });
+
+  describe('remoção', () => {
+    const existingPermissao = {
+      id: 1,
+      nome: 'Permissao para Remover',
+      codigo: 'PERMISSAO_REMOVER',
+      descricao: 'Descrição',
+      deletedAt: null,
+      ativo: true,
+    } as Permissao;
+
+    const mockAdminUsuarioLogado: JwtPayload = {
+      userId: 1,
+      email: 'admin@example.com',
+      perfis: [{ codigo: 'ADMIN' }],
+    };
+
+    const mockUserUsuarioLogado: JwtPayload = {
+      userId: 2,
+      email: 'user@example.com',
+      perfis: [{ codigo: 'USER' }],
+    };
+
+    it('deve remover uma permissão com sucesso se for admin', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        existingPermissao,
+      );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true);
+      (mockPermissaoRepository.remove as jest.Mock).mockResolvedValue({
+        ...existingPermissao,
+        deletedAt: new Date(),
+        ativo: false,
+      });
+
+      const result = await service.remove(1, mockAdminUsuarioLogado);
+
+      expect(result.deletedAt).not.toBeNull();
+      expect(result.ativo).toBe(false);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1);
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
+        mockAdminUsuarioLogado,
+      );
+      expect(mockPermissaoRepository.remove).toHaveBeenCalledWith(1);
+    });
+
+    it('deve lançar NotFoundException se a permissão não for encontrada', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.remove(999, mockAdminUsuarioLogado)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999);
+      expect(mockAuthorizationService.isAdmin).not.toHaveBeenCalled();
+      expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ForbiddenException se não for admin', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        existingPermissao,
+      );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(false);
+
+      await expect(service.remove(1, mockUserUsuarioLogado)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1);
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
+        mockUserUsuarioLogado,
+      );
+      expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('restauração', () => {
+    const softDeletedPermissao = {
+      id: 1,
+      nome: 'Permissao para Restaurar',
+      codigo: 'PERMISSAO_RESTAURAR',
+      descricao: 'Descrição',
+      deletedAt: new Date(),
+      ativo: false,
+    } as Permissao;
+
+    const nonDeletedPermissao = {
+      id: 2,
+      nome: 'Permissao Não Deletada',
+      codigo: 'PERMISSAO_NAO_DELETADA',
+      descricao: 'Descrição',
+      deletedAt: null,
+      ativo: true,
+    } as Permissao;
+
+    const mockAdminUsuarioLogado: JwtPayload = {
+      userId: 1,
+      email: 'admin@example.com',
+      perfis: [{ codigo: 'ADMIN' }],
+    };
+
+    const mockUserUsuarioLogado: JwtPayload = {
+      userId: 2,
+      email: 'user@example.com',
+      perfis: [{ codigo: 'USER' }],
+    };
+
+    it('deve restaurar uma permissão deletada com sucesso se for admin', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedPermissao,
+      );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true);
+      (mockPermissaoRepository.restore as jest.Mock).mockResolvedValue({
+        ...softDeletedPermissao,
+        deletedAt: null,
+        ativo: true,
+      });
+
+      const result = await service.restore(1, mockAdminUsuarioLogado);
+
+      expect(result.deletedAt).toBeNull();
+      expect(result.ativo).toBe(true);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
+        mockAdminUsuarioLogado,
+      );
+      expect(mockPermissaoRepository.restore).toHaveBeenCalledWith(1);
+    });
+
+    it('deve lançar NotFoundException se a permissão não for encontrada', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.restore(999, mockAdminUsuarioLogado),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(999, true);
+      expect(mockAuthorizationService.isAdmin).not.toHaveBeenCalled();
+      expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ConflictException se a permissão não estiver deletada', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedPermissao,
+      );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true);
+
+      await expect(service.restore(2, mockAdminUsuarioLogado)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(2, true);
+      expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ForbiddenException se não for admin', async () => {
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedPermissao,
+      );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(false);
+
+      await expect(service.restore(1, mockUserUsuarioLogado)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
+      expect(mockAuthorizationService.isAdmin).toHaveBeenCalledWith(
+        mockUserUsuarioLogado,
+      );
+      expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
+    });
+  });
 });

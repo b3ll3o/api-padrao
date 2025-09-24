@@ -76,6 +76,8 @@ describe('AuthService', () => {
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
+        deletedAt: null, // Added this line for consistency
+        ativo: true, // Add this line
         perfis: [mockPerfil],
       };
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
@@ -146,6 +148,8 @@ describe('AuthService', () => {
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
+        deletedAt: null, // Added this line for consistency
+        ativo: true, // Add this line
         perfis: [],
       };
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(

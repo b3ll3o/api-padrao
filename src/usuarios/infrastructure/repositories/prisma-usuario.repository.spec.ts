@@ -477,7 +477,7 @@ describe('PrismaUsuarioRepository', () => {
       expect(result.deletedAt).not.toBeNull();
       expect(mockPrismaService.usuario.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { deletedAt: expect.any(Date) },
+        data: { deletedAt: expect.any(Date), ativo: false },
         include: { perfis: true },
       });
     });
@@ -488,6 +488,13 @@ describe('PrismaUsuarioRepository', () => {
       await expect(repository.remove(999)).rejects.toThrow(
         'Usuário com ID 999 não encontrado.',
       );
+    });
+
+    it('deve lançar um erro genérico se o soft delete falhar por outro motivo', async () => {
+      const genericError = new Error('Database connection lost');
+      mockPrismaService.usuario.update.mockRejectedValue(genericError);
+
+      await expect(repository.remove(1)).rejects.toThrow(genericError);
     });
   });
 
@@ -511,7 +518,7 @@ describe('PrismaUsuarioRepository', () => {
       expect(result.deletedAt).toBeNull();
       expect(mockPrismaService.usuario.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { deletedAt: null },
+        data: { deletedAt: null, ativo: true },
         include: { perfis: true },
       });
     });
@@ -522,6 +529,13 @@ describe('PrismaUsuarioRepository', () => {
       await expect(repository.restore(999)).rejects.toThrow(
         'Usuário com ID 999 não encontrado.',
       );
+    });
+
+    it('deve lançar um erro genérico se a restauração falhar por outro motivo', async () => {
+      const genericError = new Error('Database connection lost');
+      mockPrismaService.usuario.update.mockRejectedValue(genericError);
+
+      await expect(repository.restore(1)).rejects.toThrow(genericError);
     });
   });
 });

@@ -8,6 +8,7 @@ import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { Request } from 'express'; // Import Request
 import { AuthorizationService } from '../../../shared/domain/services/authorization.service';
+import { NotFoundException, ForbiddenException } from '@nestjs/common';
 
 describe('PermissoesController', () => {
   let controller: PermissoesController;
@@ -138,26 +139,63 @@ describe('PermissoesController', () => {
   });
 
   describe('atualização', () => {
-    it('deve atualizar uma permissão', async () => {
-      const id = '1';
-      const updatePermissaoDto: UpdatePermissaoDto = {
-        nome: 'Updated Permissao',
-        codigo: 'UPDATED_PERMISSAO',
-        descricao: 'Permissão atualizada',
-      };
-      const expectedPermissao = { id: 1, ...updatePermissaoDto } as Permissao;
-      (mockPermissoesService.update as jest.Mock).mockResolvedValue(
-        expectedPermissao,
+    it('deve lançar NotFoundException se a permissão não for encontrada', async () => {
+      (mockPermissoesService.update as jest.Mock).mockRejectedValueOnce(
+        new NotFoundException('Permissão não encontrada'),
       );
-      const req = mockRequest(true); // Admin user
 
-      const result = await controller.update(id, updatePermissaoDto, req);
-      expect(result).toEqual(expectedPermissao);
-      expect(service.update).toHaveBeenCalledWith(
-        +id,
-        updatePermissaoDto,
+      await expect(
+        controller.update('999', { nome: 'Non Existent' }, {
+          usuarioLogado: mockRequest(true).usuarioLogado,
+        } as Request),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPermissoesService.update).toHaveBeenCalledWith(
+        999,
+        { nome: 'Non Existent' },
+        mockRequest(true).usuarioLogado,
+      );
+    });
+
+    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
+      const updatePermissaoDto: UpdatePermissaoDto = { nome: 'Test' };
+      const req = {} as Request; // No usuarioLogado
+
+      let error: ForbiddenException | undefined;
+      try {
+        await controller.update('1', updatePermissaoDto, req);
+      } catch (e) {
+        error = e as ForbiddenException;
+      }
+
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect(error?.message).toBe('Usuário não autenticado');
+      expect(mockPermissoesService.update).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar ForbiddenException se um não-admin tentar restaurar uma permissão', async () => {
+      const updatePermissaoDto: UpdatePermissaoDto = { ativo: true };
+      const req = mockRequest(false); // Non-admin user
+
+      // Override the isAdmin mock for this specific test to return false
+      (
+        controller['authorizationService'].isAdmin as jest.Mock
+      ).mockReturnValueOnce(false);
+
+      let error: ForbiddenException | undefined;
+      try {
+        await controller.update('1', updatePermissaoDto, req);
+      } catch (e) {
+        error = e as ForbiddenException;
+      }
+
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect(error?.message).toBe(
+        'Somente administradores podem restaurar permissões.',
+      );
+      expect(controller['authorizationService'].isAdmin).toHaveBeenCalledWith(
         req.usuarioLogado,
       );
+      expect(mockPermissoesService.update).not.toHaveBeenCalled();
     });
   });
 });

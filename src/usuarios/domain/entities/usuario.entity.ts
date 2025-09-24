@@ -40,6 +40,9 @@ export class Usuario {
   })
   deletedAt?: Date | null; // Added
 
+  @ApiProperty({ description: 'Status ativo do usuário', example: true })
+  ativo: boolean;
+
   @ApiPropertyOptional({
     description: 'Lista de perfis associados ao usuário',
     type: () => [Perfil],

@@ -28,6 +28,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.createdAt = usuario.createdAt;
     newUsuario.updatedAt = usuario.updatedAt;
     newUsuario.deletedAt = usuario.deletedAt;
+    newUsuario.ativo = usuario.ativo;
     newUsuario.perfis = usuario.perfis?.map((perfil) => {
       // Map profiles to Perfil instances
       const newPerfil = new Perfil();
@@ -62,6 +63,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.createdAt = usuario.createdAt;
     newUsuario.updatedAt = usuario.updatedAt;
     newUsuario.deletedAt = usuario.deletedAt; // Include deletedAt
+    newUsuario.ativo = usuario.ativo;
     // Map profiles to Perfil instances
     newUsuario.perfis = usuario.perfis?.map((perfil) => {
       const newPerfil = new Perfil();
@@ -93,6 +95,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       newUsuario.createdAt = usuario.createdAt;
       newUsuario.updatedAt = usuario.updatedAt;
       newUsuario.deletedAt = usuario.deletedAt; // Include deletedAt
+      newUsuario.ativo = usuario.ativo;
       newUsuario.perfis = usuario.perfis?.map((perfil) => {
         const newPerfil = new Perfil();
         newPerfil.id = perfil.id;
@@ -117,6 +120,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.createdAt = usuario.createdAt;
     newUsuario.updatedAt = usuario.updatedAt;
     newUsuario.deletedAt = usuario.deletedAt; // Include deletedAt
+    newUsuario.ativo = usuario.ativo;
     return newUsuario;
   }
 
@@ -142,6 +146,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.createdAt = usuario.createdAt;
     newUsuario.updatedAt = usuario.updatedAt;
     newUsuario.deletedAt = usuario.deletedAt; // Include deletedAt
+    newUsuario.ativo = usuario.ativo;
 
     newUsuario.perfis = usuario.perfis.map((perfil) => {
       const newPerfil = new Perfil();
@@ -186,6 +191,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.createdAt = updatedUsuario.createdAt;
     newUsuario.updatedAt = updatedUsuario.updatedAt;
     newUsuario.deletedAt = updatedUsuario.deletedAt; // Include deletedAt
+    newUsuario.ativo = updatedUsuario.ativo;
     newUsuario.perfis = updatedUsuario.perfis?.map((perfil) => {
       const newPerfil = new Perfil();
       newPerfil.id = perfil.id;
@@ -201,7 +207,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     try {
       const softDeletedUsuario = await this.prisma.usuario.update({
         where: { id },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: new Date(), ativo: false },
         include: { perfis: true }, // Include perfis if needed for mapping
       });
 
@@ -215,6 +221,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       newUsuario.createdAt = softDeletedUsuario.createdAt;
       newUsuario.updatedAt = softDeletedUsuario.updatedAt;
       newUsuario.deletedAt = softDeletedUsuario.deletedAt;
+      newUsuario.ativo = softDeletedUsuario.ativo;
       newUsuario.perfis = softDeletedUsuario.perfis?.map((perfil) => {
         const newPerfil = new Perfil();
         newPerfil.id = perfil.id;
@@ -236,7 +243,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     try {
       const restoredUsuario = await this.prisma.usuario.update({
         where: { id },
-        data: { deletedAt: null },
+        data: { deletedAt: null, ativo: true },
         include: { perfis: true }, // Include perfis if needed for mapping
       });
 
@@ -248,6 +255,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       newUsuario.createdAt = restoredUsuario.createdAt;
       newUsuario.updatedAt = restoredUsuario.updatedAt;
       newUsuario.deletedAt = restoredUsuario.deletedAt;
+      newUsuario.ativo = restoredUsuario.ativo;
       newUsuario.perfis = restoredUsuario.perfis?.map((perfil) => {
         const newPerfil = new Perfil();
         newPerfil.id = perfil.id;

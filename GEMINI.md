@@ -79,6 +79,69 @@ To ensure code quality, maintainability, and adherence to best practices, the fo
     *   **Níveis Apropriados:** Usar os níveis de log corretamente para gerenciar a verbosidade.
     *   **Não Logar Dados Sensíveis:** Nunca registrar informações sensíveis como senhas ou dados pessoais.
 
+*   **Logging:**
+    Para garantir logs estruturados e com contexto, utilize a biblioteca Pino integrada ao NestJS.
+    1.  **Instalação:**
+        ```bash
+        npm install --save pino pino-pretty @nestjs/pino
+        ```
+    2.  **Configuração Básica no `AppModule`:**
+        Importe `LoggerModule` e configure-o para usar o Pino. Exemplo:
+        ```typescript
+        import { Module } from '@nestjs/common';
+        import { LoggerModule } from 'nestjs-pino';
+        import { AppController } from './app.controller';
+        import { AppService } from './app.service';
+
+        @Module({
+          imports: [
+            LoggerModule.forRoot({
+              pinoHttp: {
+                transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty' } : undefined,
+                level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
+                formatters: {
+                  level: (label) => { return { level: label.toUpperCase() }; }
+                },
+                // Adicionar contexto de OpenTelemetry (Trace ID, Span ID)
+                // Isso requer configuração adicional para extrair IDs do contexto OpenTelemetry
+                // e injetá-los nos logs. Pode ser feito com um custom serializer ou um hook.
+                // Exemplo de customProps para adicionar traceId e spanId (requer integração com OpenTelemetry context):
+                // customProps: (req, res) => ({ traceId: req.traceId, spanId: req.spanId }),
+              },
+            }),
+          ],
+          controllers: [AppController],
+          providers: [AppService],
+        })
+        export class AppModule {}
+        ```
+    3.  **Uso em Serviços e Controllers:**
+        Injete `Logger` do `@nestjs/common` e utilize seus métodos (`log`, `error`, `warn`, `debug`, `verbose`).
+        ```typescript
+        import { Injectable, Logger } from '@nestjs/common';
+
+        @Injectable()
+        export class MyService {
+          private readonly logger = new Logger(MyService.name);
+
+          doSomething() {
+            this.logger.log('Fazendo algo...');
+            this.logger.debug('Detalhes da operação...');
+          }
+        }
+        ```
+    4.  **Substituir `console.log`:**
+        Substitua todas as ocorrências de `console.log`, `console.error`, etc., pelo logger configurado.
+
+    5.  **Redação de Dados Sensíveis:**
+        Configure o Pino para redigir dados sensíveis (senhas, tokens) dos logs. Exemplo de configuração no `pinoHttp`:
+        ```typescript
+        redact: {
+          paths: ['req.headers.authorization', 'req.body.senha'],
+          censor: '***REDACTED***'
+        },
+        ```
+
 ## Continuous Integration (CI)
 
 A GitHub Actions workflow is configured to ensure code quality and prevent regressions on every pull request to the `main` branch. The CI pipeline performs the following checks:

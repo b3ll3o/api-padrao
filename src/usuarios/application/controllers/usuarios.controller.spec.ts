@@ -5,6 +5,7 @@ import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { Request } from 'express';
+import { ForbiddenException } from '@nestjs/common';
 
 describe('UsuariosController', () => {
   let controller: UsuariosController;
@@ -66,6 +67,20 @@ describe('UsuariosController', () => {
       expect(result).toEqual(user);
       expect(service.findOne).toHaveBeenCalledWith(1, req.usuarioLogado);
     });
+
+    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
+      const req = {} as Request; // No usuarioLogado
+
+      let error: ForbiddenException | undefined;
+      try {
+        await controller.findOne('1', req);
+      } catch (e) {
+        error = e as ForbiddenException;
+      }
+
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect(error?.message).toBe('Usuário não autenticado');
+    });
   });
 
   describe('atualização', () => {
@@ -85,6 +100,21 @@ describe('UsuariosController', () => {
         updateDto,
         req.usuarioLogado,
       );
+    });
+
+    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
+      const updateDto: UpdateUsuarioDto = { email: 'test@example.com' };
+      const req = {} as Request; // No usuarioLogado
+
+      let error: ForbiddenException | undefined;
+      try {
+        await controller.update('1', updateDto, req);
+      } catch (e) {
+        error = e as ForbiddenException;
+      }
+
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect(error?.message).toBe('Usuário não autenticado');
     });
   });
 });

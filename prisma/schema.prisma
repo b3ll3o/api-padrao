@@ -20,6 +20,7 @@ model Usuario {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime? // Added for soft delete
+  ativo     Boolean  @default(true) // Added for soft delete
   perfis    Perfil[]
 }
 
@@ -31,6 +32,7 @@ model Perfil {
   usuarios    Usuario[]
   permissoes  Permissao[]
   deletedAt   DateTime? // Added for soft delete
+  ativo       Boolean   @default(true) // Added for soft delete
 }
 
 model Permissao {
@@ -40,4 +42,5 @@ model Permissao {
   descricao   String
   perfis      Perfil[]
   deletedAt   DateTime? // Added for soft delete
+  ativo       Boolean   @default(true) // Added for soft delete
 }
