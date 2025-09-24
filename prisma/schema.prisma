@@ -29,6 +29,8 @@ model Perfil {
   nome        String       @unique
   codigo      String       @unique
   descricao   String
+  createdAt   DateTime? @default(now())
+  updatedAt   DateTime? @updatedAt
   usuarios    Usuario[]
   permissoes  Permissao[]
   deletedAt   DateTime? // Added for soft delete
@@ -40,6 +42,8 @@ model Permissao {
   nome        String   @unique
   codigo      String   @unique
   descricao   String
+  createdAt   DateTime? @default(now())
+  updatedAt   DateTime? @updatedAt
   perfis      Perfil[]
   deletedAt   DateTime? // Added for soft delete
   ativo       Boolean   @default(true) // Added for soft delete

@@ -115,6 +115,7 @@ describe('UsuariosController (e2e)', () => {
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             deletedAt: null,
+            ativo: true,
             perfis: [], // Added expected perfis array
           });
         });
@@ -146,6 +147,7 @@ describe('UsuariosController (e2e)', () => {
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             deletedAt: null,
+            ativo: true,
             perfis: expect.arrayContaining([
               expect.objectContaining({
                 id: profile.id,
@@ -228,6 +230,7 @@ describe('UsuariosController (e2e)', () => {
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             deletedAt: null,
+            ativo: true,
             perfis: [], // Added expected perfis array
           });
           expect(res.body).not.toHaveProperty('senha');
@@ -362,6 +365,7 @@ describe('UsuariosController (e2e)', () => {
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             deletedAt: null,
+            ativo: true,
           });
         });
     });
@@ -406,6 +410,7 @@ describe('UsuariosController (e2e)', () => {
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             deletedAt: null,
+            ativo: true,
           });
         });
     });
