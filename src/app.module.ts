@@ -36,3 +36,5 @@ import { BcryptPasswordHasherService } from './shared/infrastructure/services/bc
   ],
 })
 export class AppModule {}
+
+// Test comment for pre-commit hooks
