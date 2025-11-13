@@ -87,7 +87,7 @@ Após os serviços estarem em execução, você pode iniciar a aplicação NestJ
 ```bash
 npm run start:dev
 ```
-A aplicação NestJS estará disponível em `http://localhost:3000` (ou na porta configurada na variável de ambiente `PORT`). Certifique-se de que as variáveis de ambiente `DATABASE_URL` e `OTEL_EXPORTER_OTLP_ENDPOINT` estejam configuradas corretamente no seu arquivo `.env`.
+A aplicação NestJS estará disponível em `http://localhost:3001` (ou na porta configurada na variável de ambiente `PORT`). Certifique-se de que as variáveis de ambiente `DATABASE_URL` e `OTEL_EXPORTER_OTLP_ENDPOINT` estejam configuradas corretamente no seu arquivo `.env`.
 
 #### Modo de Produção
 
@@ -99,7 +99,7 @@ npm run start:prod
 ## Documentação da API (Swagger)
 
 A documentação interativa da API está disponível através do Swagger UI.
-Após iniciar a aplicação, acesse: `http://localhost:3000/swagger`
+Após iniciar a aplicação, acesse: `http://localhost:3001/swagger`
 
 ## Convenções de Desenvolvimento
 
