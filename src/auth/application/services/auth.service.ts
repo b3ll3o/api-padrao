@@ -22,6 +22,7 @@ export class AuthService {
     if (
       !user ||
       !user.senha ||
+      !loginUsuarioDto.senha ||
       !(await this.passwordHasher.compare(loginUsuarioDto.senha, user.senha))
     ) {
       throw new UnauthorizedException('Credenciais inválidas.');
