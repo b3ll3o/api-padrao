@@ -35,7 +35,7 @@ async function bootstrap() {
       - Documentação completa com Swagger/OpenAPI
       
       ## Configurações
-      - Porta: ${process.env.PORT ?? 3000}
+      - Porta: 3001
       - Versão: 1.0.0
       - Ambiente: ${process.env.NODE_ENV ?? 'development'}
       
@@ -51,7 +51,7 @@ async function bootstrap() {
       'contato@email.com',
     )
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
-    .addServer('http://localhost:3000', 'Local')
+    .addServer('http://localhost:3001', 'Local')
     .addServer('https://api-padrao-dev.example.com', 'Development')
     .addServer('https://api-padrao.example.com', 'Production')
     .addBearerAuth(
@@ -73,6 +73,6 @@ async function bootstrap() {
     jsonDocumentUrl: 'swagger-json',
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3001);
 }
 void bootstrap();
