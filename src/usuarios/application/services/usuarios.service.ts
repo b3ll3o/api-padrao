@@ -114,17 +114,9 @@ export class UsuariosService {
           throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
         }
 
-        // TODO: Refactor Admin check with new Company-based profiles
-        // const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
-        // if (!isAdmin) { ... }
-
-        // Allowing delete for now if authorization service passes (which might be weak currently)
-        if (
-          !this.usuarioAuthorizationService.canUpdateUsuario(
-            usuario.id,
-            usuarioLogado,
-          )
-        ) {
+        // Check if user is admin (restored check)
+        const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
+        if (!isAdmin) {
           throw new ForbiddenException(
             'Você não tem permissão para deletar este usuário',
           );

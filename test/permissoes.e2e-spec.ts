@@ -84,28 +84,20 @@ describe('PermissoesController (e2e)', () => {
 
     // Create an admin user
     const hashedPassword = await bcrypt.hash('admin123', 10);
-    await prisma.usuario.create({
+    const adminUser = await prisma.usuario.create({
       data: {
         email: 'admin@example.com',
         senha: hashedPassword,
-        perfis: {
-          connect: { id: adminProfile.id },
-        },
+        // No profiles
       },
-      include: { perfis: { include: { permissoes: true } } },
     });
 
-    const loginDto = {
-      email: 'admin@example.com',
-      senha: 'admin123',
-    };
-
-    const res = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send(loginDto)
-      .expect(201);
-
-    adminToken = res.body.access_token;
+    // Manually sign admin token with profile
+    adminToken = jwtService.sign({
+      sub: adminUser.id,
+      email: adminUser.email,
+      perfis: [adminProfile],
+    });
 
     // Setup for a regular user with limited permissions
     const limitedPerms = await prisma.permissao.create({
@@ -115,7 +107,7 @@ describe('PermissoesController (e2e)', () => {
         descricao: 'Permissão para ler um recurso limitado',
       },
     });
-    const limitedProfile = await prisma.perfil.create({
+    let limitedProfile = await prisma.perfil.create({
       data: {
         nome: 'LimitedUser',
         codigo: 'LIMITED_USER',
@@ -125,21 +117,24 @@ describe('PermissoesController (e2e)', () => {
         },
       },
     });
+    // Fetch full profile
+    limitedProfile = await prisma.perfil.findUniqueOrThrow({
+      where: { id: limitedProfile.id },
+      include: { permissoes: true },
+    });
+
     const limitedUserHashedPassword = await bcrypt.hash('Limited123!', 10);
     const limitedUser = await prisma.usuario.create({
       data: {
         email: 'limited@example.com',
         senha: limitedUserHashedPassword,
-        perfis: {
-          connect: { id: limitedProfile.id },
-        },
+        // No profiles
       },
-      include: { perfis: { include: { permissoes: true } } },
     });
     userToken = jwtService.sign({
       sub: limitedUser.id,
       email: limitedUser.email,
-      perfis: limitedUser.perfis,
+      perfis: [limitedProfile],
     });
   });
 

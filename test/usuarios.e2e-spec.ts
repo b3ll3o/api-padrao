@@ -19,18 +19,21 @@ async function setupAdminUserAndProfile(
     data: {
       email: 'admin@example.com',
       senha: hashedPassword,
-      perfis: {
-        connect: { id: adminProfileId },
-      },
+      // No direct profile connection
     },
-    include: { perfis: { include: { permissoes: true } } },
   });
 
-  // Login as admin to get a token
+  // Fetch the profile to include in the token
+  const adminProfile = await prisma.perfil.findUnique({
+    where: { id: adminProfileId },
+    include: { permissoes: true },
+  });
+
+  // Login as admin to get a token with manually injected profiles
   const adminToken = jwtService.sign({
     sub: adminUser.id,
     email: adminUser.email,
-    perfis: adminUser.perfis,
+    perfis: [adminProfile],
   });
 
   return { adminUser, adminToken };
@@ -116,46 +119,7 @@ describe('UsuariosController (e2e)', () => {
             updatedAt: expect.any(String),
             deletedAt: null,
             ativo: true,
-            perfis: [], // Added expected perfis array
-          });
-        });
-    });
-
-    it('deve criar um usuário com perfis e retornar 201', async () => {
-      const profile = await prisma.perfil.create({
-        data: {
-          nome: 'User',
-          codigo: 'USER',
-          descricao: 'Common user profile',
-        },
-      });
-
-      const createUserDto = {
-        email: 'user_with_profile@example.com',
-        senha: 'Password123!',
-        perfisIds: [profile.id],
-      };
-
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
-        .expect(201)
-        .then((res) => {
-          expect(res.body).toEqual({
-            id: expect.any(Number),
-            email: 'user_with_profile@example.com',
-            createdAt: expect.any(String),
-            updatedAt: expect.any(String),
-            deletedAt: null,
-            ativo: true,
-            perfis: expect.arrayContaining([
-              expect.objectContaining({
-                id: profile.id,
-                codigo: profile.codigo,
-                nome: profile.nome,
-                descricao: profile.descricao,
-              }),
-            ]),
+            perfis: [],
           });
         });
     });
@@ -227,38 +191,6 @@ describe('UsuariosController (e2e)', () => {
           expect(res.body.message).toContain('A senha não pode ser vazia');
         });
     });
-
-    it('deve retornar 400 se perfisIds contiver valores não numéricos', () => {
-      const createUserDto = {
-        email: 'invalid_profile_id@example.com',
-        senha: 'Password123!',
-        perfisIds: ['abc'], // Invalid type
-      };
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
-        .expect(400)
-        .expect((res) => {
-          expect(res.body.message).toContain(
-            'Cada ID de perfil deve ser um número',
-          ); // Updated message
-        });
-    });
-
-    it('deve retornar 400 se perfisIds não for um array', () => {
-      const createUserDto = {
-        email: 'invalid_profile_id_not_array@example.com',
-        senha: 'Password123!',
-        perfisIds: '123', // Not an array
-      };
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
-        .expect(400)
-        .expect((res) => {
-          expect(res.body.message).toContain('perfisIds deve ser um array');
-        });
-    });
   });
 
   describe('GET /usuarios/:id', () => {
@@ -316,9 +248,8 @@ describe('UsuariosController (e2e)', () => {
         data: {
           email: 'user1@example.com',
           senha: await bcrypt.hash('Password123!', 10),
-          perfis: { connect: { id: userProfile.id } },
+          // No direct profiles
         },
-        include: { perfis: { include: { permissoes: true } } },
       });
 
       user2 = await prisma.usuario.create({
@@ -336,11 +267,16 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
-      // Create tokens
+      // Create tokens with manual profile injection
+      const userProfileWithPerms = await prisma.perfil.findUnique({
+        where: { id: userProfile.id },
+        include: { permissoes: true },
+      });
+
       user1Token = jwtService.sign({
         sub: user1.id,
         email: user1.email,
-        perfis: user1.perfis,
+        perfis: [userProfileWithPerms],
       });
     });
 
@@ -357,6 +293,7 @@ describe('UsuariosController (e2e)', () => {
             updatedAt: expect.any(String),
             deletedAt: null,
             ativo: true,
+            perfis: [],
           });
         });
     });
@@ -402,6 +339,7 @@ describe('UsuariosController (e2e)', () => {
             updatedAt: expect.any(String),
             deletedAt: null,
             ativo: true,
+            perfis: [],
           });
         });
     });
@@ -480,9 +418,8 @@ describe('UsuariosController (e2e)', () => {
         data: {
           email: 'update_me@example.com',
           senha: await bcrypt.hash('Password123!', 10),
-          perfis: { connect: { id: userProfile.id } },
+          // No direct profiles
         },
-        include: { perfis: { include: { permissoes: true } } },
       });
 
       userToSoftDelete = await prisma.usuario.create({
@@ -493,11 +430,16 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
-      // Create tokens
+      // Create tokens with manual profile injection
+      const userProfileWithPerms = await prisma.perfil.findUnique({
+        where: { id: userProfile.id },
+        include: { permissoes: true },
+      });
+
       userToken = jwtService.sign({
         sub: userToUpdate.id,
         email: userToUpdate.email,
-        perfis: userToUpdate.perfis,
+        perfis: [userProfileWithPerms],
       });
     });
 

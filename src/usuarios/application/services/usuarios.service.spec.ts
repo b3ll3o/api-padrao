@@ -219,6 +219,12 @@ describe('UsuariosService', () => {
       perfis: [],
     };
 
+    const mockAdminUsuarioLogado: JwtPayload = {
+      userId: 2,
+      email: 'admin@example.com',
+      perfis: [{ codigo: 'ADMIN' }],
+    };
+
     it('deve atualizar um usuário se encontrado e permitido', async () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
       const updatedUser = { ...mockUser, email: 'updated@example.com' };
@@ -327,7 +333,7 @@ describe('UsuariosService', () => {
         deletedAt: new Date(),
       });
 
-      const result = await service.update(1, updateDto, mockUsuarioLogado);
+      const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
 
       expect(result.deletedAt).not.toBeNull();
       expect(mockUsuarioRepository.remove).toHaveBeenCalledWith(1);
