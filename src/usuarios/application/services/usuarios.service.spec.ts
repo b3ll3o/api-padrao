@@ -126,6 +126,26 @@ describe('UsuariosService', () => {
         ConflictException,
       );
     });
+
+    it('deve chamar o PasswordHasher para hash da senha', async () => {
+      const createDto: CreateUsuarioDto = {
+        email: 'hasher@example.com',
+        senha: 'Password123!',
+      };
+      const createdUser = new Usuario();
+      createdUser.id = 1;
+      createdUser.email = createDto.email;
+      createdUser.deletedAt = null;
+
+      (mockUsuarioRepository.findByEmail as jest.Mock).mockResolvedValue(null);
+      (mockUsuarioRepository.create as jest.Mock).mockResolvedValue(
+        createdUser,
+      );
+
+      await service.create(createDto);
+
+      expect(mockPasswordHasher.hash).toHaveBeenCalledWith(createDto.senha);
+    });
   });
 
   describe('busca por um', () => {

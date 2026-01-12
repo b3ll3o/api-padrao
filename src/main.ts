@@ -11,6 +11,7 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
+import { ValidationPipe } from '@nestjs/common'; // Import ValidationPipe
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -18,6 +19,15 @@ async function bootstrap() {
     new FastifyAdapter(),
   );
   console.log('NODE_ENV:', process.env.NODE_ENV); // Added this line
+
+  // Add global validation pipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Automatically remove properties that are not defined in the DTO
+      forbidNonWhitelisted: true, // Throw an error if non-whitelisted properties are present
+      transform: true, // Automatically transform payloads to DTO instances
+    }),
+  );
 
   // Swagger configuration
   const config = new DocumentBuilder()

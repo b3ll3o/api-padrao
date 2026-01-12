@@ -217,23 +217,14 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
-    it('deve criar um usuário sem senha e retornar 201', () => {
-      const createUserDto = { email: 'no_password@example.com' };
+    it('deve retornar 400 se a senha estiver faltando', () => {
+      const createUserDto = { email: 'missing_password@example.com' };
       return supertestRequest(app.getHttpServer())
         .post('/usuarios')
         .send(createUserDto)
-        .expect(201)
-        .then((res) => {
-          expect(res.body).toEqual({
-            id: expect.any(Number),
-            email: 'no_password@example.com',
-            createdAt: expect.any(String),
-            updatedAt: expect.any(String),
-            deletedAt: null,
-            ativo: true,
-            perfis: [], // Added expected perfis array
-          });
-          expect(res.body).not.toHaveProperty('senha');
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.message).toContain('A senha não pode ser vazia');
         });
     });
 

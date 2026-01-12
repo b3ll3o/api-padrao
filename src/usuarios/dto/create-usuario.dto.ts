@@ -21,7 +21,7 @@ export class CreateUsuarioDto {
   email: string;
 
   @ApiProperty({ example: 'Password123!', description: 'Senha do usuário' })
-  @IsOptional()
+  @IsNotEmpty({ message: 'A senha não pode ser vazia' })
   @IsString()
   @MinLength(8, { message: 'A senha deve ter no mínimo 8 caracteres' })
   @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
