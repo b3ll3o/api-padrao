@@ -1,6 +1,3 @@
-import * as dotenv from 'dotenv';
-dotenv.config();
-
 // IMPORTANT: This MUST be the very first import in your application!
 import './tracing';
 
@@ -11,14 +8,25 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import { ValidationPipe } from '@nestjs/common'; // Import ValidationPipe
+import { ValidationPipe } from '@nestjs/common';
+import { Logger, LoggerErrorInterceptor } from 'nestjs-pino';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
+    { bufferLogs: true }, // Buffer logs until the logger is attached
   );
-  console.log('NODE_ENV:', process.env.NODE_ENV); // Added this line
+
+  // Use pino logger
+  app.useLogger(app.get(Logger));
+  app.useGlobalInterceptors(new LoggerErrorInterceptor());
+
+  const configService = app.get(ConfigService);
+  const logger = app.get(Logger);
+
+  logger.log(`NODE_ENV: ${configService.get('NODE_ENV')}`);
 
   // Add global validation pipe
   app.useGlobalPipes(
@@ -47,7 +55,7 @@ async function bootstrap() {
       ## Configurações
       - Porta: 3001
       - Versão: 1.0.0
-      - Ambiente: ${process.env.NODE_ENV ?? 'development'}
+      - Ambiente: ${configService.get('NODE_ENV')}
       
       ## Autenticação
       A API utiliza autenticação JWT (Bearer Token) para proteger os endpoints.
@@ -83,6 +91,8 @@ async function bootstrap() {
     jsonDocumentUrl: 'swagger-json',
   });
 
-  await app.listen(process.env.PORT ?? 3001);
+  const port = configService.get<number>('PORT') ?? 3001;
+  await app.listen(port, '0.0.0.0'); // Listen on all interfaces
+  logger.log(`Application is running on: ${await app.getUrl()}`);
 }
 void bootstrap();
