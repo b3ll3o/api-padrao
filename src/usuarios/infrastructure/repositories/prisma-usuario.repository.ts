@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
+import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 
 @Injectable()
 export class PrismaUsuarioRepository implements UsuarioRepository {
@@ -35,17 +37,37 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     return this.mapToEntity(usuario);
   }
 
-  async findAll(includeDeleted: boolean = false): Promise<Usuario[]> {
+  async findAll(
+    paginationDto: PaginationDto,
+    includeDeleted: boolean = false,
+  ): Promise<PaginatedResponseDto<Usuario>> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
     const whereClause: any = {};
     if (!includeDeleted) {
       whereClause.deletedAt = null;
     }
 
-    const usuarios = await this.prisma.usuario.findMany({
-      where: whereClause,
-    });
+    const [items, total] = await Promise.all([
+      this.prisma.usuario.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.usuario.count({ where: whereClause }),
+    ]);
 
-    return usuarios.map((usuario) => this.mapToEntity(usuario));
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: items.map((usuario) => this.mapToEntity(usuario)),
+      total,
+      page,
+      limit,
+      totalPages,
+    };
   }
 
   async findByEmail(email: string): Promise<Usuario | null> {

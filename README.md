@@ -15,6 +15,7 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 *   **Lógica de Hashing de Senha Abstraída:** A manipulação de senhas agora utiliza uma abstração (`PasswordHasher`), permitindo flexibilidade na escolha do algoritmo de hashing.
 *   **Paginação:** Suporte a paginação em endpoints de listagem.
 *   **Documentação Interativa:** Documentação completa gerada com Swagger/OpenAPI.
+*   **Alinhamento com Melhores Práticas:** Projeto seguindo padrões de Clean Architecture, SOLID, logs estruturados em todos os serviços core e paginação obrigatória em todos os endpoints de listagem.
 *   **Observabilidade (OpenTelemetry):** Instrumentação para rastreamento distribuído.
 
 ## Tecnologias Utilizadas

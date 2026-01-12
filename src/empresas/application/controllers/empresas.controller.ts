@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { EmpresasService } from '../services/empresas.service';
 import { CreateEmpresaDto } from '../../dto/create-empresa.dto';
@@ -18,6 +20,7 @@ import {
   ApiOperation,
   ApiResponse,
 } from '@nestjs/swagger';
+import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 
 @ApiTags('Empresas')
 @ApiBearerAuth('JWT-auth')
@@ -26,6 +29,7 @@ export class EmpresasController {
   constructor(private readonly empresasService: EmpresasService) {}
 
   @Post()
+  @TemPermissao('CREATE_EMPRESA')
   @ApiOperation({ summary: 'Criar uma nova empresa' })
   @ApiResponse({ status: 201, description: 'Empresa criada com sucesso.' })
   create(@Body() createEmpresaDto: CreateEmpresaDto) {
@@ -33,6 +37,7 @@ export class EmpresasController {
   }
 
   @Get()
+  @TemPermissao('READ_EMPRESAS')
   @ApiOperation({ summary: 'Listar todas as empresas paginadas' })
   @ApiResponse({
     status: 200,
@@ -43,6 +48,7 @@ export class EmpresasController {
   }
 
   @Get(':id')
+  @TemPermissao('READ_EMPRESA_BY_ID')
   @ApiOperation({ summary: 'Buscar uma empresa pelo ID' })
   @ApiResponse({ status: 200, description: 'Empresa encontrada.' })
   @ApiResponse({ status: 404, description: 'Empresa não encontrada.' })
@@ -51,6 +57,7 @@ export class EmpresasController {
   }
 
   @Patch(':id')
+  @TemPermissao('UPDATE_EMPRESA')
   @ApiOperation({ summary: 'Atualizar uma empresa' })
   @ApiResponse({ status: 200, description: 'Empresa atualizada com sucesso.' })
   update(@Param('id') id: string, @Body() updateEmpresaDto: UpdateEmpresaDto) {
@@ -58,6 +65,8 @@ export class EmpresasController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @TemPermissao('DELETE_EMPRESA')
   @ApiOperation({ summary: 'Remover (soft delete) uma empresa' })
   @ApiResponse({ status: 204, description: 'Empresa removida com sucesso.' })
   remove(@Param('id') id: string) {
@@ -65,6 +74,7 @@ export class EmpresasController {
   }
 
   @Post(':id/usuarios')
+  @TemPermissao('ADD_USER_TO_EMPRESA')
   @ApiOperation({ summary: 'Adicionar usuário à empresa com perfis' })
   addUser(
     @Param('id') id: string,

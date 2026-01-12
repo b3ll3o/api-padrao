@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
 import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';
@@ -17,6 +18,8 @@ type UsuarioLogado = JwtPayload;
 
 @Injectable()
 export class PermissoesService {
+  private readonly logger = new Logger(PermissoesService.name);
+
   constructor(
     private readonly permissaoRepository: PermissaoRepository,
     private readonly authorizationService: AuthorizationService, // Added
@@ -31,7 +34,11 @@ export class PermissoesService {
         `Permissão com o nome '${createPermissaoDto.nome}' já existe.`,
       );
     }
-    return this.permissaoRepository.create(createPermissaoDto);
+    const permissao = await this.permissaoRepository.create(createPermissaoDto);
+    this.logger.log(
+      `Permissão criada: ${permissao.nome} (ID: ${permissao.id})`,
+    );
+    return permissao;
   }
 
   async findAll(
@@ -134,6 +141,9 @@ export class PermissoesService {
             `Permissão com ID ${id} não encontrada após restauração.`,
           );
         }
+        this.logger.log(
+          `Permissão restaurada: ${restoredPermissao.nome} (ID: ${id})`,
+        );
         return restoredPermissao;
       } else {
         if (permissao.deletedAt !== null) {
@@ -152,6 +162,9 @@ export class PermissoesService {
             `Permissão com ID ${id} não encontrada após soft delete.`,
           );
         }
+        this.logger.log(
+          `Permissão removida: ${softDeletedPermissao.nome} (ID: ${id})`,
+        );
         return softDeletedPermissao;
       }
     }
@@ -165,6 +178,9 @@ export class PermissoesService {
         `Permissão com ID ${id} não encontrada após atualização.`,
       );
     }
+    this.logger.log(
+      `Permissão atualizada: ${updatedPermissao.nome} (ID: ${id})`,
+    );
     return updatedPermissao;
   }
 
@@ -181,6 +197,9 @@ export class PermissoesService {
     }
 
     const softDeletedPermissao = await this.permissaoRepository.remove(id);
+    this.logger.log(
+      `Permissão removida: ${softDeletedPermissao.nome} (ID: ${id})`,
+    );
     return softDeletedPermissao;
   }
 
@@ -201,6 +220,9 @@ export class PermissoesService {
     }
 
     const restoredPermissao = await this.permissaoRepository.restore(id);
+    this.logger.log(
+      `Permissão restaurada: ${restoredPermissao.nome} (ID: ${id})`,
+    );
     return restoredPermissao;
   }
 }

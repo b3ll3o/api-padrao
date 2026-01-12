@@ -7,17 +7,26 @@ import {
   Req,
   ForbiddenException,
   Patch,
+  Query,
 } from '@nestjs/common';
 import { UsuariosService } from '../services/usuarios.service';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { Request } from 'express';
 import { Public } from '../../../auth/application/decorators/public.decorator';
 import { Usuario } from 'src/usuarios/domain/entities/usuario.entity';
+import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 
 @ApiTags('Usuários')
+@ApiBearerAuth('JWT-auth')
 @Controller('usuarios')
 export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
@@ -30,6 +39,21 @@ export class UsuariosController {
   @ApiResponse({ status: 409, description: 'Email já cadastrado.' })
   create(@Body() createUsuarioDto: CreateUsuarioDto) {
     return this.usuariosService.create(createUsuarioDto);
+  }
+
+  @Get()
+  @TemPermissao('READ_USUARIOS')
+  @ApiOperation({ summary: 'Listar todos os usuários paginados' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de usuários retornada com sucesso.',
+    type: PaginatedResponseDto,
+  })
+  findAll(@Query() paginationDto: PaginationDto, @Req() req: Request) {
+    if (!req.usuarioLogado) {
+      throw new ForbiddenException('Usuário não autenticado');
+    }
+    return this.usuariosService.findAll(paginationDto, req.usuarioLogado);
   }
 
   @Get(':id')

@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
 import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
@@ -17,6 +18,8 @@ type UsuarioLogado = JwtPayload;
 
 @Injectable()
 export class PerfisService {
+  private readonly logger = new Logger(PerfisService.name);
+
   constructor(
     private readonly perfilRepository: PerfilRepository,
     private readonly permissoesService: PermissoesService,
@@ -39,7 +42,9 @@ export class PerfisService {
         `Perfil com o nome '${createPerfilDto.nome}' já existe.`,
       );
     }
-    return this.perfilRepository.create(createPerfilDto);
+    const perfil = await this.perfilRepository.create(createPerfilDto);
+    this.logger.log(`Perfil criado: ${perfil.nome} (ID: ${perfil.id})`);
+    return perfil;
   }
 
   async findAll(
@@ -142,6 +147,9 @@ export class PerfisService {
             `Perfil com ID ${id} não encontrado após restauração.`,
           );
         }
+        this.logger.log(
+          `Perfil restaurado: ${restoredPerfil.nome} (ID: ${id})`,
+        );
         return restoredPerfil;
       } else {
         // updatePerfilDto.ativo === false
@@ -155,6 +163,9 @@ export class PerfisService {
             `Perfil com ID ${id} não encontrado após soft delete.`,
           );
         }
+        this.logger.log(
+          `Perfil removido: ${softDeletedPerfil.nome} (ID: ${id})`,
+        );
         return softDeletedPerfil;
       }
     }
@@ -168,6 +179,7 @@ export class PerfisService {
         `Perfil com ID ${id} não encontrado após atualização.`,
       );
     }
+    this.logger.log(`Perfil atualizado: ${updatedPerfil.nome} (ID: ${id})`);
     return updatedPerfil;
   }
 }

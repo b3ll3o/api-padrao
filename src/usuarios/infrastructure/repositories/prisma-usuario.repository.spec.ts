@@ -12,6 +12,7 @@ describe('PrismaUsuarioRepository', () => {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
   };
 
@@ -137,31 +138,37 @@ describe('PrismaUsuarioRepository', () => {
 
     it('deve retornar todos os usuários não excluídos por padrão', async () => {
       mockPrismaService.usuario.findMany.mockResolvedValue([prismaResults[0]]);
+      mockPrismaService.usuario.count.mockResolvedValue(1);
 
-      const result = await repository.findAll();
+      const paginationDto = { page: 1, limit: 10 };
+      const result = await repository.findAll(paginationDto);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toBeInstanceOf(Usuario);
-      expect(result[0].id).toBe(prismaResults[0].id);
-      expect(result[0].deletedAt).toBeNull();
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toBeInstanceOf(Usuario);
+      expect(result.data[0].id).toBe(prismaResults[0].id);
+      expect(result.total).toBe(1);
       expect(mockPrismaService.usuario.findMany).toHaveBeenCalledWith({
         where: { deletedAt: null },
+        skip: 0,
+        take: 10,
+        orderBy: { createdAt: 'desc' },
       });
     });
 
     it('deve retornar todos os usuários, incluindo os excluídos, quando especificado', async () => {
       mockPrismaService.usuario.findMany.mockResolvedValue(prismaResults);
+      mockPrismaService.usuario.count.mockResolvedValue(2);
 
-      const result = await repository.findAll(true);
+      const paginationDto = { page: 1, limit: 10 };
+      const result = await repository.findAll(paginationDto, true);
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toBeInstanceOf(Usuario);
-      expect(result[1]).toBeInstanceOf(Usuario);
-      expect(result[0].id).toBe(prismaResults[0].id);
-      expect(result[1].id).toBe(prismaResults[1].id);
-      expect(result[1].deletedAt).not.toBeNull();
+      expect(result.data).toHaveLength(2);
+      expect(result.data[1].deletedAt).not.toBeNull();
       expect(mockPrismaService.usuario.findMany).toHaveBeenCalledWith({
         where: {},
+        skip: 0,
+        take: 10,
+        orderBy: { createdAt: 'desc' },
       });
     });
   });

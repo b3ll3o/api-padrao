@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
@@ -12,11 +13,15 @@ import { UsuarioRepository } from '../../domain/repositories/usuario.repository'
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { IUsuarioAuthorizationService } from './usuario-authorization.service';
+import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 
 type UsuarioLogado = JwtPayload;
 
 @Injectable()
 export class UsuariosService {
+  private readonly logger = new Logger(UsuariosService.name);
+
   constructor(
     private readonly usuarioRepository: UsuarioRepository,
     private readonly passwordHasher: PasswordHasher,
@@ -44,8 +49,26 @@ export class UsuariosService {
 
     const usuario = await this.usuarioRepository.create(newUsuario);
 
+    this.logger.log(`Usuário criado com sucesso: ${usuario.email}`);
+
     delete usuario.senha;
     return usuario;
+  }
+
+  async findAll(
+    paginationDto: PaginationDto,
+    usuarioLogado: UsuarioLogado,
+    includeDeleted: boolean = false,
+  ): Promise<PaginatedResponseDto<Usuario>> {
+    // Basic admin check for listing all users
+    const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
+    if (!isAdmin) {
+      throw new ForbiddenException(
+        'Você não tem permissão para listar usuários',
+      );
+    }
+
+    return this.usuarioRepository.findAll(paginationDto, includeDeleted);
   }
 
   async findOne(
@@ -123,6 +146,9 @@ export class UsuariosService {
         }
 
         const softDeletedUsuario = await this.usuarioRepository.remove(id);
+        this.logger.log(
+          `Usuário removido (soft-delete): ${softDeletedUsuario.email}`,
+        );
         delete softDeletedUsuario.senha;
         return softDeletedUsuario; // Return immediately after soft delete
       }
@@ -160,6 +186,7 @@ export class UsuariosService {
     // Profiles update logic removed
 
     const updatedUsuario = await this.usuarioRepository.update(id, usuario);
+    this.logger.log(`Usuário atualizado: ${updatedUsuario.email}`);
 
     delete updatedUsuario.senha;
     return updatedUsuario;
