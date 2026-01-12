@@ -1,15 +1,11 @@
 import {
   IsEmail,
   IsString,
-  IsOptional,
   MinLength,
   Matches,
   IsNotEmpty,
-  IsNumber,
-  IsArray,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer'; // Import Type
 
 export class CreateUsuarioDto {
   @ApiProperty({
@@ -29,15 +25,4 @@ export class CreateUsuarioDto {
       'A senha deve conter pelo menos uma letra maiúscula, uma minúscula, um número ou um caractere especial',
   })
   senha?: string;
-
-  @ApiProperty({
-    description: 'IDs dos perfis associados ao usuário',
-    type: [Number],
-    required: false,
-  })
-  @IsOptional()
-  @IsArray({ message: 'perfisIds deve ser um array' })
-  @IsNumber({}, { each: true, message: 'Cada ID de perfil deve ser um número' })
-  @Type(() => Number) // Add Type decorator for transformation
-  perfisIds?: number[];
 }

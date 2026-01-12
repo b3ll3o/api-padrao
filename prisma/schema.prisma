@@ -14,37 +14,64 @@ datasource db {
 }
 
 model Usuario {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  senha     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // Added for soft delete
-  ativo     Boolean  @default(true) // Added for soft delete
-  perfis    Perfil[]
+  id                  Int              @id @default(autoincrement())
+  email               String           @unique
+  senha               String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  deletedAt           DateTime?
+  ativo               Boolean          @default(true)
+  empresas            UsuarioEmpresa[]
+  empresasResponsavel Empresa[]        @relation("EmpresaResponsavel")
 }
 
 model Perfil {
-  id          Int          @id @default(autoincrement())
-  nome        String       @unique
-  codigo      String       @unique
-  descricao   String
-  createdAt   DateTime? @default(now())
-  updatedAt   DateTime? @updatedAt
-  usuarios    Usuario[]
-  permissoes  Permissao[]
-  deletedAt   DateTime? // Added for soft delete
-  ativo       Boolean   @default(true) // Added for soft delete
+  id              Int              @id @default(autoincrement())
+  nome            String           @unique
+  codigo          String           @unique
+  descricao       String
+  createdAt       DateTime?        @default(now())
+  updatedAt       DateTime?        @updatedAt
+  usuariosEmpresa UsuarioEmpresa[]
+  permissoes      Permissao[]
+  deletedAt       DateTime?
+  ativo           Boolean          @default(true)
 }
 
 model Permissao {
-  id          Int      @id @default(autoincrement())
-  nome        String   @unique
-  codigo      String   @unique
-  descricao   String
-  createdAt   DateTime? @default(now())
-  updatedAt   DateTime? @updatedAt
-  perfis      Perfil[]
-  deletedAt   DateTime? // Added for soft delete
-  ativo       Boolean   @default(true) // Added for soft delete
+  id        Int       @id @default(autoincrement())
+  nome      String    @unique
+  codigo    String    @unique
+  descricao String
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+  perfis    Perfil[]
+  deletedAt DateTime?
+  ativo     Boolean   @default(true)
+}
+
+model Empresa {
+  id            String           @id @default(uuid())
+  nome          String
+  descricao     String?
+  ativo         Boolean          @default(true)
+  responsavel   Usuario          @relation("EmpresaResponsavel", fields: [responsavelId], references: [id])
+  responsavelId Int
+  usuarios      UsuarioEmpresa[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+}
+
+model UsuarioEmpresa {
+  id        Int      @id @default(autoincrement())
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  usuarioId Int
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  empresaId String
+  perfis    Perfil[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([usuarioId, empresaId])
 }

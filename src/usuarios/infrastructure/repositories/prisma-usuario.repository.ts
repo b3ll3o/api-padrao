@@ -1,44 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
-import { Perfil } from 'src/perfis/domain/entities/perfil.entity';
-import { Permissao } from 'src/permissoes/domain/entities/permissao.entity';
 
 @Injectable()
 export class PrismaUsuarioRepository implements UsuarioRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: Partial<Usuario>): Promise<Usuario> {
-    const { perfis, email, senha } = data;
+    const { email, senha } = data;
     const usuario = await this.prisma.usuario.create({
       data: {
         email: email as string,
         senha: senha,
-        perfis: {
-          connect: perfis?.map((perfil) => ({ id: perfil.id })),
-        },
       },
-      include: { perfis: true }, // Include perfis in the creation result
     });
-    const newUsuario = new Usuario();
-    newUsuario.id = usuario.id;
-    newUsuario.email = usuario.email;
-    newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
-    newUsuario.createdAt = usuario.createdAt;
-    newUsuario.updatedAt = usuario.updatedAt;
-    newUsuario.deletedAt = usuario.deletedAt;
-    newUsuario.ativo = usuario.ativo;
-    newUsuario.perfis = usuario.perfis?.map((perfil) => {
-      // Map profiles to Perfil instances
-      const newPerfil = new Perfil();
-      newPerfil.id = perfil.id;
-      newPerfil.nome = perfil.nome;
-      newPerfil.codigo = perfil.codigo;
-      newPerfil.descricao = perfil.descricao;
-      return newPerfil;
-    });
-    return newUsuario;
+    return this.mapToEntity(usuario);
   }
 
   async findOne(
@@ -52,28 +29,10 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
 
     const usuario = await this.prisma.usuario.findUnique({
       where: whereClause,
-      include: { perfis: true }, // Include perfis if needed
     });
     if (!usuario) return undefined;
 
-    const newUsuario = new Usuario();
-    newUsuario.id = usuario.id;
-    newUsuario.email = usuario.email;
-    newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
-    newUsuario.createdAt = usuario.createdAt;
-    newUsuario.updatedAt = usuario.updatedAt;
-    newUsuario.deletedAt = usuario.deletedAt; // Include deletedAt
-    newUsuario.ativo = usuario.ativo;
-    // Map profiles to Perfil instances
-    newUsuario.perfis = usuario.perfis?.map((perfil) => {
-      const newPerfil = new Perfil();
-      newPerfil.id = perfil.id;
-      newPerfil.nome = perfil.nome;
-      newPerfil.codigo = perfil.codigo;
-      newPerfil.descricao = perfil.descricao;
-      return newPerfil;
-    });
-    return newUsuario;
+    return this.mapToEntity(usuario);
   }
 
   async findAll(includeDeleted: boolean = false): Promise<Usuario[]> {
@@ -84,123 +43,47 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
 
     const usuarios = await this.prisma.usuario.findMany({
       where: whereClause,
-      include: { perfis: true }, // Include perfis if needed
     });
 
-    return usuarios.map((usuario) => {
-      const newUsuario = new Usuario();
-      newUsuario.id = usuario.id;
-      newUsuario.email = usuario.email;
-      newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
-      newUsuario.createdAt = usuario.createdAt;
-      newUsuario.updatedAt = usuario.updatedAt;
-      newUsuario.deletedAt = usuario.deletedAt; // Include deletedAt
-      newUsuario.ativo = usuario.ativo;
-      newUsuario.perfis = usuario.perfis?.map((perfil) => {
-        const newPerfil = new Perfil();
-        newPerfil.id = perfil.id;
-        newPerfil.nome = perfil.nome;
-        newPerfil.codigo = perfil.codigo;
-        newPerfil.descricao = perfil.descricao;
-        return newPerfil;
-      });
-      return newUsuario;
-    });
+    return usuarios.map((usuario) => this.mapToEntity(usuario));
   }
 
   async findByEmail(email: string): Promise<Usuario | null> {
     const usuario = await this.prisma.usuario.findUnique({
       where: { email, deletedAt: null },
-    }); // Exclude soft-deleted
+    });
     if (!usuario) return null;
-    const newUsuario = new Usuario();
-    newUsuario.id = usuario.id;
-    newUsuario.email = usuario.email;
-    newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
-    newUsuario.createdAt = usuario.createdAt;
-    newUsuario.updatedAt = usuario.updatedAt;
-    newUsuario.deletedAt = usuario.deletedAt; // Include deletedAt
-    newUsuario.ativo = usuario.ativo;
-    return newUsuario;
+    return this.mapToEntity(usuario);
   }
 
+  // TODO: This method needs to be refactored to support Company context.
+  // For now, it returns the user without profiles to avoid build errors.
+  // Profiles are now loaded via UsuarioEmpresa.
   async findByEmailWithPerfisAndPermissoes(
     email: string,
   ): Promise<Usuario | null> {
     const usuario = await this.prisma.usuario.findUnique({
-      where: { email, deletedAt: null }, // Exclude soft-deleted
-      include: {
-        perfis: {
-          include: {
-            permissoes: true,
-          },
-        },
-      },
+      where: { email, deletedAt: null },
     });
     if (!usuario) return null;
 
-    const newUsuario = new Usuario();
-    newUsuario.id = usuario.id;
-    newUsuario.email = usuario.email;
-    newUsuario.senha = usuario.senha === null ? undefined : usuario.senha;
-    newUsuario.createdAt = usuario.createdAt;
-    newUsuario.updatedAt = usuario.updatedAt;
-    newUsuario.deletedAt = usuario.deletedAt; // Include deletedAt
-    newUsuario.ativo = usuario.ativo;
-
-    newUsuario.perfis = usuario.perfis.map((perfil) => {
-      const newPerfil = new Perfil();
-      newPerfil.id = perfil.id;
-      newPerfil.nome = perfil.nome;
-      newPerfil.codigo = perfil.codigo;
-      newPerfil.descricao = perfil.descricao;
-      newPerfil.permissoes = perfil.permissoes.map((permissao) => {
-        const newPermissao = new Permissao();
-        newPermissao.id = permissao.id;
-        newPermissao.nome = permissao.nome;
-        newPermissao.codigo = permissao.codigo;
-        newPermissao.descricao = permissao.descricao;
-        return newPermissao;
-      });
-      return newPerfil;
-    });
-
-    return newUsuario;
+    const entity = this.mapToEntity(usuario);
+    entity.perfis = []; // Empty profiles as they are now context-dependent
+    return entity;
   }
 
   async update(id: number, data: Partial<Usuario>): Promise<Usuario> {
-    const { perfis, ...rest } = data;
+    const { email, senha, ativo } = data;
     const updatedUsuario = await this.prisma.usuario.update({
       where: { id },
       data: {
-        ...rest,
-        perfis: perfis
-          ? {
-              set: perfis.map((perfil) => ({ id: perfil.id })),
-            }
-          : undefined,
+        email,
+        senha,
+        ativo,
       },
-      include: { perfis: true },
     });
 
-    const newUsuario = new Usuario();
-    newUsuario.id = updatedUsuario.id;
-    newUsuario.email = updatedUsuario.email;
-    newUsuario.senha =
-      updatedUsuario.senha === null ? undefined : updatedUsuario.senha;
-    newUsuario.createdAt = updatedUsuario.createdAt;
-    newUsuario.updatedAt = updatedUsuario.updatedAt;
-    newUsuario.deletedAt = updatedUsuario.deletedAt; // Include deletedAt
-    newUsuario.ativo = updatedUsuario.ativo;
-    newUsuario.perfis = updatedUsuario.perfis?.map((perfil) => {
-      const newPerfil = new Perfil();
-      newPerfil.id = perfil.id;
-      newPerfil.nome = perfil.nome;
-      newPerfil.codigo = perfil.codigo;
-      newPerfil.descricao = perfil.descricao;
-      return newPerfil;
-    });
-    return newUsuario;
+    return this.mapToEntity(updatedUsuario);
   }
 
   async remove(id: number): Promise<Usuario> {
@@ -208,31 +91,16 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       const softDeletedUsuario = await this.prisma.usuario.update({
         where: { id },
         data: { deletedAt: new Date(), ativo: false },
-        include: { perfis: true }, // Include perfis if needed for mapping
       });
 
-      const newUsuario = new Usuario();
-      newUsuario.id = softDeletedUsuario.id;
-      newUsuario.email = softDeletedUsuario.email;
-      newUsuario.senha =
-        softDeletedUsuario.senha === null
-          ? undefined
-          : softDeletedUsuario.senha;
-      newUsuario.createdAt = softDeletedUsuario.createdAt;
-      newUsuario.updatedAt = softDeletedUsuario.updatedAt;
-      newUsuario.deletedAt = softDeletedUsuario.deletedAt;
-      newUsuario.ativo = softDeletedUsuario.ativo;
-      newUsuario.perfis = softDeletedUsuario.perfis?.map((perfil) => {
-        const newPerfil = new Perfil();
-        newPerfil.id = perfil.id;
-        newPerfil.nome = perfil.nome;
-        newPerfil.codigo = perfil.codigo;
-        newPerfil.descricao = perfil.descricao;
-        return newPerfil;
-      });
-      return newUsuario;
+      return this.mapToEntity(softDeletedUsuario);
     } catch (error) {
-      if (error.code === 'P2025') {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2025'
+      ) {
         throw new Error(`Usuário com ID ${id} não encontrado.`);
       }
       throw error;
@@ -244,32 +112,33 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       const restoredUsuario = await this.prisma.usuario.update({
         where: { id },
         data: { deletedAt: null, ativo: true },
-        include: { perfis: true }, // Include perfis if needed for mapping
       });
 
-      const newUsuario = new Usuario();
-      newUsuario.id = restoredUsuario.id;
-      newUsuario.email = restoredUsuario.email;
-      newUsuario.senha =
-        restoredUsuario.senha === null ? undefined : restoredUsuario.senha;
-      newUsuario.createdAt = restoredUsuario.createdAt;
-      newUsuario.updatedAt = restoredUsuario.updatedAt;
-      newUsuario.deletedAt = restoredUsuario.deletedAt;
-      newUsuario.ativo = restoredUsuario.ativo;
-      newUsuario.perfis = restoredUsuario.perfis?.map((perfil) => {
-        const newPerfil = new Perfil();
-        newPerfil.id = perfil.id;
-        newPerfil.nome = perfil.nome;
-        newPerfil.codigo = perfil.codigo;
-        newPerfil.descricao = perfil.descricao;
-        return newPerfil;
-      });
-      return newUsuario;
+      return this.mapToEntity(restoredUsuario);
     } catch (error) {
-      if (error.code === 'P2025') {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2025'
+      ) {
         throw new Error(`Usuário com ID ${id} não encontrado.`);
       }
       throw error;
     }
+  }
+
+  private mapToEntity(prismaUsuario: any): Usuario {
+    const newUsuario = new Usuario();
+    newUsuario.id = prismaUsuario.id;
+    newUsuario.email = prismaUsuario.email;
+    newUsuario.senha =
+      prismaUsuario.senha === null ? undefined : prismaUsuario.senha;
+    newUsuario.createdAt = prismaUsuario.createdAt;
+    newUsuario.updatedAt = prismaUsuario.updatedAt;
+    newUsuario.deletedAt = prismaUsuario.deletedAt;
+    newUsuario.ativo = prismaUsuario.ativo;
+    newUsuario.perfis = []; // Default to empty
+    return newUsuario;
   }
 }

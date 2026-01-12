@@ -13,6 +13,7 @@ import { PermissaoGuard } from './auth/application/guards/permissao.guard';
 import { PasswordHasher } from './shared/domain/services/password-hasher.service';
 import { BcryptPasswordHasherService } from './shared/infrastructure/services/bcrypt-password-hasher.service';
 import { envValidationSchema } from './config/env.validation';
+import { EmpresasModule } from './empresas/empresas.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { envValidationSchema } from './config/env.validation';
     AuthModule,
     PermissoesModule,
     PerfisModule,
+    EmpresasModule,
   ],
   controllers: [],
   providers: [
