@@ -4,9 +4,11 @@ import { EmpresasController } from './application/controllers/empresas.controlle
 import { PrismaModule } from '../prisma/prisma.module';
 import { EmpresaRepository } from './domain/repositories/empresa.repository';
 import { PrismaEmpresaRepository } from './infrastructure/repositories/prisma-empresa.repository';
+import { UsuariosModule } from '../usuarios/usuarios.module';
+import { PerfisModule } from '../perfis/perfis.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, UsuariosModule, PerfisModule],
   controllers: [EmpresasController],
   providers: [
     EmpresasService,

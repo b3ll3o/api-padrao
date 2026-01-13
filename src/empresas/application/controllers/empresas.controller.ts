@@ -13,6 +13,7 @@ import {
 import { EmpresasService } from '../services/empresas.service';
 import { CreateEmpresaDto } from '../../dto/create-empresa.dto';
 import { UpdateEmpresaDto } from '../../dto/update-empresa.dto';
+import { AddUsuarioEmpresaDto } from '../../dto/add-usuario-empresa.dto';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import {
   ApiTags,
@@ -76,11 +77,18 @@ export class EmpresasController {
   @Post(':id/usuarios')
   @TemPermissao('ADD_USER_TO_EMPRESA')
   @ApiOperation({ summary: 'Adicionar usuário à empresa com perfis' })
+  @ApiResponse({
+    status: 201,
+    description: 'Usuário adicionado à empresa com sucesso.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Empresa, usuário ou perfil não encontrado.',
+  })
   addUser(
     @Param('id') id: string,
-    @Body('usuarioId') usuarioId: number,
-    @Body('perfilIds') perfilIds: number[],
+    @Body() addUsuarioEmpresaDto: AddUsuarioEmpresaDto,
   ) {
-    return this.empresasService.addUser(id, usuarioId, perfilIds);
+    return this.empresasService.addUser(id, addUsuarioEmpresaDto);
   }
 }

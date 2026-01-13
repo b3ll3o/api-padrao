@@ -7,10 +7,15 @@ import { NotFoundException } from '@nestjs/common';
 import { UpdateEmpresaDto } from '../../dto/update-empresa.dto';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
+import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
+import { PerfilRepository } from '../../../perfis/domain/repositories/perfil.repository';
+import { AddUsuarioEmpresaDto } from '../../dto/add-usuario-empresa.dto';
 
 describe('EmpresasService', () => {
   let service: EmpresasService;
   let repository: jest.Mocked<EmpresaRepository>;
+  let usuarioRepository: jest.Mocked<UsuarioRepository>;
+  let perfilRepository: jest.Mocked<PerfilRepository>;
 
   const mockEmpresa = new Empresa({
     id: 'uuid-123',
@@ -21,7 +26,7 @@ describe('EmpresasService', () => {
     ativo: true,
   });
 
-  const mockRepository = {
+  const mockEmpresaRepository = {
     create: jest.fn(),
     findAll: jest.fn(),
     findOne: jest.fn(),
@@ -30,19 +35,37 @@ describe('EmpresasService', () => {
     addUserToCompany: jest.fn(),
   };
 
+  const mockUsuarioRepository = {
+    findOne: jest.fn(),
+  };
+
+  const mockPerfilRepository = {
+    findOne: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmpresasService,
         {
           provide: EmpresaRepository,
-          useValue: mockRepository,
+          useValue: mockEmpresaRepository,
+        },
+        {
+          provide: UsuarioRepository,
+          useValue: mockUsuarioRepository,
+        },
+        {
+          provide: PerfilRepository,
+          useValue: mockPerfilRepository,
         },
       ],
     }).compile();
 
     service = module.get<EmpresasService>(EmpresasService);
     repository = module.get(EmpresaRepository);
+    usuarioRepository = module.get(UsuarioRepository);
+    perfilRepository = module.get(PerfilRepository);
     jest.clearAllMocks();
   });
 
@@ -145,11 +168,18 @@ describe('EmpresasService', () => {
   });
 
   describe('addUser', () => {
+    const addDto: AddUsuarioEmpresaDto = {
+      usuarioId: 1,
+      perfilIds: [1, 2],
+    };
+
     it('deve adicionar um usuário a uma empresa', async () => {
       repository.findOne.mockResolvedValue(mockEmpresa);
+      usuarioRepository.findOne.mockResolvedValue({ id: 1 } as any);
+      perfilRepository.findOne.mockResolvedValue({ id: 1 } as any);
       repository.addUserToCompany.mockResolvedValue(undefined);
 
-      await service.addUser('uuid-123', 1, [1, 2]);
+      await service.addUser('uuid-123', addDto);
 
       expect(repository.addUserToCompany).toHaveBeenCalledWith(
         'uuid-123',
@@ -161,8 +191,27 @@ describe('EmpresasService', () => {
     it('deve lançar NotFoundException se a empresa não existir', async () => {
       repository.findOne.mockResolvedValue(null);
 
-      await expect(service.addUser('uuid-123', 1, [1])).rejects.toThrow(
+      await expect(service.addUser('uuid-123', addDto)).rejects.toThrow(
         NotFoundException,
+      );
+    });
+
+    it('deve lançar NotFoundException se o usuário não existir', async () => {
+      repository.findOne.mockResolvedValue(mockEmpresa);
+      usuarioRepository.findOne.mockResolvedValue(undefined);
+
+      await expect(service.addUser('uuid-123', addDto)).rejects.toThrow(
+        `Usuário com ID ${addDto.usuarioId} não encontrado`,
+      );
+    });
+
+    it('deve lançar NotFoundException se um perfil não existir', async () => {
+      repository.findOne.mockResolvedValue(mockEmpresa);
+      usuarioRepository.findOne.mockResolvedValue({ id: 1 } as any);
+      perfilRepository.findOne.mockResolvedValue(undefined);
+
+      await expect(service.addUser('uuid-123', addDto)).rejects.toThrow(
+        `Perfil com ID ${addDto.perfilIds[0]} não encontrado`,
       );
     });
   });

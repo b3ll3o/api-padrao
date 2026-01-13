@@ -299,7 +299,11 @@ describe('EmpresasController (e2e)', () => {
       });
 
       const profile = await prisma.perfil.create({
-        data: { nome: 'Staff', codigo: 'STAFF', descricao: 'Equipe' },
+        data: {
+          nome: 'Staff',
+          codigo: 'STAFF',
+          descricao: 'Equipe',
+        },
       });
 
       await request(app.getHttpServer())
@@ -320,6 +324,100 @@ describe('EmpresasController (e2e)', () => {
       expect(link).toBeDefined();
       expect(link?.perfis).toHaveLength(1);
       expect(link?.perfis[0].codigo).toBe('STAFF');
+    });
+
+    it('deve atualizar perfis se o vínculo já existir', async () => {
+      const empresa = await prisma.empresa.create({
+        data: { nome: 'Cloud Tech', responsavelId: adminUser.id },
+      });
+
+      const user = await prisma.usuario.create({
+        data: { email: 'staff2@example.com' },
+      });
+
+      const profile1 = await prisma.perfil.create({
+        data: { nome: 'P1', codigo: 'P1', descricao: 'D1' },
+      });
+
+      const profile2 = await prisma.perfil.create({
+        data: { nome: 'P2', codigo: 'P2', descricao: 'D2' },
+      });
+
+      // Primeiro vínculo
+      await prisma.usuarioEmpresa.create({
+        data: {
+          usuarioId: user.id,
+          empresaId: empresa.id,
+          perfis: { connect: [{ id: profile1.id }] },
+        },
+      });
+
+      // Atualizar para profile2
+      await request(app.getHttpServer())
+        .post(`/empresas/${empresa.id}/usuarios`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          usuarioId: user.id,
+          perfilIds: [profile2.id],
+        })
+        .expect(201);
+
+      const link = await prisma.usuarioEmpresa.findFirst({
+        where: { usuarioId: user.id, empresaId: empresa.id },
+        include: { perfis: true },
+      });
+
+      expect(link?.perfis).toHaveLength(1);
+      expect(link?.perfis[0].codigo).toBe('P2');
+    });
+
+    it('deve retornar 404 se o usuário não existir', async () => {
+      const empresa = await prisma.empresa.create({
+        data: { nome: 'Cloud Tech', responsavelId: adminUser.id },
+      });
+
+      await request(app.getHttpServer())
+        .post(`/empresas/${empresa.id}/usuarios`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          usuarioId: 9999,
+          perfilIds: [1],
+        })
+        .expect(404);
+    });
+
+    it('deve retornar 404 se um perfil não existir', async () => {
+      const empresa = await prisma.empresa.create({
+        data: { nome: 'Cloud Tech', responsavelId: adminUser.id },
+      });
+
+      const user = await prisma.usuario.create({
+        data: { email: 'staff3@example.com' },
+      });
+
+      await request(app.getHttpServer())
+        .post(`/empresas/${empresa.id}/usuarios`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          usuarioId: user.id,
+          perfilIds: [9999],
+        })
+        .expect(404);
+    });
+
+    it('deve retornar 403 se o usuário não tiver permissão ADD_USER_TO_EMPRESA', async () => {
+      const empresa = await prisma.empresa.create({
+        data: { nome: 'Cloud Tech', responsavelId: adminUser.id },
+      });
+
+      await request(app.getHttpServer())
+        .post(`/empresas/${empresa.id}/usuarios`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          usuarioId: 1,
+          perfilIds: [1],
+        })
+        .expect(403);
     });
   });
 });

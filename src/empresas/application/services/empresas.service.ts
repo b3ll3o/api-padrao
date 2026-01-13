@@ -3,12 +3,19 @@ import { EmpresaRepository } from '../../domain/repositories/empresa.repository'
 import { CreateEmpresaDto } from '../../dto/create-empresa.dto';
 import { UpdateEmpresaDto } from '../../dto/update-empresa.dto';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
+import { PerfilRepository } from '../../../perfis/domain/repositories/perfil.repository';
+import { AddUsuarioEmpresaDto } from '../../dto/add-usuario-empresa.dto';
 
 @Injectable()
 export class EmpresasService {
   private readonly logger = new Logger(EmpresasService.name);
 
-  constructor(private readonly empresaRepository: EmpresaRepository) {}
+  constructor(
+    private readonly empresaRepository: EmpresaRepository,
+    private readonly usuarioRepository: UsuarioRepository,
+    private readonly perfilRepository: PerfilRepository,
+  ) {}
 
   async create(createEmpresaDto: CreateEmpresaDto) {
     const empresa = await this.empresaRepository.create(createEmpresaDto);
@@ -41,8 +48,26 @@ export class EmpresasService {
     this.logger.log(`Empresa removida (soft-delete): ID ${id}`);
   }
 
-  async addUser(empresaId: string, usuarioId: number, perfilIds: number[]) {
+  async addUser(empresaId: string, addUsuarioEmpresaDto: AddUsuarioEmpresaDto) {
+    const { usuarioId, perfilIds } = addUsuarioEmpresaDto;
+
+    // Validar existência da empresa
     await this.findOne(empresaId);
+
+    // Validar existência do usuário
+    const usuario = await this.usuarioRepository.findOne(usuarioId);
+    if (!usuario) {
+      throw new NotFoundException(`Usuário com ID ${usuarioId} não encontrado`);
+    }
+
+    // Validar existência dos perfis
+    for (const perfilId of perfilIds) {
+      const perfil = await this.perfilRepository.findOne(perfilId);
+      if (!perfil) {
+        throw new NotFoundException(`Perfil com ID ${perfilId} não encontrado`);
+      }
+    }
+
     await this.empresaRepository.addUserToCompany(
       empresaId,
       usuarioId,
