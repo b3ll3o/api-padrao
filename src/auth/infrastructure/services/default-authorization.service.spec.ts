@@ -23,7 +23,7 @@ describe('DefaultAuthorizationService', () => {
     const user: JwtPayload = {
       email: 'test@example.com',
       sub: 1,
-      perfis: [{ codigo: 'ADMIN' }],
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
     };
     expect(service.isAdmin(user)).toBe(true);
   });
@@ -32,7 +32,7 @@ describe('DefaultAuthorizationService', () => {
     const user: JwtPayload = {
       email: 'test@example.com',
       sub: 1,
-      perfis: [{ codigo: 'USER' }],
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
     };
     expect(service.isAdmin(user)).toBe(false);
   });
@@ -41,7 +41,7 @@ describe('DefaultAuthorizationService', () => {
     const user: JwtPayload = {
       email: 'test@example.com',
       sub: 1,
-      perfis: [],
+      empresas: [{ id: 'empresa-1', perfis: [] }],
     };
     expect(service.isAdmin(user)).toBe(false);
   });

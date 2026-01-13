@@ -30,7 +30,9 @@ describe('PermissoesController', () => {
       usuarioLogado: {
         userId: userId || 1,
         email: 'test@example.com',
-        perfis: isAdmin ? [{ codigo: 'ADMIN' }] : [], // Corrected perfis structure
+        empresas: isAdmin
+          ? [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }]
+          : [],
       },
     };
     return req as Request;

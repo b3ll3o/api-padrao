@@ -8,10 +8,13 @@ export interface JwtPayload {
   email: string;
   userId?: number;
   sub?: number;
-  perfis?: {
-    codigo: string;
-    permissoes?: {
+  empresas?: {
+    id: string;
+    perfis?: {
       codigo: string;
+      permissoes?: {
+        codigo: string;
+      }[];
     }[];
   }[];
 }
@@ -27,16 +30,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const mappedPerfisArray = payload.perfis?.map((perfil) => ({
-      codigo: perfil.codigo,
-      permissoes: perfil.permissoes?.map((permissao) => ({
-        codigo: permissao.codigo,
+    const mappedEmpresas = payload.empresas?.map((empresa) => ({
+      id: empresa.id,
+      perfis: empresa.perfis?.map((perfil) => ({
+        codigo: perfil.codigo,
+        permissoes: perfil.permissoes?.map((permissao) => ({
+          codigo: permissao.codigo,
+        })),
       })),
     }));
+
     return {
       userId: payload.sub,
       email: payload.email,
-      perfis: mappedPerfisArray,
+      empresas: mappedEmpresas,
     };
   }
 }

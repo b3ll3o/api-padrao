@@ -60,8 +60,10 @@ export class UsuariosService {
     usuarioLogado: UsuarioLogado,
     includeDeleted: boolean = false,
   ): Promise<PaginatedResponseDto<Usuario>> {
-    // Basic admin check for listing all users
-    const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
+    // Basic admin check for listing all users - Check if admin in ANY company
+    const isAdmin = usuarioLogado.empresas?.some((e: any) =>
+      e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
+    );
     if (!isAdmin) {
       throw new ForbiddenException(
         'Você não tem permissão para listar usuários',
@@ -137,8 +139,10 @@ export class UsuariosService {
           throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
         }
 
-        // Check if user is admin (restored check)
-        const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
+        // Check if user is admin (restored check) - Check if admin in ANY company
+        const isAdmin = usuarioLogado.empresas?.some((e: any) =>
+          e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
+        );
         if (!isAdmin) {
           throw new ForbiddenException(
             'Você não tem permissão para deletar este usuário',

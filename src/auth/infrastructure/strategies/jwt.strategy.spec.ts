@@ -69,18 +69,22 @@ describe('JwtStrategy', () => {
   });
 
   describe('validação', () => {
-    it('deve retornar um payload de usuário válido com perfis e permissões', async () => {
+    it('deve retornar um payload de usuário válido com empresas e perfis', async () => {
       const payload: JwtPayload = {
         email: 'test@example.com',
         sub: 1,
-        perfis: [
+        empresas: [
           {
-            codigo: 'ADMIN',
-            permissoes: [{ codigo: 'CREATE_USER' }, { codigo: 'READ_USER' }],
-          },
-          {
-            codigo: 'USER',
-            permissoes: [{ codigo: 'READ_OWN_DATA' }],
+            id: 'empresa-1',
+            perfis: [
+              {
+                codigo: 'ADMIN',
+                permissoes: [
+                  { codigo: 'CREATE_USER' },
+                  { codigo: 'READ_USER' },
+                ],
+              },
+            ],
           },
         ],
       };
@@ -90,20 +94,24 @@ describe('JwtStrategy', () => {
       expect(result).toEqual({
         userId: payload.sub,
         email: payload.email,
-        perfis: [
+        empresas: [
           {
-            codigo: 'ADMIN',
-            permissoes: [{ codigo: 'CREATE_USER' }, { codigo: 'READ_USER' }],
-          },
-          {
-            codigo: 'USER',
-            permissoes: [{ codigo: 'READ_OWN_DATA' }],
+            id: 'empresa-1',
+            perfis: [
+              {
+                codigo: 'ADMIN',
+                permissoes: [
+                  { codigo: 'CREATE_USER' },
+                  { codigo: 'READ_USER' },
+                ],
+              },
+            ],
           },
         ],
       });
     });
 
-    it('deve retornar um payload de usuário válido sem perfis ou permissões', async () => {
+    it('deve retornar um payload de usuário válido sem empresas ou perfis', async () => {
       const payload: JwtPayload = {
         email: 'test@example.com',
         sub: 1,
@@ -114,15 +122,15 @@ describe('JwtStrategy', () => {
       expect(result).toEqual({
         userId: payload.sub,
         email: payload.email,
-        perfis: undefined, // Or an empty array, depending on expected behavior
+        empresas: undefined,
       });
     });
 
-    it('deve retornar um payload de usuário válido com array de perfis vazio', async () => {
+    it('deve retornar um payload de usuário válido com array de empresas vazio', async () => {
       const payload: JwtPayload = {
         email: 'test@example.com',
         sub: 1,
-        perfis: [],
+        empresas: [],
       };
 
       const result = await jwtStrategy.validate(payload);
@@ -130,7 +138,7 @@ describe('JwtStrategy', () => {
       expect(result).toEqual({
         userId: payload.sub,
         email: payload.email,
-        perfis: [],
+        empresas: [],
       });
     });
   });

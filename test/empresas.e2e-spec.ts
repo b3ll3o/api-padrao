@@ -101,12 +101,41 @@ describe('EmpresasController (e2e)', () => {
       },
     });
 
-    // Gerar token simulando o perfil (como fizemos no fix anterior dos e2e)
+    // Criar uma empresa de teste para o Admin
+    const empresaTeste = await prisma.empresa.create({
+      data: {
+        nome: 'Empresa Admin',
+        responsavelId: adminUser.id,
+      },
+    });
+
+    // Vincular admin à empresa com o perfil admin
+    await prisma.usuarioEmpresa.create({
+      data: {
+        usuarioId: adminUser.id,
+        empresaId: empresaTeste.id,
+        perfis: { connect: [{ id: adminProfile.id }] },
+      },
+    });
+
+    // Gerar token simulando o perfil dentro da empresa
     adminToken = jwtService.sign({
       sub: adminUser.id,
       email: adminUser.email,
-      perfis: [adminProfile],
+      empresas: [
+        {
+          id: empresaTeste.id,
+          perfis: [
+            {
+              codigo: adminProfile.codigo,
+              permissoes: perms.map((p) => ({ codigo: p.codigo })),
+            },
+          ],
+        },
+      ],
     });
+
+    adminEmpresaId = empresaTeste.id;
 
     // Usuário sem permissões
     const userWithoutPerms = await prisma.usuario.create({
@@ -115,11 +144,12 @@ describe('EmpresasController (e2e)', () => {
     userToken = jwtService.sign({
       sub: userWithoutPerms.id,
       email: userWithoutPerms.email,
-      perfis: [],
+      empresas: [],
     });
   });
 
   let userToken: string;
+  let adminEmpresaId: string;
 
   describe('Segurança e Autorização', () => {
     it('deve retornar 401 ao tentar criar empresa sem token', () => {
@@ -133,6 +163,7 @@ describe('EmpresasController (e2e)', () => {
       return request(app.getHttpServer())
         .post('/empresas')
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({ nome: 'Hack', responsavelId: 1 })
         .expect(403);
     });
@@ -141,6 +172,7 @@ describe('EmpresasController (e2e)', () => {
       return request(app.getHttpServer())
         .get('/empresas')
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .expect(403);
     });
   });
@@ -150,6 +182,7 @@ describe('EmpresasController (e2e)', () => {
       return request(app.getHttpServer())
         .patch('/empresas/non-existent-uuid')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({ nome: 'New Name' })
         .expect(404);
     });
@@ -158,6 +191,7 @@ describe('EmpresasController (e2e)', () => {
       return request(app.getHttpServer())
         .delete('/empresas/non-existent-uuid')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .expect(404);
     });
 
@@ -165,6 +199,7 @@ describe('EmpresasController (e2e)', () => {
       return request(app.getHttpServer())
         .post('/empresas/non-existent-uuid/usuarios')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({ usuarioId: 1, perfilIds: [1] })
         .expect(404);
     });
@@ -177,11 +212,13 @@ describe('EmpresasController (e2e)', () => {
       await request(app.getHttpServer())
         .delete(`/empresas/${empresa.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .expect(204);
 
       return request(app.getHttpServer())
         .get(`/empresas/${empresa.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .expect(404);
     });
   });
@@ -197,6 +234,7 @@ describe('EmpresasController (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/empresas')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send(createDto)
         .expect(201);
 
@@ -209,6 +247,7 @@ describe('EmpresasController (e2e)', () => {
       return request(app.getHttpServer())
         .post('/empresas')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({ responsavelId: adminUser.id })
         .expect(400);
     });
@@ -223,10 +262,11 @@ describe('EmpresasController (e2e)', () => {
       const res = await request(app.getHttpServer())
         .get('/empresas')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .expect(200);
 
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.total).toBe(1);
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.total).toBe(2);
     });
   });
 
@@ -239,6 +279,7 @@ describe('EmpresasController (e2e)', () => {
       const res = await request(app.getHttpServer())
         .get(`/empresas/${empresa.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .expect(200);
 
       expect(res.body.id).toBe(empresa.id);
@@ -248,6 +289,7 @@ describe('EmpresasController (e2e)', () => {
       return request(app.getHttpServer())
         .get('/empresas/non-existent-uuid')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .expect(404);
     });
   });
@@ -261,6 +303,7 @@ describe('EmpresasController (e2e)', () => {
       const res = await request(app.getHttpServer())
         .patch(`/empresas/${empresa.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({ nome: 'New Name' })
         .expect(200);
 
@@ -277,6 +320,7 @@ describe('EmpresasController (e2e)', () => {
       await request(app.getHttpServer())
         .delete(`/empresas/${empresa.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .expect(204);
 
       // Verificar no banco se deletou logicamente
@@ -309,6 +353,7 @@ describe('EmpresasController (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/empresas/${empresa.id}/usuarios`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({
           usuarioId: user.id,
           perfilIds: [profile.id],
@@ -356,6 +401,7 @@ describe('EmpresasController (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/empresas/${empresa.id}/usuarios`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({
           usuarioId: user.id,
           perfilIds: [profile2.id],
@@ -379,6 +425,7 @@ describe('EmpresasController (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/empresas/${empresa.id}/usuarios`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({
           usuarioId: 9999,
           perfilIds: [1],
@@ -398,6 +445,7 @@ describe('EmpresasController (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/empresas/${empresa.id}/usuarios`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({
           usuarioId: user.id,
           perfilIds: [9999],
@@ -413,6 +461,7 @@ describe('EmpresasController (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/empresas/${empresa.id}/usuarios`)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', adminEmpresaId)
         .send({
           usuarioId: 1,
           perfilIds: [1],

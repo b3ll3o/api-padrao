@@ -12,8 +12,9 @@ import { JwtService } from '@nestjs/jwt'; // Import JwtService
 describe('PerfisController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let adminToken: string; // Renamed to adminToken for clarity
-  let userToken: string; // Token for a user with limited permissions
+  let adminToken: string;
+  let userToken: string;
+  let globalEmpresaId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -22,13 +23,12 @@ describe('PerfisController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     prisma = app.get<PrismaService>(PrismaService);
-    const jwtService = app.get<JwtService>(JwtService); // Get JwtService instance
+    const jwtService = app.get<JwtService>(JwtService);
 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
 
-    // Setup for admin user and token (moved from beforeEach to beforeAll for efficiency)
     await cleanDatabase(prisma);
 
     const permissionsData = [
@@ -93,20 +93,48 @@ describe('PerfisController (e2e)', () => {
     });
 
     // Create an admin user
-    const hashedPassword = await bcrypt.hash('admin123', 10);
     const adminUser = await prisma.usuario.create({
       data: {
         email: 'admin@example.com',
-        senha: hashedPassword,
-        // No direct profile connection
+        senha: await bcrypt.hash('admin123', 10),
       },
     });
 
-    // Manually sign token for admin with profile included
+    // Create a company
+    const empresa = await prisma.empresa.create({
+      data: {
+        nome: 'Empresa Teste',
+        responsavelId: adminUser.id,
+      },
+    });
+    globalEmpresaId = empresa.id;
+
+    // Vincular admin à empresa
+    await prisma.usuarioEmpresa.create({
+      data: {
+        usuarioId: adminUser.id,
+        empresaId: globalEmpresaId,
+        perfis: { connect: [{ id: adminProfile.id }] },
+      },
+    });
+
+    // Manually sign token for admin
     adminToken = jwtService.sign({
       sub: adminUser.id,
       email: adminUser.email,
-      perfis: [adminProfile],
+      empresas: [
+        {
+          id: globalEmpresaId,
+          perfis: [
+            {
+              codigo: adminProfile.codigo,
+              permissoes: (adminProfile as any).permissoes.map((p) => ({
+                codigo: p.codigo,
+              })),
+            },
+          ],
+        },
+      ],
     });
 
     // Setup for a regular user with limited permissions
@@ -127,24 +155,43 @@ describe('PerfisController (e2e)', () => {
         },
       },
     });
-    // Fetch full profile with perms
     limitedProfile = await prisma.perfil.findUniqueOrThrow({
       where: { id: limitedProfile.id },
       include: { permissoes: true },
     });
 
-    const limitedUserHashedPassword = await bcrypt.hash('Limited123!', 10);
     const limitedUser = await prisma.usuario.create({
       data: {
         email: 'limited@example.com',
-        senha: limitedUserHashedPassword,
-        // No direct profile connection
+        senha: await bcrypt.hash('Limited123!', 10),
       },
     });
+
+    // Vincular limitedUser à empresa
+    await prisma.usuarioEmpresa.create({
+      data: {
+        usuarioId: limitedUser.id,
+        empresaId: globalEmpresaId,
+        perfis: { connect: [{ id: limitedProfile.id }] },
+      },
+    });
+
     userToken = jwtService.sign({
       sub: limitedUser.id,
       email: limitedUser.email,
-      perfis: [limitedProfile],
+      empresas: [
+        {
+          id: globalEmpresaId,
+          perfis: [
+            {
+              codigo: limitedProfile.codigo,
+              permissoes: (limitedProfile as any).permissoes.map((p) => ({
+                codigo: p.codigo,
+              })),
+            },
+          ],
+        },
+      ],
     });
   });
 
@@ -167,6 +214,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(createPerfilDto)
         .expect(201)
         .expect((res) => {
@@ -185,6 +233,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(createPerfilDto)
         .expect(403);
     });
@@ -195,6 +244,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(createPerfilDto)
         .expect(400);
     });
@@ -208,12 +258,14 @@ describe('PerfisController (e2e)', () => {
       await request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(createPerfilDto)
         .expect(201);
 
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(createPerfilDto)
         .expect(409)
         .expect((res) => {
@@ -234,6 +286,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(createPerfilDto)
         .expect(404)
         .expect((res) => {
@@ -257,6 +310,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .get('/perfis')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(200)
         .expect((res) => {
           const paginatedResponse = res.body as PaginatedResponseDto<Perfil>;
@@ -272,6 +326,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .get('/perfis')
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(403);
     });
   });
@@ -289,6 +344,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .get(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('id', perfil.id);
@@ -308,6 +364,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .get(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(403);
     });
 
@@ -315,6 +372,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .get('/perfis/99999')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(404);
     });
   });
@@ -333,6 +391,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(updatePerfilDto)
         .expect(200)
         .expect((res) => {
@@ -354,6 +413,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(updatePerfilDto)
         .expect(403);
     });
@@ -364,6 +424,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .patch('/perfis/99999')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(updatePerfilDto)
         .expect(404);
     });
@@ -382,6 +443,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(restoreDto)
         .expect(200)
         .expect(async (res) => {
@@ -391,6 +453,7 @@ describe('PerfisController (e2e)', () => {
           await request(app.getHttpServer())
             .get(`/perfis/${perfil.id}`)
             .set('Authorization', `Bearer ${adminToken}`)
+            .set('x-empresa-id', globalEmpresaId)
             .expect(200);
         });
     });
@@ -409,6 +472,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(restoreDto)
         .expect(403)
         .expect(async () => {
@@ -438,6 +502,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(restoreDto)
         .expect(409);
     });
@@ -455,6 +520,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(deleteDto)
         .expect(200)
         .expect(async (res) => {
@@ -464,6 +530,7 @@ describe('PerfisController (e2e)', () => {
           await request(app.getHttpServer())
             .get(`/perfis/${perfil.id}`)
             .set('Authorization', `Bearer ${adminToken}`)
+            .set('x-empresa-id', globalEmpresaId)
             .expect(404);
         });
     });
@@ -481,6 +548,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(deleteDto)
         .expect(403);
     });
@@ -499,6 +567,7 @@ describe('PerfisController (e2e)', () => {
       return request(app.getHttpServer())
         .patch(`/perfis/${perfil.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(deleteDto)
         .expect(409);
     });
@@ -531,6 +600,7 @@ describe('PerfisController (e2e)', () => {
         .get('/perfis/nome/teste')
         .query(paginationDto) // Add query parameters
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(200)
         .expect((res) => {
           const paginatedResponse = res.body as PaginatedResponseDto<Perfil>;
@@ -550,6 +620,7 @@ describe('PerfisController (e2e)', () => {
         .get('/perfis/nome/teste')
         .query(paginationDto)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(403);
     });
 
@@ -560,6 +631,7 @@ describe('PerfisController (e2e)', () => {
         .get('/perfis/nome/naoexiste')
         .query(paginationDto) // Add query parameters
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(200)
         .expect((res) => {
           const paginatedResponse = res.body as PaginatedResponseDto<Perfil>;

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
+import { UsuarioEmpresa } from './usuario-empresa.entity';
 
 export class Usuario {
   @ApiProperty({
@@ -44,8 +44,9 @@ export class Usuario {
   ativo: boolean;
 
   @ApiPropertyOptional({
-    description: 'Lista de perfis associados ao usuário',
-    type: () => [Perfil],
+    description:
+      'Lista de empresas e seus respectivos perfis associados ao usuário',
+    type: [UsuarioEmpresa],
   })
-  perfis?: Perfil[];
+  empresas?: UsuarioEmpresa[];
 }

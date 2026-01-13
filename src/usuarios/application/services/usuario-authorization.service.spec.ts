@@ -36,7 +36,7 @@ describe('UsuarioAuthorizationService', () => {
         email: 'admin@example.com',
         sub: 2,
         userId: 2,
-        perfis: [{ codigo: 'ADMIN' }],
+        empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
       };
       expect(service.canAccessUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
@@ -46,7 +46,7 @@ describe('UsuarioAuthorizationService', () => {
         email: 'user@example.com',
         sub: 2,
         userId: 2,
-        perfis: [{ codigo: 'USER' }],
+        empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
       };
       expect(service.canAccessUsuario(usuarioId, usuarioLogado)).toBe(false);
     });
@@ -78,7 +78,7 @@ describe('UsuarioAuthorizationService', () => {
         email: 'admin@example.com',
         sub: 2,
         userId: 2,
-        perfis: [{ codigo: 'ADMIN' }],
+        empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
       };
       expect(service.canUpdateUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
@@ -88,7 +88,7 @@ describe('UsuarioAuthorizationService', () => {
         email: 'user@example.com',
         sub: 2,
         userId: 2,
-        perfis: [{ codigo: 'USER' }],
+        empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
       };
       expect(service.canUpdateUsuario(usuarioId, usuarioLogado)).toBe(false);
     });
@@ -120,7 +120,7 @@ describe('UsuarioAuthorizationService', () => {
         email: 'admin@example.com',
         sub: 2,
         userId: 2,
-        perfis: [{ codigo: 'ADMIN' }],
+        empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
       };
       expect(service.canDeleteUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
@@ -130,7 +130,7 @@ describe('UsuarioAuthorizationService', () => {
         email: 'user@example.com',
         sub: 2,
         userId: 2,
-        perfis: [{ codigo: 'USER' }],
+        empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
       };
       expect(service.canDeleteUsuario(usuarioId, usuarioLogado)).toBe(false);
     });
@@ -153,7 +153,7 @@ describe('UsuarioAuthorizationService', () => {
         email: 'admin@example.com',
         sub: 2,
         userId: 2,
-        perfis: [{ codigo: 'ADMIN' }],
+        empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
       };
       expect(service.canRestoreUsuario(usuarioId, usuarioLogado)).toBe(true);
     });
@@ -163,7 +163,7 @@ describe('UsuarioAuthorizationService', () => {
         email: 'user@example.com',
         sub: 2,
         userId: 2,
-        perfis: [{ codigo: 'USER' }],
+        empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
       };
       expect(service.canRestoreUsuario(usuarioId, usuarioLogado)).toBe(false);
     });

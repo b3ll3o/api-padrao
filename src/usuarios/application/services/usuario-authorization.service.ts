@@ -25,40 +25,41 @@ export abstract class IUsuarioAuthorizationService {
 export class UsuarioAuthorizationService
   implements IUsuarioAuthorizationService
 {
+  private isAdmin(usuarioLogado: JwtPayload): boolean {
+    return (
+      usuarioLogado.empresas?.some((e) =>
+        e.perfis?.some((p) => p.codigo === 'ADMIN'),
+      ) || false
+    );
+  }
+
   canAccessUsuario(usuarioId: number, usuarioLogado: JwtPayload): boolean {
-    const isOwner = usuarioId === usuarioLogado.userId;
-    const isAdmin =
-      usuarioLogado.perfis?.some((perfil) => perfil.codigo === 'ADMIN') ||
-      false;
-    return isOwner || isAdmin;
+    const isOwner =
+      usuarioId === usuarioLogado.sub || usuarioId === usuarioLogado.userId;
+    return isOwner || this.isAdmin(usuarioLogado);
   }
 
   canUpdateUsuario(usuarioId: number, usuarioLogado: JwtPayload): boolean {
-    const isOwner = usuarioId === usuarioLogado.userId;
-    const isAdmin =
-      usuarioLogado.perfis?.some((perfil) => perfil.codigo === 'ADMIN') ||
-      false;
-    return isOwner || isAdmin;
+    const isOwner =
+      usuarioId === usuarioLogado.sub || usuarioId === usuarioLogado.userId;
+    return isOwner || this.isAdmin(usuarioLogado);
   }
 
   canDeleteUsuario(usuarioId: number, usuarioLogado: JwtPayload): boolean {
-    const isOwner = usuarioId === usuarioLogado.userId;
-    const isAdmin =
-      usuarioLogado.perfis?.some((perfil) => perfil.codigo === 'ADMIN') ||
-      false;
-    return isOwner || isAdmin;
+    const isOwner =
+      usuarioId === usuarioLogado.sub || usuarioId === usuarioLogado.userId;
+    return isOwner || this.isAdmin(usuarioLogado);
   }
 
   canRestoreUsuario(usuarioId: number, usuarioLogado: JwtPayload): boolean {
-    const isAdmin =
-      usuarioLogado.perfis?.some((perfil) => perfil.codigo === 'ADMIN') ||
-      false;
-    const hasPermission =
-      usuarioLogado.perfis?.some((perfil) =>
-        perfil.permissoes?.some(
-          (permissao) => permissao.codigo === 'RESTORE_USUARIO',
+    if (this.isAdmin(usuarioLogado)) return true;
+
+    return (
+      usuarioLogado.empresas?.some((e) =>
+        e.perfis?.some((p) =>
+          p.permissoes?.some((perm) => perm.codigo === 'RESTORE_USUARIO'),
         ),
-      ) || false;
-    return isAdmin || hasPermission;
+      ) || false
+    );
   }
 }

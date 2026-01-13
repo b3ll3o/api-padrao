@@ -4,6 +4,8 @@ import { Usuario } from '../../domain/entities/usuario.entity';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
+import { UsuarioEmpresa } from '../../domain/entities/usuario-empresa.entity';
+import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
 
 @Injectable()
 export class PrismaUsuarioRepository implements UsuarioRepository {
@@ -78,20 +80,26 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     return this.mapToEntity(usuario);
   }
 
-  // TODO: This method needs to be refactored to support Company context.
-  // For now, it returns the user without profiles to avoid build errors.
-  // Profiles are now loaded via UsuarioEmpresa.
   async findByEmailWithPerfisAndPermissoes(
     email: string,
   ): Promise<Usuario | null> {
     const usuario = await this.prisma.usuario.findUnique({
       where: { email, deletedAt: null },
+      include: {
+        empresas: {
+          include: {
+            perfis: {
+              include: {
+                permissoes: true,
+              },
+            },
+          },
+        },
+      },
     });
     if (!usuario) return null;
 
-    const entity = this.mapToEntity(usuario);
-    entity.perfis = []; // Empty profiles as they are now context-dependent
-    return entity;
+    return this.mapToEntity(usuario);
   }
 
   async update(id: number, data: Partial<Usuario>): Promise<Usuario> {
@@ -160,7 +168,33 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     newUsuario.updatedAt = prismaUsuario.updatedAt;
     newUsuario.deletedAt = prismaUsuario.deletedAt;
     newUsuario.ativo = prismaUsuario.ativo;
-    newUsuario.perfis = []; // Default to empty
+
+    if (prismaUsuario.empresas) {
+      newUsuario.empresas = prismaUsuario.empresas.map((ue: any) => {
+        return new UsuarioEmpresa({
+          id: ue.id,
+          usuarioId: ue.usuarioId,
+          empresaId: ue.empresaId,
+          createdAt: ue.createdAt,
+          updatedAt: ue.updatedAt,
+          perfis: ue.perfis
+            ? ue.perfis.map((p: any) => {
+                const perfil = new Perfil();
+                perfil.id = p.id;
+                perfil.nome = p.nome;
+                perfil.codigo = p.codigo;
+                perfil.descricao = p.descricao;
+                perfil.ativo = p.ativo;
+                perfil.permissoes = p.permissoes;
+                return perfil;
+              })
+            : [],
+        });
+      });
+    } else {
+      newUsuario.empresas = [];
+    }
+
     return newUsuario;
   }
 }

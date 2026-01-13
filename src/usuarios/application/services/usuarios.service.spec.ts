@@ -157,7 +157,7 @@ describe('UsuariosService', () => {
     const mockUsuarioLogado: JwtPayload = {
       userId: 1,
       email: 'test@example.com',
-      perfis: [],
+      empresas: [],
     };
 
     it('deve retornar um usuário se encontrado e permitido', async () => {
@@ -216,13 +216,13 @@ describe('UsuariosService', () => {
     const mockUsuarioLogado: JwtPayload = {
       userId: 1,
       email: 'test@example.com',
-      perfis: [],
+      empresas: [],
     };
 
     const mockAdminUsuarioLogado: JwtPayload = {
       userId: 2,
       email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }],
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
     };
 
     it('deve atualizar um usuário se encontrado e permitido', async () => {

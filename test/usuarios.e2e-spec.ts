@@ -12,6 +12,7 @@ async function setupAdminUserAndProfile(
   prisma: PrismaService,
   jwtService: JwtService,
   adminProfileId: number,
+  empresaId: string,
 ) {
   // Create an admin user
   const hashedPassword = await bcrypt.hash('admin123', 10);
@@ -19,21 +20,43 @@ async function setupAdminUserAndProfile(
     data: {
       email: 'admin@example.com',
       senha: hashedPassword,
-      // No direct profile connection
     },
   });
 
-  // Fetch the profile to include in the token
+  // Fetch the profile
   const adminProfile = await prisma.perfil.findUnique({
     where: { id: adminProfileId },
     include: { permissoes: true },
   });
 
-  // Login as admin to get a token with manually injected profiles
+  if (!adminProfile) throw new Error('Admin profile not found');
+
+  // Vincular admin à empresa
+  await prisma.usuarioEmpresa.create({
+    data: {
+      usuarioId: adminUser.id,
+      empresaId: empresaId,
+      perfis: { connect: [{ id: adminProfileId }] },
+    },
+  });
+
+  // Login as admin to get a token with manually injected context
   const adminToken = jwtService.sign({
     sub: adminUser.id,
     email: adminUser.email,
-    perfis: [adminProfile],
+    empresas: [
+      {
+        id: empresaId,
+        perfis: [
+          {
+            codigo: adminProfile.codigo,
+            permissoes: adminProfile.permissoes.map((p) => ({
+              codigo: p.codigo,
+            })),
+          },
+        ],
+      },
+    ],
   });
 
   return { adminUser, adminToken };
@@ -69,7 +92,8 @@ describe('UsuariosController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let jwtService: JwtService;
-  let adminToken: string; // Declare adminToken at a higher scope
+  let adminToken: string;
+  let globalEmpresaId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -83,9 +107,6 @@ describe('UsuariosController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     await app.init();
-
-    // Clean database once before all tests
-    await cleanDatabase(prisma);
   });
 
   afterAll(async () => {
@@ -94,10 +115,22 @@ describe('UsuariosController (e2e)', () => {
 
   beforeEach(async () => {
     await cleanDatabase(prisma);
-  });
 
-  beforeEach(async () => {
-    await cleanDatabase(prisma);
+    // Criar um usuário responsável para a empresa global
+    const responsavel = await prisma.usuario.create({
+      data: {
+        email: 'responsavel@example.com',
+      },
+    });
+
+    // Criar uma empresa global para os testes
+    const empresa = await prisma.empresa.create({
+      data: {
+        nome: 'Empresa Teste',
+        responsavelId: responsavel.id,
+      },
+    });
+    globalEmpresaId = empresa.id;
   });
 
   describe('POST /usuarios', () => {
@@ -119,7 +152,7 @@ describe('UsuariosController (e2e)', () => {
             updatedAt: expect.any(String),
             deletedAt: null,
             ativo: true,
-            perfis: [],
+            empresas: [],
           });
         });
     });
@@ -230,6 +263,7 @@ describe('UsuariosController (e2e)', () => {
         prisma,
         jwtService,
         adminProfile.id,
+        globalEmpresaId,
       );
       adminToken = adminSetup.adminToken;
 
@@ -248,7 +282,15 @@ describe('UsuariosController (e2e)', () => {
         data: {
           email: 'user1@example.com',
           senha: await bcrypt.hash('Password123!', 10),
-          // No direct profiles
+        },
+      });
+
+      // Vincular user1 à empresa
+      await prisma.usuarioEmpresa.create({
+        data: {
+          usuarioId: user1.id,
+          empresaId: globalEmpresaId,
+          perfis: { connect: [{ id: userProfile.id }] },
         },
       });
 
@@ -267,16 +309,21 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
-      // Create tokens with manual profile injection
-      const userProfileWithPerms = await prisma.perfil.findUnique({
-        where: { id: userProfile.id },
-        include: { permissoes: true },
-      });
-
+      // Create tokens with manual context injection
       user1Token = jwtService.sign({
         sub: user1.id,
         email: user1.email,
-        perfis: [userProfileWithPerms],
+        empresas: [
+          {
+            id: globalEmpresaId,
+            perfis: [
+              {
+                codigo: userProfile.codigo,
+                permissoes: [{ codigo: readUsuarioByIdPerm.codigo }],
+              },
+            ],
+          },
+        ],
       });
     });
 
@@ -284,6 +331,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .get(`/usuarios/${user1.id}`)
         .set('Authorization', `Bearer ${user1Token}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(200)
         .then((res) => {
           expect(res.body).toEqual({
@@ -293,7 +341,7 @@ describe('UsuariosController (e2e)', () => {
             updatedAt: expect.any(String),
             deletedAt: null,
             ativo: true,
-            perfis: [],
+            empresas: expect.any(Array),
           });
         });
     });
@@ -302,6 +350,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .get(`/usuarios/${user2.id}`)
         .set('Authorization', `Bearer ${user1Token}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(403)
         .then((res) => {
           expect(res.body.message).toBe(
@@ -320,6 +369,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .get('/usuarios/99999')
         .set('Authorization', `Bearer ${user1Token}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(404)
         .then((res) => {
           expect(res.body.message).toBe('Usuário com ID 99999 não encontrado');
@@ -330,6 +380,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .get(`/usuarios/${user1.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(200)
         .then((res) => {
           expect(res.body).toEqual({
@@ -339,7 +390,7 @@ describe('UsuariosController (e2e)', () => {
             updatedAt: expect.any(String),
             deletedAt: null,
             ativo: true,
-            perfis: [],
+            empresas: expect.any(Array),
           });
         });
     });
@@ -348,6 +399,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .get(`/usuarios/${deletedUser.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .expect(404)
         .then((res) => {
           expect(res.body.message).toBe(
@@ -400,6 +452,7 @@ describe('UsuariosController (e2e)', () => {
         prisma,
         jwtService,
         adminProfile.id,
+        globalEmpresaId,
       );
       adminToken = adminSetup.adminToken;
 
@@ -418,7 +471,15 @@ describe('UsuariosController (e2e)', () => {
         data: {
           email: 'update_me@example.com',
           senha: await bcrypt.hash('Password123!', 10),
-          // No direct profiles
+        },
+      });
+
+      // Vincular userToUpdate à empresa
+      await prisma.usuarioEmpresa.create({
+        data: {
+          usuarioId: userToUpdate.id,
+          empresaId: globalEmpresaId,
+          perfis: { connect: [{ id: userProfile.id }] },
         },
       });
 
@@ -430,16 +491,21 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
-      // Create tokens with manual profile injection
-      const userProfileWithPerms = await prisma.perfil.findUnique({
-        where: { id: userProfile.id },
-        include: { permissoes: true },
-      });
-
+      // Create tokens with manual context injection
       userToken = jwtService.sign({
         sub: userToUpdate.id,
         email: userToUpdate.email,
-        perfis: [userProfileWithPerms],
+        empresas: [
+          {
+            id: globalEmpresaId,
+            perfis: [
+              {
+                codigo: userProfile.codigo,
+                permissoes: [{ codigo: updateUsuarioPerm.codigo }],
+              },
+            ],
+          },
+        ],
       });
     });
 
@@ -448,6 +514,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToUpdate.id}`)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(updateDto)
         .expect(200)
         .then((res) => {
@@ -460,6 +527,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToUpdate.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(updateDto)
         .expect(200)
         .then((res) => {
@@ -479,6 +547,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${anotherUser.id}`)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(updateDto)
         .expect(403);
     });
@@ -488,6 +557,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch('/usuarios/99999')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(updateDto)
         .expect(404);
     });
@@ -497,6 +567,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToSoftDelete.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(restoreDto)
         .expect(200)
         .then(async (res) => {
@@ -506,6 +577,7 @@ describe('UsuariosController (e2e)', () => {
           await supertestRequest(app.getHttpServer())
             .get(`/usuarios/${userToSoftDelete.id}`)
             .set('Authorization', `Bearer ${adminToken}`)
+            .set('x-empresa-id', globalEmpresaId)
             .expect(200);
         });
     });
@@ -515,6 +587,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToSoftDelete.id}`)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(restoreDto)
         .expect(403);
     });
@@ -524,6 +597,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToUpdate.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(restoreDto)
         .expect(409);
     });
@@ -533,6 +607,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToUpdate.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(deleteDto)
         .expect(200)
         .then(async (res) => {
@@ -542,6 +617,7 @@ describe('UsuariosController (e2e)', () => {
           await supertestRequest(app.getHttpServer())
             .get(`/usuarios/${userToUpdate.id}`)
             .set('Authorization', `Bearer ${adminToken}`)
+            .set('x-empresa-id', globalEmpresaId)
             .expect(404);
         });
     });
@@ -551,6 +627,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToUpdate.id}`)
         .set('Authorization', `Bearer ${userToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(deleteDto)
         .expect(403);
     });
@@ -560,6 +637,7 @@ describe('UsuariosController (e2e)', () => {
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToSoftDelete.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
         .send(deleteDto)
         .expect(409);
     });

@@ -28,20 +28,23 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
-    const perfis = user.perfis?.map((perfil) => ({
-      id: perfil.id,
-      nome: perfil.nome,
-      codigo: perfil.codigo,
-      descricao: perfil.descricao,
-      permissoes: perfil.permissoes?.map((permissao) => ({
-        id: permissao.id,
-        nome: permissao.nome,
-        codigo: permissao.codigo,
-        descricao: permissao.descricao,
+    const empresas = user.empresas?.map((ue) => ({
+      id: ue.empresaId,
+      perfis: ue.perfis?.map((perfil) => ({
+        id: perfil.id,
+        nome: perfil.nome,
+        codigo: perfil.codigo,
+        descricao: perfil.descricao,
+        permissoes: perfil.permissoes?.map((permissao) => ({
+          id: permissao.id,
+          nome: permissao.nome,
+          codigo: permissao.codigo,
+          descricao: permissao.descricao,
+        })),
       })),
     }));
 
-    const payload = { email: user.email, sub: user.id, perfis };
+    const payload = { email: user.email, sub: user.id, empresas };
     return {
       access_token: this.jwtService.sign(payload, {
         expiresIn: jwtConstants.expiresIn,

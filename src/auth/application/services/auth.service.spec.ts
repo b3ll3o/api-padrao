@@ -7,6 +7,7 @@ import { Usuario } from '../../../usuarios/domain/entities/usuario.entity';
 import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
 import { Permissao } from '../../../permissoes/domain/entities/permissao.entity';
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
+import { UsuarioEmpresa } from '../../../usuarios/domain/entities/usuario-empresa.entity';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -54,7 +55,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('deve retornar um token de acesso com usuário, perfis e permissões se o login for bem-sucedido', async () => {
+    it('deve retornar um token de acesso com usuário, empresas e perfis se o login for bem-sucedido', async () => {
       const mockPermissao: Permissao = {
         id: 1,
         nome: 'read:users',
@@ -70,15 +71,21 @@ describe('AuthService', () => {
         ativo: true,
         permissoes: [mockPermissao],
       };
+      const mockUsuarioEmpresa = new UsuarioEmpresa({
+        id: 1,
+        usuarioId: 1,
+        empresaId: 'uuid-empresa',
+        perfis: [mockPerfil],
+      });
       const mockUser: Usuario = {
         id: 1,
         email: 'test@example.com',
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
-        deletedAt: null, // Added this line for consistency
-        ativo: true, // Add this line
-        perfis: [mockPerfil],
+        deletedAt: null,
+        ativo: true,
+        empresas: [mockUsuarioEmpresa],
       };
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         mockUser,
@@ -101,18 +108,23 @@ describe('AuthService', () => {
         {
           email: mockUser.email,
           sub: mockUser.id,
-          perfis: [
+          empresas: [
             {
-              id: mockPerfil.id,
-              nome: mockPerfil.nome,
-              codigo: mockPerfil.codigo,
-              descricao: mockPerfil.descricao,
-              permissoes: [
+              id: 'uuid-empresa',
+              perfis: [
                 {
-                  id: mockPermissao.id,
-                  nome: mockPermissao.nome,
-                  codigo: mockPermissao.codigo,
-                  descricao: mockPermissao.descricao,
+                  id: mockPerfil.id,
+                  nome: mockPerfil.nome,
+                  codigo: mockPerfil.codigo,
+                  descricao: mockPerfil.descricao,
+                  permissoes: [
+                    {
+                      id: mockPermissao.id,
+                      nome: mockPermissao.nome,
+                      codigo: mockPermissao.codigo,
+                      descricao: mockPermissao.descricao,
+                    },
+                  ],
                 },
               ],
             },
@@ -148,9 +160,9 @@ describe('AuthService', () => {
         senha: 'hashedPassword',
         createdAt: new Date(),
         updatedAt: new Date(),
-        deletedAt: null, // Added this line for consistency
-        ativo: true, // Add this line
-        perfis: [],
+        deletedAt: null,
+        ativo: true,
+        empresas: [],
       };
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         mockUser,

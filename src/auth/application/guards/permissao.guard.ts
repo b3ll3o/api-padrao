@@ -23,10 +23,25 @@ export class PermissaoGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
     const user = request.usuarioLogado; // User attached by AuthGuard
+    const empresaId = request.headers['x-empresa-id'] as string;
 
-    if (!user || !user.perfis) {
+    if (!user || !user.empresas) {
       throw new ForbiddenException(
-        'Usuário não possui perfis ou permissões suficientes.',
+        'Usuário não possui empresas ou permissões suficientes.',
+      );
+    }
+
+    if (!empresaId) {
+      throw new ForbiddenException(
+        'O ID da empresa (x-empresa-id) deve ser informado no header para validar as permissões.',
+      );
+    }
+
+    const vinculoEmpresa = user.empresas.find((e: any) => e.id === empresaId);
+
+    if (!vinculoEmpresa || !vinculoEmpresa.perfis) {
+      throw new ForbiddenException(
+        'Usuário não possui acesso a esta empresa ou não possui perfis vinculados.',
       );
     }
 
@@ -34,15 +49,15 @@ export class PermissaoGuard implements CanActivate {
       ? requiredPermissoes
       : [requiredPermissoes];
 
-    const hasPermissao = user.perfis.some((perfil) =>
-      perfil.permissoes?.some((permissao) =>
+    const hasPermissao = vinculoEmpresa.perfis.some((perfil: any) =>
+      perfil.permissoes?.some((permissao: any) =>
         requiredPermissoesArray.includes(permissao.codigo),
       ),
     );
 
     if (!hasPermissao) {
       throw new ForbiddenException(
-        'Usuário não possui permissões suficientes para acessar este recurso.',
+        'Usuário não possui permissões suficientes para acessar este recurso nesta empresa.',
       );
     }
 

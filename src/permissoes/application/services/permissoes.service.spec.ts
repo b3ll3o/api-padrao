@@ -279,13 +279,13 @@ describe('PermissoesService', () => {
     const mockAdminUsuarioLogado: JwtPayload = {
       userId: 1,
       email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }],
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
     };
 
     const mockUserUsuarioLogado: JwtPayload = {
       userId: 2,
       email: 'user@example.com',
-      perfis: [{ codigo: 'USER' }],
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
     };
 
     type UpdatePermissaoDto = {
@@ -468,13 +468,13 @@ describe('PermissoesService', () => {
     const mockAdminUsuarioLogado: JwtPayload = {
       userId: 1,
       email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }],
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
     };
 
     const mockUserUsuarioLogado: JwtPayload = {
       userId: 2,
       email: 'user@example.com',
-      perfis: [{ codigo: 'USER' }],
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
     };
 
     it('deve remover uma permissão com sucesso se for admin', async () => {
@@ -549,13 +549,13 @@ describe('PermissoesService', () => {
     const mockAdminUsuarioLogado: JwtPayload = {
       userId: 1,
       email: 'admin@example.com',
-      perfis: [{ codigo: 'ADMIN' }],
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
     };
 
     const mockUserUsuarioLogado: JwtPayload = {
       userId: 2,
       email: 'user@example.com',
-      perfis: [{ codigo: 'USER' }],
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
     };
 
     it('deve restaurar uma permissão deletada com sucesso se for admin', async () => {

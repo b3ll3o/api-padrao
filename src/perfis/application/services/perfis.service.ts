@@ -129,7 +129,9 @@ export class PerfisService {
 
     // Handle 'ativo' flag for soft delete/restore
     if (updatePerfilDto.ativo !== undefined) {
-      const isAdmin = usuarioLogado.perfis?.some((p) => p.codigo === 'ADMIN');
+      const isAdmin = usuarioLogado.empresas?.some((e: any) =>
+        e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
+      );
       if (!isAdmin) {
         throw new ForbiddenException(
           'Você não tem permissão para alterar o status de ativo/inativo deste perfil',

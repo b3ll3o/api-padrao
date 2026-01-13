@@ -5,6 +5,10 @@ import { JwtPayload } from '../../infrastructure/strategies/jwt.strategy';
 @Injectable()
 export class DefaultAuthorizationService implements AuthorizationService {
   isAdmin(usuario: JwtPayload): boolean {
-    return usuario.perfis?.some((p) => p.codigo === 'ADMIN') ?? false;
+    return (
+      usuario.empresas?.some((e) =>
+        e.perfis?.some((p) => p.codigo === 'ADMIN'),
+      ) ?? false
+    );
   }
 }

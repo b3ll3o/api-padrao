@@ -5,6 +5,8 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 
+import { cleanDatabase } from './e2e-utils';
+
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -29,9 +31,7 @@ describe('AuthController (e2e)', () => {
   });
 
   beforeEach(async () => {
-    await prisma.usuario.deleteMany();
-    await prisma.perfil.deleteMany();
-    await prisma.permissao.deleteMany();
+    await cleanDatabase(prisma);
   });
 
   describe('POST /auth/login', () => {
@@ -65,9 +65,9 @@ describe('AuthController (e2e)', () => {
 
           expect(decodedJwt.email).toEqual(createUserDto.email);
           expect(decodedJwt.sub).toBeDefined();
-          // Profiles are now company-scoped and not returned in the basic login yet
-          expect(decodedJwt.perfis).toBeInstanceOf(Array);
-          expect(decodedJwt.perfis.length).toEqual(0);
+          // Empresas is now used instead of profiles
+          expect(decodedJwt.empresas).toBeInstanceOf(Array);
+          expect(decodedJwt.empresas.length).toEqual(0);
         });
     });
 
