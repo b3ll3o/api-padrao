@@ -124,4 +124,18 @@ export class UsuariosController {
       req.usuarioLogado,
     );
   }
+
+  @Get(':id/empresas')
+  @TemPermissao('READ_USUARIO_EMPRESAS')
+  @ApiOperation({ summary: 'Listar empresas vinculadas a um usuário' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de empresas retornada com sucesso.',
+  })
+  findCompaniesByUser(
+    @Param('id') id: string,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.usuariosService.findCompaniesByUser(+id, paginationDto);
+  }
 }

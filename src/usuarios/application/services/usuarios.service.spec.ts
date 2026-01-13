@@ -12,6 +12,7 @@ import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 import { IUsuarioAuthorizationService } from './usuario-authorization.service';
+import { EmpresaRepository } from '../../../empresas/domain/repositories/empresa.repository';
 
 describe('UsuariosService', () => {
   let service: UsuariosService;
@@ -35,6 +36,9 @@ describe('UsuariosService', () => {
     canUpdateUsuario: jest.Mock<boolean, [number, JwtPayload]>;
     canDeleteUsuario: jest.Mock<boolean, [number, JwtPayload]>;
     canRestoreUsuario: jest.Mock<boolean, [number, JwtPayload]>;
+  };
+  let mockEmpresaRepository: {
+    findCompaniesByUser: jest.Mock<Promise<any>, [number, any]>;
   };
 
   beforeEach(async () => {
@@ -60,6 +64,9 @@ describe('UsuariosService', () => {
       canDeleteUsuario: jest.fn().mockReturnValue(true),
       canRestoreUsuario: jest.fn().mockReturnValue(true),
     };
+    mockEmpresaRepository = {
+      findCompaniesByUser: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -75,6 +82,10 @@ describe('UsuariosService', () => {
         {
           provide: IUsuarioAuthorizationService,
           useValue: mockUsuarioAuthorizationService,
+        },
+        {
+          provide: EmpresaRepository,
+          useValue: mockEmpresaRepository,
         },
       ],
     }).compile();
@@ -337,6 +348,28 @@ describe('UsuariosService', () => {
 
       expect(result.deletedAt).not.toBeNull();
       expect(mockUsuarioRepository.remove).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('findCompaniesByUser', () => {
+    it('deve retornar empresas do usuário', async () => {
+      const paginationDto = { page: 1, limit: 10 };
+      mockUsuarioRepository.findOne.mockResolvedValue({ id: 1 } as any);
+      mockEmpresaRepository.findCompaniesByUser.mockResolvedValue({ data: [] });
+
+      await service.findCompaniesByUser(1, paginationDto);
+
+      expect(mockEmpresaRepository.findCompaniesByUser).toHaveBeenCalledWith(
+        1,
+        paginationDto,
+      );
+    });
+
+    it('deve lançar NotFoundException se usuário não existir', async () => {
+      mockUsuarioRepository.findOne.mockResolvedValue(undefined);
+      await expect(service.findCompaniesByUser(99, {})).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

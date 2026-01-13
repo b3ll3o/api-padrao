@@ -20,4 +20,12 @@ export abstract class EmpresaRepository {
     usuarioId: number,
     perfilIds: number[],
   ): Promise<void>;
+  abstract findUsersByCompany(
+    empresaId: string,
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<any>>;
+  abstract findCompaniesByUser(
+    usuarioId: number,
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<any>>;
 }

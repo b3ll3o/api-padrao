@@ -33,6 +33,7 @@ describe('EmpresasService', () => {
     update: jest.fn(),
     remove: jest.fn(),
     addUserToCompany: jest.fn(),
+    findUsersByCompany: jest.fn(),
   };
 
   const mockUsuarioRepository = {
@@ -212,6 +213,28 @@ describe('EmpresasService', () => {
 
       await expect(service.addUser('uuid-123', addDto)).rejects.toThrow(
         `Perfil com ID ${addDto.perfilIds[0]} não encontrado`,
+      );
+    });
+  });
+
+  describe('findUsersByCompany', () => {
+    it('deve retornar usuários da empresa', async () => {
+      const paginationDto: PaginationDto = { page: 1, limit: 10 };
+      repository.findOne.mockResolvedValue(mockEmpresa);
+      repository.findUsersByCompany.mockResolvedValue({ data: [] } as any);
+
+      await service.findUsersByCompany('uuid-123', paginationDto);
+
+      expect(repository.findUsersByCompany).toHaveBeenCalledWith(
+        'uuid-123',
+        paginationDto,
+      );
+    });
+
+    it('deve lançar NotFoundException se empresa não existir', async () => {
+      repository.findOne.mockResolvedValue(null);
+      await expect(service.findUsersByCompany('invalid', {})).rejects.toThrow(
+        NotFoundException,
       );
     });
   });

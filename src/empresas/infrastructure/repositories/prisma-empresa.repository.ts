@@ -113,4 +113,78 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
       });
     }
   }
+
+  async findUsersByCompany(
+    empresaId: string,
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<any>> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.usuarioEmpresa.findMany({
+        where: { empresaId },
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              email: true,
+              ativo: true,
+            },
+          },
+          perfis: true,
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.usuarioEmpresa.count({ where: { empresaId } }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: items.map((item) => ({
+        ...item.usuario,
+        perfis: item.perfis,
+      })),
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+  async findCompaniesByUser(
+    usuarioId: number,
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<any>> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.usuarioEmpresa.findMany({
+        where: { usuarioId },
+        include: {
+          empresa: true,
+          perfis: true,
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.usuarioEmpresa.count({ where: { usuarioId } }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: items.map((item) => ({
+        ...item.empresa,
+        perfis: item.perfis,
+      })),
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
 }

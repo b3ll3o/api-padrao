@@ -77,4 +77,9 @@ export class EmpresasService {
       `Usuário ${usuarioId} adicionado à empresa ${empresaId} com perfis ${perfilIds.join(', ')}`,
     );
   }
+
+  async findUsersByCompany(empresaId: string, paginationDto: PaginationDto) {
+    await this.findOne(empresaId); // Valida existência
+    return this.empresaRepository.findUsersByCompany(empresaId, paginationDto);
+  }
 }

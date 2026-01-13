@@ -15,6 +15,7 @@ import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { IUsuarioAuthorizationService } from './usuario-authorization.service';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
+import { EmpresaRepository } from '../../../empresas/domain/repositories/empresa.repository';
 
 type UsuarioLogado = JwtPayload;
 
@@ -26,6 +27,7 @@ export class UsuariosService {
     private readonly usuarioRepository: UsuarioRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly usuarioAuthorizationService: IUsuarioAuthorizationService,
+    private readonly empresaRepository: EmpresaRepository,
   ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto) {
@@ -194,5 +196,13 @@ export class UsuariosService {
 
     delete updatedUsuario.senha;
     return updatedUsuario;
+  }
+
+  async findCompaniesByUser(usuarioId: number, paginationDto: PaginationDto) {
+    const usuario = await this.usuarioRepository.findOne(usuarioId);
+    if (!usuario) {
+      throw new NotFoundException(`Usuário com ID ${usuarioId} não encontrado`);
+    }
+    return this.empresaRepository.findCompaniesByUser(usuarioId, paginationDto);
   }
 }

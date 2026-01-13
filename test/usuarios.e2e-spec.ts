@@ -94,6 +94,8 @@ describe('UsuariosController (e2e)', () => {
   let jwtService: JwtService;
   let adminToken: string;
   let globalEmpresaId: string;
+  let user1: any;
+  let user1Token: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -116,6 +118,43 @@ describe('UsuariosController (e2e)', () => {
   beforeEach(async () => {
     await cleanDatabase(prisma);
 
+    // Setup de permissões globais
+    const readUsuarioByIdPerm = await findOrCreatePermissao(prisma, {
+      nome: 'read:usuario_by_id',
+      codigo: 'READ_USUARIO_BY_ID',
+      descricao: 'Permissão para ler usuários por ID',
+    });
+    const deleteUsuarioPerm = await findOrCreatePermissao(prisma, {
+      nome: 'delete:usuario',
+      codigo: 'DELETE_USUARIO',
+      descricao: 'Permissão para deletar usuários',
+    });
+    const updateUsuarioPerm = await findOrCreatePermissao(prisma, {
+      nome: 'update:usuario',
+      codigo: 'UPDATE_USUARIO',
+      descricao: 'Permissão para atualizar usuários',
+    });
+    const readUsuarioEmpresasPerm = await findOrCreatePermissao(prisma, {
+      nome: 'read:usuario_empresas',
+      codigo: 'READ_USUARIO_EMPRESAS',
+      descricao: 'Permissão para ler empresas de um usuário',
+    });
+
+    // Create an admin profile
+    const adminProfile = await findOrCreatePerfil(prisma, {
+      nome: 'Admin',
+      codigo: 'ADMIN',
+      descricao: 'Perfil de administrador',
+      permissoes: {
+        connect: [
+          { id: readUsuarioByIdPerm.id },
+          { id: deleteUsuarioPerm.id },
+          { id: updateUsuarioPerm.id },
+          { id: readUsuarioEmpresasPerm.id },
+        ],
+      },
+    });
+
     // Criar um usuário responsável para a empresa global
     const responsavel = await prisma.usuario.create({
       data: {
@@ -131,6 +170,64 @@ describe('UsuariosController (e2e)', () => {
       },
     });
     globalEmpresaId = empresa.id;
+
+    // Setup Admin
+    const adminSetup = await setupAdminUserAndProfile(
+      prisma,
+      jwtService,
+      adminProfile.id,
+      globalEmpresaId,
+    );
+    adminToken = adminSetup.adminToken;
+
+    // Setup User1
+    const userProfile = await findOrCreatePerfil(prisma, {
+      nome: 'User',
+      codigo: 'USER',
+      descricao: 'Perfil de usuário comum',
+      permissoes: {
+        connect: [
+          { id: readUsuarioByIdPerm.id },
+          { id: readUsuarioEmpresasPerm.id },
+          { id: updateUsuarioPerm.id },
+        ],
+      },
+    });
+
+    user1 = await prisma.usuario.create({
+      data: {
+        email: 'user1@example.com',
+        senha: await bcrypt.hash('Password123!', 10),
+      },
+    });
+
+    await prisma.usuarioEmpresa.create({
+      data: {
+        usuarioId: user1.id,
+        empresaId: globalEmpresaId,
+        perfis: { connect: [{ id: userProfile.id }] },
+      },
+    });
+
+    user1Token = jwtService.sign({
+      sub: user1.id,
+      email: user1.email,
+      empresas: [
+        {
+          id: globalEmpresaId,
+          perfis: [
+            {
+              codigo: userProfile.codigo,
+              permissoes: [
+                { codigo: 'READ_USUARIO_BY_ID' },
+                { codigo: 'READ_USUARIO_EMPRESAS' },
+                { codigo: 'UPDATE_USUARIO' },
+              ],
+            },
+          ],
+        },
+      ],
+    });
   });
 
   describe('POST /usuarios', () => {
@@ -227,73 +324,10 @@ describe('UsuariosController (e2e)', () => {
   });
 
   describe('GET /usuarios/:id', () => {
-    let user1;
     let user2;
-    let user1Token;
     let deletedUser;
 
     beforeEach(async () => {
-      // Create permissions
-      const readUsuarioByIdPerm = await findOrCreatePermissao(prisma, {
-        nome: 'read:usuario_by_id',
-        codigo: 'READ_USUARIO_BY_ID',
-        descricao: 'Permissão para ler usuários por ID',
-      });
-      const deleteUsuarioPerm = await findOrCreatePermissao(prisma, {
-        nome: 'delete:usuario',
-        codigo: 'DELETE_USUARIO',
-        descricao: 'Permissão para deletar usuários',
-      });
-
-      // Create an admin profile with permissions
-      const adminProfile = await findOrCreatePerfil(prisma, {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
-        permissoes: {
-          connect: [
-            { id: readUsuarioByIdPerm.id },
-            { id: deleteUsuarioPerm.id },
-          ],
-        },
-      });
-
-      // Re-setup admin user and permissions for this describe block
-      const adminSetup = await setupAdminUserAndProfile(
-        prisma,
-        jwtService,
-        adminProfile.id,
-        globalEmpresaId,
-      );
-      adminToken = adminSetup.adminToken;
-
-      // Create profiles
-      const userProfile = await prisma.perfil.create({
-        data: {
-          nome: 'User',
-          codigo: 'USER',
-          descricao: 'Perfil de usuário comum',
-          permissoes: { connect: { id: readUsuarioByIdPerm.id } },
-        },
-      });
-
-      // Create users
-      user1 = await prisma.usuario.create({
-        data: {
-          email: 'user1@example.com',
-          senha: await bcrypt.hash('Password123!', 10),
-        },
-      });
-
-      // Vincular user1 à empresa
-      await prisma.usuarioEmpresa.create({
-        data: {
-          usuarioId: user1.id,
-          empresaId: globalEmpresaId,
-          perfis: { connect: [{ id: userProfile.id }] },
-        },
-      });
-
       user2 = await prisma.usuario.create({
         data: {
           email: 'user2@example.com',
@@ -307,23 +341,6 @@ describe('UsuariosController (e2e)', () => {
           senha: await bcrypt.hash('Password123!', 10),
           deletedAt: new Date(),
         },
-      });
-
-      // Create tokens with manual context injection
-      user1Token = jwtService.sign({
-        sub: user1.id,
-        email: user1.email,
-        empresas: [
-          {
-            id: globalEmpresaId,
-            perfis: [
-              {
-                codigo: userProfile.codigo,
-                permissoes: [{ codigo: readUsuarioByIdPerm.codigo }],
-              },
-            ],
-          },
-        ],
       });
     });
 
@@ -411,62 +428,9 @@ describe('UsuariosController (e2e)', () => {
 
   describe('PATCH /usuarios/:id', () => {
     let userToUpdate;
-    let userToken;
     let userToSoftDelete;
-    let restoreUsuarioPerm;
 
     beforeEach(async () => {
-      // Create permissions
-      const updateUsuarioPerm = await findOrCreatePermissao(prisma, {
-        nome: 'update:usuario',
-        codigo: 'UPDATE_USUARIO',
-        descricao: 'Permissão para atualizar usuários',
-      });
-      const readUsuarioByIdPerm = await findOrCreatePermissao(prisma, {
-        nome: 'read:usuario_by_id',
-        codigo: 'READ_USUARIO_BY_ID',
-        descricao: 'Permissão para ler usuários por ID',
-      });
-      restoreUsuarioPerm = await findOrCreatePermissao(prisma, {
-        nome: 'restore:usuario',
-        codigo: 'RESTORE_USUARIO',
-        descricao: 'Permissão para restaurar usuários',
-      });
-
-      // Create an admin profile with permissions
-      const adminProfile = await findOrCreatePerfil(prisma, {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
-        permissoes: {
-          connect: [
-            { id: updateUsuarioPerm.id },
-            { id: restoreUsuarioPerm.id },
-            { id: readUsuarioByIdPerm.id },
-          ],
-        },
-      });
-
-      // Re-setup admin user and permissions for this describe block
-      const adminSetup = await setupAdminUserAndProfile(
-        prisma,
-        jwtService,
-        adminProfile.id,
-        globalEmpresaId,
-      );
-      adminToken = adminSetup.adminToken;
-
-      // Create profiles
-      const userProfile = await prisma.perfil.create({
-        data: {
-          nome: 'User',
-          codigo: 'USER',
-          descricao: 'Perfil de usuário comum',
-          permissoes: { connect: { id: updateUsuarioPerm.id } },
-        },
-      });
-
-      // Create users
       userToUpdate = await prisma.usuario.create({
         data: {
           email: 'update_me@example.com',
@@ -474,46 +438,20 @@ describe('UsuariosController (e2e)', () => {
         },
       });
 
-      // Vincular userToUpdate à empresa
-      await prisma.usuarioEmpresa.create({
-        data: {
-          usuarioId: userToUpdate.id,
-          empresaId: globalEmpresaId,
-          perfis: { connect: [{ id: userProfile.id }] },
-        },
-      });
-
       userToSoftDelete = await prisma.usuario.create({
         data: {
           email: 'soft_deleted@example.com',
           senha: await bcrypt.hash('Password123!', 10),
-          deletedAt: new Date(), // Already soft-deleted
+          deletedAt: new Date(),
         },
-      });
-
-      // Create tokens with manual context injection
-      userToken = jwtService.sign({
-        sub: userToUpdate.id,
-        email: userToUpdate.email,
-        empresas: [
-          {
-            id: globalEmpresaId,
-            perfis: [
-              {
-                codigo: userProfile.codigo,
-                permissoes: [{ codigo: updateUsuarioPerm.codigo }],
-              },
-            ],
-          },
-        ],
       });
     });
 
     it('deve permitir que um usuário atualize seus próprios dados', () => {
       const updateDto = { email: 'updated_email@example.com' };
       return supertestRequest(app.getHttpServer())
-        .patch(`/usuarios/${userToUpdate.id}`)
-        .set('Authorization', `Bearer ${userToken}`)
+        .patch(`/usuarios/${user1.id}`)
+        .set('Authorization', `Bearer ${user1Token}`)
         .set('x-empresa-id', globalEmpresaId)
         .send(updateDto)
         .expect(200)
@@ -546,7 +484,7 @@ describe('UsuariosController (e2e)', () => {
 
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${anotherUser.id}`)
-        .set('Authorization', `Bearer ${userToken}`)
+        .set('Authorization', `Bearer ${user1Token}`)
         .set('x-empresa-id', globalEmpresaId)
         .send(updateDto)
         .expect(403);
@@ -586,7 +524,7 @@ describe('UsuariosController (e2e)', () => {
       const restoreDto = { ativo: true };
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToSoftDelete.id}`)
-        .set('Authorization', `Bearer ${userToken}`)
+        .set('Authorization', `Bearer ${user1Token}`)
         .set('x-empresa-id', globalEmpresaId)
         .send(restoreDto)
         .expect(403);
@@ -626,7 +564,7 @@ describe('UsuariosController (e2e)', () => {
       const deleteDto = { ativo: false };
       return supertestRequest(app.getHttpServer())
         .patch(`/usuarios/${userToUpdate.id}`)
-        .set('Authorization', `Bearer ${userToken}`)
+        .set('Authorization', `Bearer ${user1Token}`)
         .set('x-empresa-id', globalEmpresaId)
         .send(deleteDto)
         .expect(403);
@@ -640,6 +578,23 @@ describe('UsuariosController (e2e)', () => {
         .set('x-empresa-id', globalEmpresaId)
         .send(deleteDto)
         .expect(409);
+    });
+  });
+
+  describe('GET /usuarios/:id/empresas', () => {
+    it('deve listar empresas de um usuário', async () => {
+      // Setup já criou user1 vinculado à globalEmpresaId no beforeEach do describe pai ou aqui
+      // Vamos usar o user1Token e globalEmpresaId
+
+      const res = await supertestRequest(app.getHttpServer())
+        .get(`/usuarios/${user1.id}/empresas`)
+        .set('Authorization', `Bearer ${user1Token}`)
+        .set('x-empresa-id', globalEmpresaId)
+        .expect(200);
+
+      expect(res.body.data).toBeInstanceOf(Array);
+      expect(res.body.total).toBeGreaterThan(0);
+      expect(res.body.data[0].nome).toBe('Empresa Teste');
     });
   });
 });

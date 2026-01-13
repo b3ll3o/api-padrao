@@ -9,6 +9,8 @@ import {
   UsuarioAuthorizationService,
 } from './application/services/usuario-authorization.service';
 import { SharedModule } from '../shared/shared.module';
+import { EmpresaRepository } from '../empresas/domain/repositories/empresa.repository';
+import { PrismaEmpresaRepository } from '../empresas/infrastructure/repositories/prisma-empresa.repository';
 
 @Module({
   imports: [PrismaModule, SharedModule],
@@ -18,6 +20,10 @@ import { SharedModule } from '../shared/shared.module';
     {
       provide: UsuarioRepository,
       useClass: PrismaUsuarioRepository,
+    },
+    {
+      provide: EmpresaRepository,
+      useClass: PrismaEmpresaRepository,
     },
     {
       provide: IUsuarioAuthorizationService,

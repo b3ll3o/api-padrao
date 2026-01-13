@@ -91,4 +91,18 @@ export class EmpresasController {
   ) {
     return this.empresasService.addUser(id, addUsuarioEmpresaDto);
   }
+
+  @Get(':id/usuarios')
+  @TemPermissao('READ_EMPRESA_USUARIOS')
+  @ApiOperation({ summary: 'Listar usuários vinculados a uma empresa' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de usuários retornada com sucesso.',
+  })
+  findUsersByCompany(
+    @Param('id') id: string,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.empresasService.findUsersByCompany(id, paginationDto);
+  }
 }

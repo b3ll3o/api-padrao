@@ -20,6 +20,8 @@ describe('PrismaEmpresaRepository', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
       create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
     },
   };
 
@@ -150,6 +152,36 @@ describe('PrismaEmpresaRepository', () => {
           perfis: { set: [{ id: 3 }] },
         },
       });
+    });
+  });
+
+  describe('findUsersByCompany', () => {
+    it('deve listar usuários de uma empresa', async () => {
+      mockPrismaService.usuarioEmpresa.findMany.mockResolvedValue([]);
+      mockPrismaService.usuarioEmpresa.count.mockResolvedValue(0);
+
+      const result = await repository.findUsersByCompany('uuid', {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result.data).toBeDefined();
+      expect(prisma.usuarioEmpresa.findMany).toHaveBeenCalled();
+    });
+  });
+
+  describe('findCompaniesByUser', () => {
+    it('deve listar empresas de um usuário', async () => {
+      mockPrismaService.usuarioEmpresa.findMany.mockResolvedValue([]);
+      mockPrismaService.usuarioEmpresa.count.mockResolvedValue(0);
+
+      const result = await repository.findCompaniesByUser(1, {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result.data).toBeDefined();
+      expect(prisma.usuarioEmpresa.findMany).toHaveBeenCalled();
     });
   });
 });

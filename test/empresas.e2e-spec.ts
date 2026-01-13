@@ -79,6 +79,13 @@ describe('EmpresasController (e2e)', () => {
           descricao: 'Adicionar usuario a empresa',
         },
       }),
+      prisma.permissao.create({
+        data: {
+          nome: 'read:empresa_usuarios',
+          codigo: 'READ_EMPRESA_USUARIOS',
+          descricao: 'Listar usuários de uma empresa',
+        },
+      }),
     ]);
 
     // Criar perfil admin com essas permissões
@@ -369,6 +376,32 @@ describe('EmpresasController (e2e)', () => {
       expect(link).toBeDefined();
       expect(link?.perfis).toHaveLength(1);
       expect(link?.perfis[0].codigo).toBe('STAFF');
+    });
+
+    it('deve listar usuários de uma empresa', async () => {
+      const empresa = await prisma.empresa.create({
+        data: { nome: 'List Users Tech', responsavelId: adminUser.id },
+      });
+
+      const user = await prisma.usuario.create({
+        data: { email: 'list-staff@example.com' },
+      });
+
+      await prisma.usuarioEmpresa.create({
+        data: {
+          usuarioId: user.id,
+          empresaId: empresa.id,
+        },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get(`/empresas/${empresa.id}/usuarios`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', adminEmpresaId)
+        .expect(200);
+
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].email).toBe('list-staff@example.com');
     });
 
     it('deve atualizar perfis se o vínculo já existir', async () => {
