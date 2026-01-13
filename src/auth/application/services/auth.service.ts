@@ -46,9 +46,12 @@ export class AuthService {
 
     const payload = { email: user.email, sub: user.id, empresas };
     return {
-      access_token: this.jwtService.sign(payload, {
-        expiresIn: jwtConstants.expiresIn,
-      }),
+      access_token: this.jwtService.sign(
+        payload as any,
+        {
+          expiresIn: jwtConstants.expiresIn,
+        } as any,
+      ),
     };
   }
 }
