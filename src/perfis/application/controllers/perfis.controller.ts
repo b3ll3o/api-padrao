@@ -16,10 +16,11 @@ import { CreatePerfilDto } from '../../dto/create-perfil.dto';
 import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 import { Perfil } from '../../domain/entities/perfil.entity';
 import {
+  ApiTags,
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiTags,
+  ApiHeader,
 } from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
@@ -27,7 +28,12 @@ import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto
 import { Request } from 'express';
 
 @ApiTags('Perfis')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
+@ApiHeader({
+  name: 'x-empresa-id',
+  description: 'ID da empresa para contexto de permissões',
+  required: false,
+})
 @Controller('perfis')
 export class PerfisController {
   constructor(private readonly perfisService: PerfisService) {}

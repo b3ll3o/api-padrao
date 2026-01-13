@@ -8,8 +8,20 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 
 *   **Autenticação Segura:** Implementação de autenticação JWT (JSON Web Tokens) para acesso seguro aos recursos da API.
 *   **Gerenciamento de Empresas (Multi-tenancy):** Suporte a múltiplas empresas, onde usuários podem pertencer a várias empresas com perfis distintos em cada uma.
+*   **Autorização Contextual:** Exigência do header `x-empresa-id` em requisições protegidas para validar permissões dentro do contexto de uma empresa específica.
 *   **Gerenciamento de Usuários:** Funcionalidades completas para criação, leitura, atualização, **deleção lógica (soft delete) e restauração** de usuários.
 *   **Perfis e Permissões por Contexto:** Sistema granular de perfis e permissões escopados por empresa, permitindo controle de acesso detalhado.
+
+...
+
+## Mudanças Recentes
+
+*   **Arquitetura Multi-tenant:** Perfis de usuário agora são escopados por empresa (`UsuarioEmpresa`).
+*   **Segurança:** Implementado `PermissaoGuard` com suporte a contextos via header `x-empresa-id`.
+*   **Endpoints de Relacionamento:**
+    *   `GET /empresas/:id/usuarios`: Lista usuários de uma empresa.
+    *   `GET /usuarios/:id/empresas`: Lista empresas de um usuário.
+*   **Empresas:** Adicionado módulo de gerenciamento de empresas.
 *   **Logging Estruturado:** Uso de `nestjs-pino` para logs estruturados em JSON, ideais para observabilidade em produção.
 *   **Gerenciamento de Configuração:** Uso de `@nestjs/config` com validação de esquema via Joi para variáveis de ambiente.
 *   **Lógica de Hashing de Senha Abstraída:** A manipulação de senhas agora utiliza uma abstração (`PasswordHasher`), permitindo flexibilidade na escolha do algoritmo de hashing.
@@ -17,6 +29,18 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 *   **Documentação Interativa:** Documentação completa gerada com Swagger/OpenAPI.
 *   **Alinhamento com Melhores Práticas:** Projeto seguindo padrões de Clean Architecture, SOLID, logs estruturados em todos os serviços core e paginação obrigatória em todos os endpoints de listagem.
 *   **Observabilidade (OpenTelemetry):** Instrumentação para rastreamento distribuído.
+
+## Arquitetura Multi-tenant
+
+A aplicação utiliza um modelo multi-tenant onde os **Perfis e Permissões** de um usuário são definidos no contexto de uma **Empresa**.
+
+### Como funciona a Autorização
+
+Para acessar rotas protegidas que exigem permissões específicas (decorador `@TemPermissao`), o cliente deve enviar:
+1.  O token JWT no header `Authorization: Bearer <token>`.
+2.  O ID da empresa no header `x-empresa-id: <uuid>`.
+
+O sistema validará se o usuário possui os perfis necessários para a ação especificamente na empresa informada.
 
 ## Tecnologias Utilizadas
 

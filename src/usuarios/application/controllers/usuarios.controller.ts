@@ -17,6 +17,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiHeader,
 } from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { Request } from 'express';
@@ -27,6 +28,11 @@ import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto
 
 @ApiTags('Usuários')
 @ApiBearerAuth('JWT-auth')
+@ApiHeader({
+  name: 'x-empresa-id',
+  description: 'ID da empresa para contexto de permissões',
+  required: false,
+})
 @Controller('usuarios')
 export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}

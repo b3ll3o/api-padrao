@@ -168,7 +168,7 @@ describe('PerfisController', () => {
       const req = mockRequest(true); // Admin user
       (mockPerfisService.update as jest.Mock).mockResolvedValue(expectedPerfil);
 
-      const result = await controller.update(id, updatePerfilDto, req);
+      const result = await controller.update(id, updatePerfilDto, req as any);
       expect(result).toEqual(expectedPerfil);
       expect(service.update).toHaveBeenCalledWith(
         +id,
@@ -185,7 +185,7 @@ describe('PerfisController', () => {
       const req: Partial<Request> = { usuarioLogado: undefined };
       let error: any;
       try {
-        await controller.update(id, updatePerfilDto, req as Request);
+        await controller.update(id, updatePerfilDto, req as any);
       } catch (e) {
         error = e;
       }

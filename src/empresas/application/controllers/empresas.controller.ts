@@ -20,11 +20,17 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiHeader,
 } from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 
 @ApiTags('Empresas')
 @ApiBearerAuth('JWT-auth')
+@ApiHeader({
+  name: 'x-empresa-id',
+  description: 'ID da empresa para contexto de permissões',
+  required: false, // Só é obrigatório para rotas com @TemPermissao, mas documentamos no controller
+})
 @Controller('empresas')
 export class EmpresasController {
   constructor(private readonly empresasService: EmpresasService) {}

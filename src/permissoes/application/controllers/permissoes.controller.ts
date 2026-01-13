@@ -20,6 +20,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiHeader,
 } from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
@@ -27,8 +28,13 @@ import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto
 import { Request } from 'express';
 import { AuthorizationService } from '../../../shared/domain/services/authorization.service';
 
-@ApiTags('Permissoes')
-@ApiBearerAuth()
+@ApiTags('Permissões')
+@ApiBearerAuth('JWT-auth')
+@ApiHeader({
+  name: 'x-empresa-id',
+  description: 'ID da empresa para contexto de permissões',
+  required: false,
+})
 @Controller('permissoes')
 export class PermissoesController {
   constructor(
