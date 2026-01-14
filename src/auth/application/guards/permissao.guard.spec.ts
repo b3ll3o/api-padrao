@@ -135,6 +135,8 @@ describe('PermissaoGuard', () => {
 
     const result = guard.canActivate(mockExecutionContext);
     expect(result).toBe(true);
+    expect(mockRequest.empresaContext).toBeDefined();
+    expect(mockRequest.empresaContext.id).toBe('empresa-a');
   });
 
   it('deve lançar ForbiddenException se o usuário estiver na empresa correta, mas não tiver a permissão', () => {
