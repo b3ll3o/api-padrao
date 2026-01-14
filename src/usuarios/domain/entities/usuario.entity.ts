@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UsuarioEmpresa } from './usuario-empresa.entity';
+import { Exclude } from 'class-transformer';
 
 export class Usuario {
   @ApiProperty({
@@ -19,6 +20,7 @@ export class Usuario {
     example: 'senha123',
     writeOnly: true,
   })
+  @Exclude()
   senha?: string;
 
   @ApiProperty({

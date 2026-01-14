@@ -1,5 +1,5 @@
-import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { Module, ClassSerializerInterceptor } from '@nestjs/common';
+import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 
@@ -14,6 +14,8 @@ import { PasswordHasher } from './shared/domain/services/password-hasher.service
 import { BcryptPasswordHasherService } from './shared/infrastructure/services/bcrypt-password-hasher.service';
 import { envValidationSchema } from './config/env.validation';
 import { EmpresasModule } from './empresas/empresas.module';
+import { AllExceptionsFilter } from './shared/infrastructure/filters/all-exceptions.filter';
+import { LoggingInterceptor } from './shared/infrastructure/interceptors/logging.interceptor';
 
 @Module({
   imports: [
@@ -59,6 +61,18 @@ import { EmpresasModule } from './empresas/empresas.module';
     {
       provide: APP_GUARD,
       useClass: PermissaoGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ClassSerializerInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
     },
     {
       provide: PasswordHasher,

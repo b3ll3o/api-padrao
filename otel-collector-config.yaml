@@ -2,16 +2,20 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
+        endpoint: 0.0.0.0:4318
 
 exporters:
-  jaeger:
-    endpoint: jaeger:14250 # Aponta para o serviço Jaeger no Docker Compose
+  otlp:
+    endpoint: jaeger:4317 # Jaeger v2 aceita OTLP gRPC na porta 4317
     tls:
       insecure: true
+  debug:
+    verbosity: normal
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [jaeger]
+      exporters: [otlp, debug]

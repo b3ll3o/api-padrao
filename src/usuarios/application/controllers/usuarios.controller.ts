@@ -4,8 +4,6 @@ import {
   Body,
   Get,
   Param,
-  Req,
-  ForbiddenException,
   Patch,
   Query,
 } from '@nestjs/common';
@@ -20,11 +18,12 @@ import {
   ApiHeader,
 } from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
-import { Request } from 'express';
 import { Public } from '../../../auth/application/decorators/public.decorator';
 import { Usuario } from 'src/usuarios/domain/entities/usuario.entity';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
+import { UsuarioLogado } from '../../../shared/application/decorators/usuario-logado.decorator';
+import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 
 @ApiTags('Usuários')
 @ApiBearerAuth('JWT-auth')
@@ -55,11 +54,11 @@ export class UsuariosController {
     description: 'Lista de usuários retornada com sucesso.',
     type: PaginatedResponseDto,
   })
-  findAll(@Query() paginationDto: PaginationDto, @Req() req: Request) {
-    if (!req.usuarioLogado) {
-      throw new ForbiddenException('Usuário não autenticado');
-    }
-    return this.usuariosService.findAll(paginationDto, req.usuarioLogado);
+  findAll(
+    @Query() paginationDto: PaginationDto,
+    @UsuarioLogado() usuarioLogado: JwtPayload,
+  ) {
+    return this.usuariosService.findAll(paginationDto, usuarioLogado);
   }
 
   @Get(':id')
@@ -89,11 +88,11 @@ export class UsuariosController {
       'Usuário não encontrado - O ID especificado não existe no sistema ou está deletado.',
   })
   @TemPermissao('READ_USUARIO_BY_ID')
-  findOne(@Param('id') id: string, @Req() req: Request): Promise<Usuario> {
-    if (!req.usuarioLogado) {
-      throw new ForbiddenException('Usuário não autenticado');
-    }
-    return this.usuariosService.findOne(+id, req.usuarioLogado);
+  findOne(
+    @Param('id') id: string,
+    @UsuarioLogado() usuarioLogado: JwtPayload,
+  ): Promise<Usuario> {
+    return this.usuariosService.findOne(+id, usuarioLogado);
   }
 
   @Patch(':id')
@@ -119,16 +118,9 @@ export class UsuariosController {
   update(
     @Param('id') id: string,
     @Body() updateUsuarioDto: UpdateUsuarioDto,
-    @Req() req: Request,
+    @UsuarioLogado() usuarioLogado: JwtPayload,
   ): Promise<Usuario> {
-    if (!req.usuarioLogado) {
-      throw new ForbiddenException('Usuário não autenticado');
-    }
-    return this.usuariosService.update(
-      +id,
-      updateUsuarioDto,
-      req.usuarioLogado,
-    );
+    return this.usuariosService.update(+id, updateUsuarioDto, usuarioLogado);
   }
 
   @Get(':id/empresas')

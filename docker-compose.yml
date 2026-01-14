@@ -13,6 +13,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - local-network
+    # Removido healthcheck e limites de recursos para compatibilidade com Podman 3.4.4 e cgroups locais
 
   pgadmin:
     image: docker.io/dpage/pgadmin4:latest
@@ -22,7 +23,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - "8080:80"
+      - "8081:80"
     depends_on:
       - postgres
     networks:
@@ -36,26 +37,23 @@ services:
     container_name: otel_collector_container
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:Z
     ports:
       - "43170:4317" # OTLP gRPC receiver
       - "4318:4318" # OTLP HTTP receiver
       - "13133:13133" # Health Check extension
-      - "14250:14250" # Jaeger gRPC receiver
-      - "14268:14268" # Jaeger HTTP receiver
     networks:
       - local-network
     depends_on:
       - jaeger
 
-  # Novo serviço: Jaeger
+  # Novo serviço: Jaeger v2 (mais moderno e com suporte OTLP nativo)
   jaeger:
-    image: docker.io/jaegertracing/all-in-one:latest
+    image: docker.io/jaegertracing/jaeger:latest
     container_name: jaeger_container
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
     ports:
       - "16686:16686" # Jaeger UI
+      - "4317:4317"   # OTLP gRPC receiver
     networks:
       - local-network
 
@@ -65,3 +63,4 @@ volumes:
 
 networks:
   local-network:
+    driver: bridge

@@ -45,6 +45,9 @@ export class PermissaoGuard implements CanActivate {
       );
     }
 
+    // Attach company context to request for use in controllers/decorators
+    (request as any).empresaContext = vinculoEmpresa;
+
     const requiredPermissoesArray = Array.isArray(requiredPermissoes)
       ? requiredPermissoes
       : [requiredPermissoes];

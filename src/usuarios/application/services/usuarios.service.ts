@@ -53,7 +53,6 @@ export class UsuariosService {
 
     this.logger.log(`Usuário criado com sucesso: ${usuario.email}`);
 
-    delete usuario.senha;
     return usuario;
   }
 
@@ -96,9 +95,6 @@ export class UsuariosService {
       );
     }
 
-    // Remove sensitive data
-    delete usuario.senha;
-    // delete usuario.perfis; // perfis property removed from direct usage
     return usuario;
   }
 
@@ -132,7 +128,6 @@ export class UsuariosService {
           );
         }
         const restoredUsuario = await this.usuarioRepository.restore(id);
-        delete restoredUsuario.senha;
         return restoredUsuario; // Return immediately after restore
       } else {
         // updateUsuarioDto.ativo === false
@@ -155,7 +150,6 @@ export class UsuariosService {
         this.logger.log(
           `Usuário removido (soft-delete): ${softDeletedUsuario.email}`,
         );
-        delete softDeletedUsuario.senha;
         return softDeletedUsuario; // Return immediately after soft delete
       }
     }
@@ -194,7 +188,6 @@ export class UsuariosService {
     const updatedUsuario = await this.usuarioRepository.update(id, usuario);
     this.logger.log(`Usuário atualizado: ${updatedUsuario.email}`);
 
-    delete updatedUsuario.senha;
     return updatedUsuario;
   }
 

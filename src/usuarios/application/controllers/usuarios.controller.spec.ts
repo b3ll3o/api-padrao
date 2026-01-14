@@ -4,8 +4,7 @@ import { UsuariosService } from '../services/usuarios.service';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import { Usuario } from '../../domain/entities/usuario.entity';
-import { Request } from 'express';
-import { ForbiddenException } from '@nestjs/common';
+import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 
 describe('UsuariosController', () => {
   let controller: UsuariosController;
@@ -17,6 +16,13 @@ describe('UsuariosController', () => {
     update: jest.fn(),
     remove: jest.fn(),
     restore: jest.fn(),
+    findAll: jest.fn(),
+  };
+
+  const mockUsuarioLogado: JwtPayload = {
+    userId: 1,
+    email: 'test@example.com',
+    empresas: [],
   };
 
   beforeEach(async () => {
@@ -58,28 +64,11 @@ describe('UsuariosController', () => {
     it('deve retornar um usuário', async () => {
       const user = new Usuario();
       mockUsuariosService.findOne.mockResolvedValue(user);
-      const req = {
-        usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] },
-      } as unknown as Request;
 
-      const result = await controller.findOne('1', req);
+      const result = await controller.findOne('1', mockUsuarioLogado);
 
       expect(result).toEqual(user);
-      expect(service.findOne).toHaveBeenCalledWith(1, req.usuarioLogado);
-    });
-
-    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
-      const req = {} as Request; // No usuarioLogado
-
-      let error: ForbiddenException | undefined;
-      try {
-        await controller.findOne('1', req);
-      } catch (e) {
-        error = e as ForbiddenException;
-      }
-
-      expect(error).toBeInstanceOf(ForbiddenException);
-      expect(error?.message).toBe('Usuário não autenticado');
+      expect(service.findOne).toHaveBeenCalledWith(1, mockUsuarioLogado);
     });
   });
 
@@ -88,33 +77,15 @@ describe('UsuariosController', () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
       const updatedUser = new Usuario();
       mockUsuariosService.update.mockResolvedValue(updatedUser);
-      const req = {
-        usuarioLogado: { userId: 1, email: 'test@example.com', perfis: [] },
-      } as unknown as Request;
 
-      const result = await controller.update('1', updateDto, req);
+      const result = await controller.update('1', updateDto, mockUsuarioLogado);
 
       expect(result).toEqual(updatedUser);
       expect(service.update).toHaveBeenCalledWith(
         1,
         updateDto,
-        req.usuarioLogado,
+        mockUsuarioLogado,
       );
-    });
-
-    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
-      const updateDto: UpdateUsuarioDto = { email: 'test@example.com' };
-      const req = {} as Request; // No usuarioLogado
-
-      let error: ForbiddenException | undefined;
-      try {
-        await controller.update('1', updateDto, req);
-      } catch (e) {
-        error = e as ForbiddenException;
-      }
-
-      expect(error).toBeInstanceOf(ForbiddenException);
-      expect(error?.message).toBe('Usuário não autenticado');
     });
   });
 });
