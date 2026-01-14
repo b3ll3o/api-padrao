@@ -8,8 +8,6 @@ import {
   HttpCode,
   HttpStatus,
   Query,
-  Req,
-  ForbiddenException,
 } from '@nestjs/common';
 import { PerfisService } from '../services/perfis.service';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
@@ -25,7 +23,9 @@ import {
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
-import { Request } from 'express';
+import { UsuarioLogado } from '../../../shared/application/decorators/usuario-logado.decorator';
+import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+import { EmpresaId } from '../../../shared/application/decorators/empresa-id.decorator';
 
 @ApiTags('Perfis')
 @ApiBearerAuth('JWT-auth')
@@ -65,7 +65,7 @@ export class PerfisController {
   })
   findAll(
     @Query() paginationDto: PaginationDto,
-    @Query('empresaId') empresaId?: string,
+    @EmpresaId() empresaId?: string,
   ): Promise<PaginatedResponseDto<Perfil>> {
     return this.perfisService.findAll(paginationDto, false, empresaId);
   }
@@ -88,7 +88,7 @@ export class PerfisController {
   })
   findOne(
     @Param('id') id: string,
-    @Query('empresaId') empresaId?: string,
+    @EmpresaId() empresaId?: string,
   ): Promise<Perfil> {
     return this.perfisService.findOne(+id, false, empresaId);
   }
@@ -108,7 +108,7 @@ export class PerfisController {
   findByNome(
     @Param('nome') nome: string,
     @Query() paginationDto: PaginationDto,
-    @Query('empresaId') empresaId?: string,
+    @EmpresaId() empresaId?: string,
   ): Promise<PaginatedResponseDto<Perfil>> {
     return this.perfisService.findByNomeContaining(
       nome,
@@ -135,11 +135,8 @@ export class PerfisController {
   update(
     @Param('id') id: string,
     @Body() updatePerfilDto: UpdatePerfilDto,
-    @Req() req: Request,
+    @UsuarioLogado() usuarioLogado: JwtPayload,
   ): Promise<Perfil> {
-    if (!req.usuarioLogado) {
-      throw new ForbiddenException('Usuário não autenticado');
-    }
-    return this.perfisService.update(+id, updatePerfilDto, req.usuarioLogado);
+    return this.perfisService.update(+id, updatePerfilDto, usuarioLogado);
   }
 }

@@ -6,7 +6,7 @@ import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 import { Perfil } from '../../domain/entities/perfil.entity';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
-import { Request } from 'express';
+import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 
 describe('PerfisController', () => {
   let controller: PerfisController;
@@ -18,6 +18,12 @@ describe('PerfisController', () => {
     findOne: jest.fn(),
     findByNomeContaining: jest.fn(),
     update: jest.fn(),
+  };
+
+  const mockUsuarioLogado: JwtPayload = {
+    userId: 1,
+    email: 'test@test.com',
+    empresas: [],
   };
 
   beforeEach(async () => {
@@ -95,19 +101,20 @@ describe('PerfisController', () => {
   describe('update', () => {
     it('deve atualizar um perfil', async () => {
       const updatePerfilDto: UpdatePerfilDto = { nome: 'Updated' };
-      const req = {
-        usuarioLogado: { userId: 1, email: 'test@test.com' },
-      } as unknown as Request;
       const expectedResult = { id: 1, nome: 'Updated' } as Perfil;
       mockPerfisService.update.mockResolvedValue(expectedResult);
 
-      const result = await controller.update('1', updatePerfilDto, req);
+      const result = await controller.update(
+        '1',
+        updatePerfilDto,
+        mockUsuarioLogado,
+      );
 
       expect(result).toBe(expectedResult);
       expect(service.update).toHaveBeenCalledWith(
         1,
         updatePerfilDto,
-        req.usuarioLogado,
+        mockUsuarioLogado,
       );
     });
   });

@@ -16,19 +16,15 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 
 ## Mudanças Recentes
 
-*   **Arquitetura Multi-tenant:** Perfis de usuário agora são escopados por empresa (`UsuarioEmpresa`).
-*   **Segurança:** Implementado `PermissaoGuard` com suporte a contextos via header `x-empresa-id`.
+*   **Arquitetura Multi-tenant:** Perfis de usuário agora são escopados por empresa. Cada empresa possui sua própria lista independente de perfis.
+*   **Segurança Avançada:** Implementado `ClassSerializerInterceptor` global para ocultação automática de campos sensíveis (como senhas) via `@Exclude()`.
+*   **Padronização de Erros:** Filtro global de exceções para respostas de erro consistentes em toda a API.
+*   **Código Limpo:** Decoradores customizados `@UsuarioLogado()` e `@EmpresaId()` para simplificar controladores.
+*   **Observabilidade:** Interceptor de logging automático para monitoramento de performance e status de requisições.
+*   **Infraestrutura:** Migração para Jaeger v2 e otimização do coletor OpenTelemetry para suporte OTLP gRPC.
 *   **Endpoints de Relacionamento:**
     *   `GET /empresas/:id/usuarios`: Lista usuários de uma empresa.
     *   `GET /usuarios/:id/empresas`: Lista empresas de um usuário.
-*   **Empresas:** Adicionado módulo de gerenciamento de empresas.
-*   **Logging Estruturado:** Uso de `nestjs-pino` para logs estruturados em JSON, ideais para observabilidade em produção.
-*   **Gerenciamento de Configuração:** Uso de `@nestjs/config` com validação de esquema via Joi para variáveis de ambiente.
-*   **Lógica de Hashing de Senha Abstraída:** A manipulação de senhas agora utiliza uma abstração (`PasswordHasher`), permitindo flexibilidade na escolha do algoritmo de hashing.
-*   **Paginação:** Suporte a paginação em endpoints de listagem.
-*   **Documentação Interativa:** Documentação completa gerada com Swagger/OpenAPI.
-*   **Alinhamento com Melhores Práticas:** Projeto seguindo padrões de Clean Architecture, SOLID, logs estruturados em todos os serviços core e paginação obrigatória em todos os endpoints de listagem.
-*   **Observabilidade (OpenTelemetry):** Instrumentação para rastreamento distribuído.
 
 ## Arquitetura Multi-tenant
 
