@@ -23,6 +23,7 @@ describe('PerfisService', () => {
     descricao: 'Old Description',
     deletedAt: null,
     ativo: true,
+    empresaId: 'empresa-1',
   } as Perfil;
 
   const mockAdminUsuarioLogado: JwtPayload = {
@@ -93,6 +94,7 @@ describe('PerfisService', () => {
         codigo: 'TEST_PERFIL',
         descricao: 'Perfil de teste',
         permissoesIds: [1],
+        empresaId: 'empresa-1',
       };
       const expectedPerfil = {
         id: 1,
@@ -118,6 +120,8 @@ describe('PerfisService', () => {
       expect(result).toEqual(expectedPerfil);
       expect(mockPerfilRepository.findByNome).toHaveBeenCalledWith(
         createPerfilDto.nome,
+        false,
+        createPerfilDto.empresaId,
       );
       expect(mockPerfilRepository.create).toHaveBeenCalledWith(createPerfilDto);
       expect(mockPermissoesService.findOne).toHaveBeenCalledWith(1);
@@ -128,6 +132,7 @@ describe('PerfisService', () => {
         nome: 'Test Perfil',
         codigo: 'TEST_PERFIL',
         descricao: 'Perfil de teste',
+        empresaId: 'empresa-1',
       };
       const expectedPerfil = {
         id: 1,
@@ -145,6 +150,8 @@ describe('PerfisService', () => {
       expect(result).toEqual(expectedPerfil);
       expect(mockPerfilRepository.findByNome).toHaveBeenCalledWith(
         createPerfilDto.nome,
+        false,
+        createPerfilDto.empresaId,
       );
       expect(mockPerfilRepository.create).toHaveBeenCalledWith(createPerfilDto);
       expect(mockPermissoesService.findOne).not.toHaveBeenCalled();
@@ -155,6 +162,7 @@ describe('PerfisService', () => {
         nome: 'Existing Perfil',
         codigo: 'EXISTING_PERFIL',
         descricao: 'Perfil existente',
+        empresaId: 'empresa-1',
       };
       (mockPerfilRepository.findByNome as jest.Mock).mockResolvedValue({
         id: 1,
@@ -162,6 +170,7 @@ describe('PerfisService', () => {
         codigo: 'EXISTING_PERFIL',
         descricao: 'Perfil existente',
         deletedAt: null,
+        empresaId: 'empresa-1',
       });
 
       await expect(service.create(createPerfilDto)).rejects.toThrow(
@@ -169,6 +178,8 @@ describe('PerfisService', () => {
       );
       expect(mockPerfilRepository.findByNome).toHaveBeenCalledWith(
         createPerfilDto.nome,
+        false,
+        createPerfilDto.empresaId,
       );
       expect(mockPerfilRepository.create).not.toHaveBeenCalled();
     });
@@ -298,6 +309,7 @@ describe('PerfisService', () => {
         descricao: 'Desc 1',
         deletedAt: null,
         ativo: true,
+        empresaId: 'empresa-1',
       },
       {
         id: 2,
@@ -306,6 +318,7 @@ describe('PerfisService', () => {
         descricao: 'Desc 2',
         deletedAt: new Date(),
         ativo: false,
+        empresaId: 'empresa-1',
       },
     ] as Perfil[];
 
@@ -320,7 +333,12 @@ describe('PerfisService', () => {
 
       expect(result.data).toEqual([expectedPerfis[0]]);
       expect(result.total).toBe(1);
-      expect(mockPerfilRepository.findAll).toHaveBeenCalledWith(0, 10, false); // Default includeDeleted is false
+      expect(mockPerfilRepository.findAll).toHaveBeenCalledWith(
+        0,
+        10,
+        false,
+        undefined,
+      ); // Default includeDeleted is false
     });
 
     it('deve retornar uma lista paginada de todos os perfis, incluindo os excluídos', async () => {
@@ -334,7 +352,31 @@ describe('PerfisService', () => {
 
       expect(result.data).toEqual(expectedPerfis);
       expect(result.total).toBe(2);
-      expect(mockPerfilRepository.findAll).toHaveBeenCalledWith(0, 10, true);
+      expect(mockPerfilRepository.findAll).toHaveBeenCalledWith(
+        0,
+        10,
+        true,
+        undefined,
+      );
+    });
+
+    it('deve retornar uma lista paginada de perfis filtrada por empresa', async () => {
+      const paginationDto = { page: 1, limit: 10 };
+      (mockPerfilRepository.findAll as jest.Mock).mockResolvedValue([
+        expectedPerfis,
+        2,
+      ]);
+
+      const result = await service.findAll(paginationDto, false, 'empresa-1');
+
+      expect(result.data).toEqual(expectedPerfis);
+      expect(result.total).toBe(2);
+      expect(mockPerfilRepository.findAll).toHaveBeenCalledWith(
+        0,
+        10,
+        false,
+        'empresa-1',
+      );
     });
   });
 
@@ -346,6 +388,7 @@ describe('PerfisService', () => {
       descricao: 'Description',
       deletedAt: null,
       ativo: true,
+      empresaId: 'empresa-1',
     } as Perfil;
 
     it('deve retornar um único perfil (não excluído) por padrão', async () => {
@@ -356,7 +399,11 @@ describe('PerfisService', () => {
       const result = await service.findOne(1);
 
       expect(result).toEqual(expectedPerfil);
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, false); // Default includeDeleted is false
+      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(
+        1,
+        false,
+        undefined,
+      ); // Default includeDeleted is false
     });
 
     it('deve retornar um único perfil, incluindo os excluídos', async () => {
@@ -368,14 +415,22 @@ describe('PerfisService', () => {
       const result = await service.findOne(1, true); // Pass true for includeDeleted
 
       expect(result).toEqual(deletedPerfil);
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true);
+      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(
+        1,
+        true,
+        undefined,
+      );
     });
 
     it('deve lançar NotFoundException se o perfil não for encontrado', async () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(999, false);
+      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(
+        999,
+        false,
+        undefined,
+      );
     });
   });
 
@@ -388,6 +443,7 @@ describe('PerfisService', () => {
         descricao: 'Desc 1',
         deletedAt: null,
         ativo: true,
+        empresaId: 'empresa-1',
       },
       {
         id: 2,
@@ -396,6 +452,7 @@ describe('PerfisService', () => {
         descricao: 'Desc 2',
         deletedAt: new Date(),
         ativo: false,
+        empresaId: 'empresa-1',
       },
     ] as Perfil[];
 
@@ -414,6 +471,7 @@ describe('PerfisService', () => {
         0,
         10,
         false, // Default includeDeleted is false
+        undefined,
       );
     });
 
@@ -436,6 +494,7 @@ describe('PerfisService', () => {
         0,
         10,
         true,
+        undefined,
       );
     });
   });

@@ -77,13 +77,25 @@ async function findOrCreatePermissao(
 
 async function findOrCreatePerfil(
   prisma: PrismaService,
-  data: { nome: string; codigo: string; descricao: string; permissoes?: any },
+  data: {
+    nome: string;
+    codigo: string;
+    descricao: string;
+    permissoes?: any;
+    empresaId: string;
+  },
 ) {
-  let perfil = await prisma.perfil.findUnique({
-    where: { nome: data.nome },
+  let perfil = await prisma.perfil.findFirst({
+    where: { nome: data.nome, empresaId: data.empresaId },
   });
   if (!perfil) {
-    perfil = await prisma.perfil.create({ data });
+    const { empresaId, ...perfilData } = data;
+    perfil = await prisma.perfil.create({
+      data: {
+        ...perfilData,
+        empresa: { connect: { id: empresaId } },
+      },
+    });
   }
   return perfil;
 }
@@ -140,21 +152,6 @@ describe('UsuariosController (e2e)', () => {
       descricao: 'Permissão para ler empresas de um usuário',
     });
 
-    // Create an admin profile
-    const adminProfile = await findOrCreatePerfil(prisma, {
-      nome: 'Admin',
-      codigo: 'ADMIN',
-      descricao: 'Perfil de administrador',
-      permissoes: {
-        connect: [
-          { id: readUsuarioByIdPerm.id },
-          { id: deleteUsuarioPerm.id },
-          { id: updateUsuarioPerm.id },
-          { id: readUsuarioEmpresasPerm.id },
-        ],
-      },
-    });
-
     // Criar um usuário responsável para a empresa global
     const responsavel = await prisma.usuario.create({
       data: {
@@ -171,6 +168,22 @@ describe('UsuariosController (e2e)', () => {
     });
     globalEmpresaId = empresa.id;
 
+    // Create an admin profile
+    const adminProfile = await findOrCreatePerfil(prisma, {
+      nome: 'Admin',
+      codigo: 'ADMIN',
+      descricao: 'Perfil de administrador',
+      empresaId: globalEmpresaId,
+      permissoes: {
+        connect: [
+          { id: readUsuarioByIdPerm.id },
+          { id: deleteUsuarioPerm.id },
+          { id: updateUsuarioPerm.id },
+          { id: readUsuarioEmpresasPerm.id },
+        ],
+      },
+    });
+
     // Setup Admin
     const adminSetup = await setupAdminUserAndProfile(
       prisma,
@@ -185,6 +198,7 @@ describe('UsuariosController (e2e)', () => {
       nome: 'User',
       codigo: 'USER',
       descricao: 'Perfil de usuário comum',
+      empresaId: globalEmpresaId,
       permissoes: {
         connect: [
           { id: readUsuarioByIdPerm.id },

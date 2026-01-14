@@ -28,6 +28,12 @@ export class Perfil {
   ativo: boolean;
 
   @ApiProperty({
+    description: 'ID da empresa vinculada ao perfil',
+    example: 'uuid-da-empresa',
+  })
+  empresaId: string;
+
+  @ApiProperty({
     description: 'Permissões associadas ao perfil',
     type: [Permissao],
     required: false,

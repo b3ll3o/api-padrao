@@ -27,8 +27,8 @@ model Usuario {
 
 model Perfil {
   id              Int              @id @default(autoincrement())
-  nome            String           @unique
-  codigo          String           @unique
+  nome            String
+  codigo          String
   descricao       String
   createdAt       DateTime?        @default(now())
   updatedAt       DateTime?        @updatedAt
@@ -36,6 +36,11 @@ model Perfil {
   permissoes      Permissao[]
   deletedAt       DateTime?
   ativo           Boolean          @default(true)
+  empresa         Empresa          @relation(fields: [empresaId], references: [id])
+  empresaId       String
+
+  @@unique([nome, empresaId])
+  @@unique([codigo, empresaId])
 }
 
 model Permissao {
@@ -58,6 +63,7 @@ model Empresa {
   responsavel   Usuario          @relation("EmpresaResponsavel", fields: [responsavelId], references: [id])
   responsavelId Int
   usuarios      UsuarioEmpresa[]
+  perfis        Perfil[]
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   deletedAt     DateTime?

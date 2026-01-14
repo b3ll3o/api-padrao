@@ -10,7 +10,7 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 *   **Gerenciamento de Empresas (Multi-tenancy):** Suporte a múltiplas empresas, onde usuários podem pertencer a várias empresas com perfis distintos em cada uma.
 *   **Autorização Contextual:** Exigência do header `x-empresa-id` em requisições protegidas para validar permissões dentro do contexto de uma empresa específica.
 *   **Gerenciamento de Usuários:** Funcionalidades completas para criação, leitura, atualização, **deleção lógica (soft delete) e restauração** de usuários.
-*   **Perfis e Permissões por Contexto:** Sistema granular de perfis e permissões escopados por empresa, permitindo controle de acesso detalhado.
+*   **Perfis e Permissões por Contexto:** Sistema granular de perfis e permissões escopados por empresa. Cada empresa possui sua própria lista de perfis, permitindo que diferentes empresas usem os mesmos nomes de perfil com permissões distintas.
 
 ...
 

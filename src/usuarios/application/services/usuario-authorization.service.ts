@@ -22,9 +22,7 @@ export abstract class IUsuarioAuthorizationService {
 }
 
 @Injectable()
-export class UsuarioAuthorizationService
-  implements IUsuarioAuthorizationService
-{
+export class UsuarioAuthorizationService implements IUsuarioAuthorizationService {
   private isAdmin(usuarioLogado: JwtPayload): boolean {
     return (
       usuarioLogado.empresas?.some((e) =>

@@ -13,6 +13,7 @@ describe('EmpresasController (e2e)', () => {
   let jwtService: JwtService;
   let adminToken: string;
   let adminUser: any;
+  let adminEmpresaId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -88,12 +89,28 @@ describe('EmpresasController (e2e)', () => {
       }),
     ]);
 
-    // Criar perfil admin com essas permissões
+    // Criar uma empresa administrativa global para os testes
+    const adminUserSetup = await prisma.usuario.create({
+      data: {
+        email: 'admin_setup@test.com',
+        senha: await bcrypt.hash('admin123', 10),
+      },
+    });
+
+    const adminEmpresa = await prisma.empresa.create({
+      data: {
+        nome: 'Empresa Admin Testes',
+        responsavelId: adminUserSetup.id,
+      },
+    });
+
+    // Criar perfil admin com essas permissões vinculado à empresa admin
     const adminProfile = await prisma.perfil.create({
       data: {
         nome: 'Admin Empresas',
         codigo: 'ADMIN_EMPRESAS',
         descricao: 'Admin de empresas',
+        empresa: { connect: { id: adminEmpresa.id } },
         permissoes: { connect: perms.map((p) => ({ id: p.id })) },
       },
       include: { permissoes: true },
@@ -156,7 +173,6 @@ describe('EmpresasController (e2e)', () => {
   });
 
   let userToken: string;
-  let adminEmpresaId: string;
 
   describe('Segurança e Autorização', () => {
     it('deve retornar 401 ao tentar criar empresa sem token', () => {
@@ -272,8 +288,8 @@ describe('EmpresasController (e2e)', () => {
         .set('x-empresa-id', adminEmpresaId)
         .expect(200);
 
-      expect(res.body.data).toHaveLength(2);
-      expect(res.body.total).toBe(2);
+      expect(res.body.data).toHaveLength(3);
+      expect(res.body.total).toBe(3);
     });
   });
 
@@ -354,6 +370,7 @@ describe('EmpresasController (e2e)', () => {
           nome: 'Staff',
           codigo: 'STAFF',
           descricao: 'Equipe',
+          empresa: { connect: { id: empresa.id } },
         },
       });
 
@@ -414,11 +431,21 @@ describe('EmpresasController (e2e)', () => {
       });
 
       const profile1 = await prisma.perfil.create({
-        data: { nome: 'P1', codigo: 'P1', descricao: 'D1' },
+        data: {
+          nome: 'P1',
+          codigo: 'P1',
+          descricao: 'D1',
+          empresa: { connect: { id: empresa.id } },
+        },
       });
 
       const profile2 = await prisma.perfil.create({
-        data: { nome: 'P2', codigo: 'P2', descricao: 'D2' },
+        data: {
+          nome: 'P2',
+          codigo: 'P2',
+          descricao: 'D2',
+          empresa: { connect: { id: empresa.id } },
+        },
       });
 
       // Primeiro vínculo

@@ -33,6 +33,14 @@ export class CreatePerfilDto {
   descricao: string;
 
   @ApiProperty({
+    description: 'ID da empresa vinculada ao perfil',
+    example: 'uuid-da-empresa',
+  })
+  @IsString()
+  @IsNotEmpty()
+  empresaId: string;
+
+  @ApiProperty({
     description: 'Array de IDs de permissões',
     example: [1, 2, 3],
     required: false,

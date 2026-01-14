@@ -69,6 +69,7 @@ describe('AuthService', () => {
         codigo: 'ADMIN',
         descricao: 'Perfil de administrador',
         ativo: true,
+        empresaId: 'uuid-empresa',
         permissoes: [mockPermissao],
       };
       const mockUsuarioEmpresa = new UsuarioEmpresa({

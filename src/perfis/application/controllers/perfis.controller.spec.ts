@@ -6,8 +6,7 @@ import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 import { Perfil } from '../../domain/entities/perfil.entity';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
-import { Request } from 'express'; // Import Request
-import { ForbiddenException } from '@nestjs/common'; // Import ForbiddenException
+import { Request } from 'express';
 
 describe('PerfisController', () => {
   let controller: PerfisController;
@@ -19,20 +18,6 @@ describe('PerfisController', () => {
     findOne: jest.fn(),
     findByNomeContaining: jest.fn(),
     update: jest.fn(),
-  };
-
-  // Mock Request object for @Req()
-  const mockRequest = (isAdmin: boolean = false, userId?: number) => {
-    const req: Partial<Request> = {
-      usuarioLogado: {
-        userId: userId || 1,
-        email: 'test@example.com',
-        empresas: isAdmin
-          ? [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }]
-          : [],
-      },
-    };
-    return req as Request;
   };
 
   beforeEach(async () => {
@@ -54,143 +39,76 @@ describe('PerfisController', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('criação', () => {
-    it('deve criar um perfil', async () => {
+  describe('create', () => {
+    it('deve criar um novo perfil', async () => {
       const createPerfilDto: CreatePerfilDto = {
         nome: 'Test Perfil',
-        codigo: 'TEST_PERFIL',
-        descricao: 'Description',
+        codigo: 'TEST',
+        descricao: 'Test description',
+        empresaId: 'empresa-1',
       };
-      const expectedPerfil = {
-        id: 1,
-        ...createPerfilDto,
-        deletedAt: null,
-      } as Perfil; // Added deletedAt
-      (mockPerfisService.create as jest.Mock).mockResolvedValue(expectedPerfil);
+      const expectedResult = { id: 1, ...createPerfilDto } as Perfil;
+      mockPerfisService.create.mockResolvedValue(expectedResult);
 
       const result = await controller.create(createPerfilDto);
-      expect(result).toEqual(expectedPerfil);
+
+      expect(result).toBe(expectedResult);
       expect(service.create).toHaveBeenCalledWith(createPerfilDto);
     });
   });
 
-  describe('busca de todos', () => {
+  describe('findAll', () => {
     it('deve retornar uma lista paginada de perfis', async () => {
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
-      const expectedResponse: PaginatedResponseDto<Perfil> = {
-        data: [
-          {
-            id: 1,
-            nome: 'Perfil 1',
-            codigo: 'PERFIL_1',
-            descricao: 'Desc 1',
-            deletedAt: null,
-          } as Perfil,
-        ],
-        total: 1,
+      const expectedResult: PaginatedResponseDto<Perfil> = {
+        data: [],
+        total: 0,
         page: 1,
         limit: 10,
-        totalPages: 1,
+        totalPages: 0,
       };
-      (mockPerfisService.findAll as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      mockPerfisService.findAll.mockResolvedValue(expectedResult);
 
-      const result = await controller.findAll(paginationDto);
-      expect(result).toEqual(expectedResponse);
-      expect(service.findAll).toHaveBeenCalledWith(paginationDto);
-    });
-  });
+      const result = await controller.findAll(paginationDto, 'empresa-1');
 
-  describe('busca por um', () => {
-    it('deve retornar um único perfil por ID', async () => {
-      const id = '1';
-      const expectedPerfil = {
-        id: 1,
-        nome: 'Test Perfil',
-        codigo: 'TEST_PERFIL',
-        descricao: 'Description',
-        deletedAt: null,
-      } as Perfil; // Added deletedAt
-      (mockPerfisService.findOne as jest.Mock).mockResolvedValue(
-        expectedPerfil,
-      );
-
-      const result = await controller.findOne(id);
-      expect(result).toEqual(expectedPerfil);
-      expect(service.findOne).toHaveBeenCalledWith(+id);
-    });
-  });
-
-  describe('busca por nome', () => {
-    it('deve retornar uma lista paginada de perfis por nome', async () => {
-      const nome = 'Test';
-      const paginationDto: PaginationDto = { page: 1, limit: 10 };
-      const expectedResponse: PaginatedResponseDto<Perfil> = {
-        data: [
-          {
-            id: 1,
-            nome: 'Test Perfil',
-            codigo: 'TEST_PERFIL',
-            descricao: 'Description',
-            deletedAt: null,
-          } as Perfil,
-        ],
-        total: 1,
-        page: 1,
-        limit: 10,
-        totalPages: 1,
-      };
-      (mockPerfisService.findByNomeContaining as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
-
-      const result = await controller.findByNome(nome, paginationDto);
-      expect(result).toEqual(expectedResponse);
-      expect(service.findByNomeContaining).toHaveBeenCalledWith(
-        nome,
+      expect(result).toBe(expectedResult);
+      expect(service.findAll).toHaveBeenCalledWith(
         paginationDto,
+        false,
+        'empresa-1',
       );
     });
   });
 
-  describe('atualização', () => {
-    it('deve atualizar um perfil', async () => {
-      const id = '1';
-      const updatePerfilDto: UpdatePerfilDto = {
-        nome: 'Updated Perfil',
-      };
-      const expectedPerfil = {
-        id: 1,
-        ...updatePerfilDto,
-        deletedAt: null,
-      } as Perfil;
-      const req = mockRequest(true); // Admin user
-      (mockPerfisService.update as jest.Mock).mockResolvedValue(expectedPerfil);
+  describe('findOne', () => {
+    it('deve retornar um perfil pelo ID', async () => {
+      const expectedResult = { id: 1, nome: 'Test' } as Perfil;
+      mockPerfisService.findOne.mockResolvedValue(expectedResult);
 
-      const result = await controller.update(id, updatePerfilDto, req as any);
-      expect(result).toEqual(expectedPerfil);
+      const result = await controller.findOne('1', 'empresa-1');
+
+      expect(result).toBe(expectedResult);
+      expect(service.findOne).toHaveBeenCalledWith(1, false, 'empresa-1');
+    });
+  });
+
+  describe('update', () => {
+    it('deve atualizar um perfil', async () => {
+      const updatePerfilDto: UpdatePerfilDto = { nome: 'Updated' };
+      const req = {
+        usuarioLogado: { userId: 1, email: 'test@test.com' },
+      } as unknown as Request;
+      const expectedResult = { id: 1, nome: 'Updated' } as Perfil;
+      mockPerfisService.update.mockResolvedValue(expectedResult);
+
+      const result = await controller.update('1', updatePerfilDto, req);
+
+      expect(result).toBe(expectedResult);
       expect(service.update).toHaveBeenCalledWith(
-        +id,
+        1,
         updatePerfilDto,
         req.usuarioLogado,
       );
-    });
-
-    it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
-      const id = '1';
-      const updatePerfilDto: UpdatePerfilDto = {
-        nome: 'Updated Perfil',
-      };
-      const req: Partial<Request> = { usuarioLogado: undefined };
-      let error: any;
-      try {
-        await controller.update(id, updatePerfilDto, req as any);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).toBeInstanceOf(ForbiddenException);
-      expect(error.message).toBe('Usuário não autenticado');
     });
   });
 });

@@ -67,22 +67,7 @@ describe('PermissoesController (e2e)', () => {
       permissionsData.map((p) => prisma.permissao.create({ data: p })),
     );
 
-    let adminProfile = await prisma.perfil.create({
-      data: {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
-        permissoes: {
-          connect: permissions.map((p) => ({ id: p.id })),
-        },
-      },
-    });
-    adminProfile = await prisma.perfil.findUniqueOrThrow({
-      where: { id: adminProfile.id },
-      include: { permissoes: true },
-    });
-
-    // Create an admin user
+    // Create an admin user first to be responsavel
     const adminUser = await prisma.usuario.create({
       data: {
         email: 'admin@example.com',
@@ -98,6 +83,22 @@ describe('PermissoesController (e2e)', () => {
       },
     });
     globalEmpresaId = empresa.id;
+
+    let adminProfile = await prisma.perfil.create({
+      data: {
+        nome: 'Admin',
+        codigo: 'ADMIN',
+        descricao: 'Perfil de administrador',
+        empresa: { connect: { id: globalEmpresaId } },
+        permissoes: {
+          connect: permissions.map((p) => ({ id: p.id })),
+        },
+      },
+    });
+    adminProfile = await prisma.perfil.findUniqueOrThrow({
+      where: { id: adminProfile.id },
+      include: { permissoes: true },
+    });
 
     // Vincular admin à empresa
     await prisma.usuarioEmpresa.create({
@@ -140,6 +141,7 @@ describe('PermissoesController (e2e)', () => {
         nome: 'LimitedUser',
         codigo: 'LIMITED_USER',
         descricao: 'Perfil de usuário com acesso limitado',
+        empresa: { connect: { id: globalEmpresaId } },
         permissoes: {
           connect: { id: limitedPerms.id },
         },

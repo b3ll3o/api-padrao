@@ -29,6 +29,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
     newPerfil.descricao = perfil.descricao;
     newPerfil.deletedAt = perfil.deletedAt;
     newPerfil.ativo = perfil.ativo;
+    newPerfil.empresaId = perfil.empresaId;
     newPerfil.permissoes = perfil.permissoes?.map((p) =>
       this.toPermissaoDomain(p),
     );
@@ -53,10 +54,14 @@ export class PrismaPerfilRepository implements PerfilRepository {
     skip: number,
     take: number,
     includeDeleted: boolean = false,
+    empresaId?: string,
   ): Promise<[Perfil[], number]> {
     const whereClause: any = {};
     if (!includeDeleted) {
       whereClause.deletedAt = null;
+    }
+    if (empresaId) {
+      whereClause.empresaId = empresaId;
     }
 
     const data = await this.prisma.perfil.findMany({
@@ -72,10 +77,14 @@ export class PrismaPerfilRepository implements PerfilRepository {
   async findOne(
     id: number,
     includeDeleted: boolean = false,
+    empresaId?: string,
   ): Promise<Perfil | undefined> {
     const whereClause: any = { id };
     if (!includeDeleted) {
       whereClause.deletedAt = null;
+    }
+    if (empresaId) {
+      whereClause.empresaId = empresaId;
     }
 
     const perfil = await this.prisma.perfil.findFirst({
@@ -150,10 +159,14 @@ export class PrismaPerfilRepository implements PerfilRepository {
   async findByNome(
     nome: string,
     includeDeleted: boolean = false,
+    empresaId?: string,
   ): Promise<Perfil | null> {
     const whereClause: any = { nome };
     if (!includeDeleted) {
       whereClause.deletedAt = null;
+    }
+    if (empresaId) {
+      whereClause.empresaId = empresaId;
     }
     const perfil = await this.prisma.perfil.findFirst({
       where: whereClause,
@@ -167,6 +180,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
     skip: number,
     take: number,
     includeDeleted: boolean = false,
+    empresaId?: string,
   ): Promise<[Perfil[], number]> {
     const whereClause: any = {
       nome: {
@@ -176,6 +190,9 @@ export class PrismaPerfilRepository implements PerfilRepository {
     };
     if (!includeDeleted) {
       whereClause.deletedAt = null;
+    }
+    if (empresaId) {
+      whereClause.empresaId = empresaId;
     }
 
     const data = await this.prisma.perfil.findMany({

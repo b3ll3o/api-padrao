@@ -36,10 +36,12 @@ export class PerfisService {
     }
     const existingPerfil = await this.perfilRepository.findByNome(
       createPerfilDto.nome,
+      false,
+      createPerfilDto.empresaId,
     );
     if (existingPerfil) {
       throw new ConflictException(
-        `Perfil com o nome '${createPerfilDto.nome}' já existe.`,
+        `Perfil com o nome '${createPerfilDto.nome}' já existe para esta empresa.`,
       );
     }
     const perfil = await this.perfilRepository.create(createPerfilDto);
@@ -50,6 +52,7 @@ export class PerfisService {
   async findAll(
     paginationDto: PaginationDto,
     includeDeleted: boolean = false,
+    empresaId?: string,
   ): Promise<PaginatedResponseDto<Perfil>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
@@ -59,6 +62,7 @@ export class PerfisService {
       skip,
       take,
       includeDeleted,
+      empresaId,
     );
     const totalPages = Math.ceil(total / limit);
     return {
@@ -70,8 +74,16 @@ export class PerfisService {
     };
   }
 
-  async findOne(id: number, includeDeleted: boolean = false): Promise<Perfil> {
-    const perfil = await this.perfilRepository.findOne(id, includeDeleted);
+  async findOne(
+    id: number,
+    includeDeleted: boolean = false,
+    empresaId?: string,
+  ): Promise<Perfil> {
+    const perfil = await this.perfilRepository.findOne(
+      id,
+      includeDeleted,
+      empresaId,
+    );
     if (!perfil) {
       throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }
@@ -82,14 +94,21 @@ export class PerfisService {
     nome: string,
     paginationDto: PaginationDto,
     includeDeleted: boolean = false,
+    empresaId?: string,
   ): Promise<PaginatedResponseDto<Perfil>> {
-    return this.findByNomeContaining(nome, paginationDto, includeDeleted);
+    return this.findByNomeContaining(
+      nome,
+      paginationDto,
+      includeDeleted,
+      empresaId,
+    );
   }
 
   async findByNomeContaining(
     nome: string,
     paginationDto: PaginationDto,
     includeDeleted: boolean = false,
+    empresaId?: string,
   ): Promise<PaginatedResponseDto<Perfil>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
@@ -100,6 +119,7 @@ export class PerfisService {
       skip,
       take,
       includeDeleted,
+      empresaId,
     );
     const totalPages = Math.ceil(total / limit);
     return {

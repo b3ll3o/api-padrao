@@ -65,8 +65,9 @@ export class PerfisController {
   })
   findAll(
     @Query() paginationDto: PaginationDto,
+    @Query('empresaId') empresaId?: string,
   ): Promise<PaginatedResponseDto<Perfil>> {
-    return this.perfisService.findAll(paginationDto);
+    return this.perfisService.findAll(paginationDto, false, empresaId);
   }
 
   @TemPermissao('READ_PERFIL_BY_ID')
@@ -85,8 +86,11 @@ export class PerfisController {
     status: 404,
     description: 'Perfil não encontrado ou deletado.',
   })
-  findOne(@Param('id') id: string): Promise<Perfil> {
-    return this.perfisService.findOne(+id);
+  findOne(
+    @Param('id') id: string,
+    @Query('empresaId') empresaId?: string,
+  ): Promise<Perfil> {
+    return this.perfisService.findOne(+id, false, empresaId);
   }
 
   @TemPermissao('READ_PERFIL_BY_NOME')
@@ -104,8 +108,14 @@ export class PerfisController {
   findByNome(
     @Param('nome') nome: string,
     @Query() paginationDto: PaginationDto,
+    @Query('empresaId') empresaId?: string,
   ): Promise<PaginatedResponseDto<Perfil>> {
-    return this.perfisService.findByNomeContaining(nome, paginationDto);
+    return this.perfisService.findByNomeContaining(
+      nome,
+      paginationDto,
+      false,
+      empresaId,
+    );
   }
 
   @TemPermissao('UPDATE_PERFIL')
