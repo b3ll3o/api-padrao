@@ -30,7 +30,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
     newPerfil.deletedAt = perfil.deletedAt;
     newPerfil.ativo = perfil.ativo;
     newPerfil.empresaId = perfil.empresaId;
-    newPerfil.permissoes = perfil.permissoes?.map((p) =>
+    newPerfil.permissoes = perfil.permissoes?.map((p: any) =>
       this.toPermissaoDomain(p),
     );
     return newPerfil;

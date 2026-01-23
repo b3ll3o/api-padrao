@@ -338,8 +338,8 @@ describe('UsuariosController (e2e)', () => {
   });
 
   describe('GET /usuarios/:id', () => {
-    let user2;
-    let deletedUser;
+    let user2: any;
+    let deletedUser: any;
 
     beforeEach(async () => {
       user2 = await prisma.usuario.create({
@@ -441,8 +441,8 @@ describe('UsuariosController (e2e)', () => {
   });
 
   describe('PATCH /usuarios/:id', () => {
-    let userToUpdate;
-    let userToSoftDelete;
+    let userToUpdate: any;
+    let userToSoftDelete: any;
 
     beforeEach(async () => {
       userToUpdate = await prisma.usuario.create({

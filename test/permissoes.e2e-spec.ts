@@ -119,7 +119,7 @@ describe('PermissoesController (e2e)', () => {
           perfis: [
             {
               codigo: adminProfile.codigo,
-              permissoes: (adminProfile as any).permissoes.map((p) => ({
+              permissoes: (adminProfile as any).permissoes.map((p: any) => ({
                 codigo: p.codigo,
               })),
             },
@@ -177,7 +177,7 @@ describe('PermissoesController (e2e)', () => {
           perfis: [
             {
               codigo: limitedProfile.codigo,
-              permissoes: (limitedProfile as any).permissoes.map((p) => ({
+              permissoes: (limitedProfile as any).permissoes.map((p: any) => ({
                 codigo: p.codigo,
               })),
             },
