@@ -60,17 +60,22 @@ describe('AuthService', () => {
         id: 1,
         nome: 'read:users',
         codigo: 'READ_USERS',
-        descricao: 'Permite ler usuários',
+        descricao: 'Read users',
         ativo: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
+
       const mockPerfil: Perfil = {
         id: 1,
         nome: 'Admin',
         codigo: 'ADMIN',
-        descricao: 'Perfil de administrador',
+        descricao: 'Administrator',
         ativo: true,
-        empresaId: 'uuid-empresa',
+        empresaId: 'empresa-1',
         permissoes: [mockPermissao],
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
       const mockUsuarioEmpresa = new UsuarioEmpresa({
         id: 1,

@@ -1,14 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UsuarioEmpresa } from './usuario-empresa.entity';
 import { Exclude } from 'class-transformer';
+import { BaseEntity } from '../../../shared/domain/entities/base.entity';
 
-export class Usuario {
-  @ApiProperty({
-    description: 'ID único do usuário',
-    example: 1,
-  })
-  id: number;
-
+export class Usuario extends BaseEntity {
   @ApiProperty({
     description: 'Email do usuário',
     example: 'usuario@exemplo.com',
@@ -22,28 +17,6 @@ export class Usuario {
   })
   @Exclude()
   senha?: string;
-
-  @ApiProperty({
-    description: 'Data de criação do registro',
-    example: '2025-09-08T10:00:00Z',
-  })
-  createdAt: Date;
-
-  @ApiProperty({
-    description: 'Data da última atualização do registro',
-    example: '2025-09-08T10:00:00Z',
-  })
-  updatedAt: Date;
-
-  @ApiPropertyOptional({
-    description: 'Data de deleção lógica do registro',
-    example: '2025-09-08T10:00:00Z',
-    nullable: true,
-  })
-  deletedAt?: Date | null; // Added
-
-  @ApiProperty({ description: 'Status ativo do usuário', example: true })
-  ativo: boolean;
 
   @ApiPropertyOptional({
     description:

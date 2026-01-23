@@ -1,10 +1,8 @@
 import { Permissao } from 'src/permissoes/domain/entities/permissao.entity';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'; // Added ApiPropertyOptional
+import { ApiProperty } from '@nestjs/swagger';
+import { BaseEntity } from '../../../shared/domain/entities/base.entity';
 
-export class Perfil {
-  @ApiProperty({ description: 'ID do perfil', example: 1 })
-  id: number;
-
+export class Perfil extends BaseEntity {
   @ApiProperty({ description: 'Nome do perfil', example: 'Administrador' })
   nome: string;
 
@@ -16,16 +14,6 @@ export class Perfil {
     example: 'Perfil com acesso total ao sistema',
   })
   descricao: string;
-
-  @ApiPropertyOptional({
-    description: 'Data de deleção lógica do registro',
-    example: '2025-09-08T10:00:00Z',
-    nullable: true,
-  })
-  deletedAt?: Date | null; // Added
-
-  @ApiProperty({ description: 'Status ativo do perfil', example: true })
-  ativo: boolean;
 
   @ApiProperty({
     description: 'ID da empresa vinculada ao perfil',

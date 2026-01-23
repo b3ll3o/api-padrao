@@ -101,6 +101,8 @@ describe('PerfisService', () => {
         ...createPerfilDto,
         deletedAt: null, // Added
         ativo: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       } as Perfil;
       (mockPerfilRepository.findByNome as jest.Mock).mockResolvedValue(null);
       (mockPerfilRepository.create as jest.Mock).mockResolvedValue(
@@ -139,6 +141,8 @@ describe('PerfisService', () => {
         ...createPerfilDto,
         deletedAt: null, // Added
         ativo: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       } as Perfil;
       (mockPerfilRepository.findByNome as jest.Mock).mockResolvedValue(null);
       (mockPerfilRepository.create as jest.Mock).mockResolvedValue(
@@ -512,14 +516,18 @@ describe('PerfisService', () => {
         ...updatePerfilDto,
         permissoes: [
           {
-            id: 1,
-            codigo: 'PERM_1',
-            nome: 'Permissao 1',
-            descricao: 'Desc 1',
+            id: 2,
+            codigo: 'READ',
+            nome: 'Ler',
+            descricao: 'Ler dados',
             deletedAt: null,
             ativo: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           },
         ], // Added full Permissao object
+        createdAt: new Date(),
+        updatedAt: new Date(),
       } as Perfil;
 
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(

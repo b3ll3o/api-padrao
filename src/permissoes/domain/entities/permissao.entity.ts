@@ -1,9 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'; // Added ApiPropertyOptional
+import { ApiProperty } from '@nestjs/swagger';
+import { BaseEntity } from '../../../shared/domain/entities/base.entity';
 
-export class Permissao {
-  @ApiProperty({ description: 'ID da permissão', example: 1 })
-  id: number;
-
+export class Permissao extends BaseEntity {
   @ApiProperty({ description: 'Nome da permissão', example: 'read:users' })
   nome: string;
 
@@ -15,14 +13,4 @@ export class Permissao {
     example: 'Permite ler usuários',
   })
   descricao: string;
-
-  @ApiPropertyOptional({
-    description: 'Data de deleção lógica do registro',
-    example: '2025-09-08T10:00:00Z',
-    nullable: true,
-  })
-  deletedAt?: Date | null; // Added
-
-  @ApiProperty({ description: 'Status ativo da permissão', example: true })
-  ativo: boolean;
 }
