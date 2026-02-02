@@ -11,6 +11,7 @@ import {
 import { ValidationPipe } from '@nestjs/common';
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
+import helmet from '@fastify/helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -22,6 +23,15 @@ async function bootstrap() {
   // Use pino logger
   app.useLogger(app.get(Logger));
   app.useGlobalInterceptors(new LoggerErrorInterceptor());
+
+  // Security: Helmet
+  await app.register(helmet);
+
+  // Security: CORS
+  app.enableCors({
+    origin: true, // Em produção, deve ser uma lista explícita de domínios
+    credentials: true,
+  });
 
   const configService = app.get(ConfigService);
   const logger = app.get(Logger);

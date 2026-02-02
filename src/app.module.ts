@@ -16,6 +16,9 @@ import { envValidationSchema } from './config/env.validation';
 import { EmpresasModule } from './empresas/empresas.module';
 import { AllExceptionsFilter } from './shared/infrastructure/filters/all-exceptions.filter';
 import { LoggingInterceptor } from './shared/infrastructure/interceptors/logging.interceptor';
+import { EmpresaContext } from './shared/infrastructure/services/empresa-context.service';
+import { EmpresaInterceptor } from './shared/infrastructure/interceptors/empresa.interceptor';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -51,9 +54,19 @@ import { LoggingInterceptor } from './shared/infrastructure/interceptors/logging
     PermissoesModule,
     PerfisModule,
     EmpresasModule,
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minuto
+        limit: 100, // Máximo de 100 requisições por IP por minuto
+      },
+    ]),
   ],
   controllers: [],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
@@ -75,9 +88,14 @@ import { LoggingInterceptor } from './shared/infrastructure/interceptors/logging
       useClass: LoggingInterceptor,
     },
     {
+      provide: APP_INTERCEPTOR,
+      useClass: EmpresaInterceptor,
+    },
+    {
       provide: PasswordHasher,
       useClass: BcryptPasswordHasherService,
     },
+    EmpresaContext,
   ],
 })
 export class AppModule {}

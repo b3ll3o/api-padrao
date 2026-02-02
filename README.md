@@ -86,8 +86,19 @@ O sistema validará se o usuário possui os perfis necessários para a ação es
     npm run start:dev
     ```
 
-## Estrutura do Projeto
+## Estrutura do Projeto e Documentação
 
+Cada módulo possui seu próprio arquivo de documentação detalhada:
+
+- [**Autenticação**](src/auth/README.md)
+- [**Empresas**](src/empresas/README.md)
+- [**Usuários**](src/usuarios/README.md)
+- [**Perfis**](src/perfis/README.md)
+- [**Permissões**](src/permissoes/README.md)
+- [**Módulo Compartilhado**](src/shared/README.md)
+- [**Infraestrutura e Observabilidade**](src/shared/README_infra.md)
+
+### Estrutura de Pastas
 ```
 src/
 ├── auth/                   # Autenticação

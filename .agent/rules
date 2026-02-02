@@ -1,0 +1,49 @@
+# Regras do Projeto: API Padrão
+
+Este arquivo define as diretrizes de desenvolvimento que o Antigravity deve seguir rigorosamente para este projeto.
+
+## 1. Idioma e Comunicação
+- **Idioma Padrão**: Sempre utilize **português (pt-br)** para comunicações, documentações de tarefa e comentários de código.
+
+## 2. Arquitetura e Estrutura
+- **Clean Architecture**: Siga a divisão em camadas: `domain` (regras e entidades), `application` (casos de uso e controllers), `infrastructure` (implementações técnicas).
+- **Módulos**: Mantenha a modularidade (ex: `usuarios`, `empresas`, `perfis`).
+- **Multi-tenancy**:
+    - Aplicação é multi-tenant.
+    - Perfis e permissões são escopados por empresa (`Empresa`).
+    - Exija sempre o contexto de empresa (via header `x-empresa-id` ou `TenantContext`).
+    - Use o decorador `@EmpresaId()` nos controllers.
+
+## 3. Padrões de Código e Estilo
+- **Decoradores Customizados**:
+    - `@UsuarioLogado()`: Para injetar o payload do JWT.
+    - `@EmpresaId()`: Para obter o ID da empresa atual.
+- **Dê preferência ao NestJS**: Use os recursos nativos do framework (Pipes, Interceptors, Filters).
+- **Segurança de Dados**:
+    - **NUNCA** remova campos sensíveis manualmente nos serviços.
+    - Use `@Exclude()` nas entidades.
+    - Certifique-se de que o `ClassSerializerInterceptor` esteja ativo.
+- **Paginação**: Todos os endpoints de listagem **devem** ser paginados usando `PaginationDto`. O limite padrão é 10.
+- **Soft Delete**:
+    - Entidades devem ter `createdAt`, `updatedAt`, `deletedAt` e `ativo`.
+    - Use a remoção lógica (soft delete).
+    - Utilize a extensão automática do `PrismaService` para filtragem de `deletedAt: null`.
+
+## 4. Testes e Qualidade
+- **TDD**: Escreva testes unitários (`.spec.ts`) para novas funcionalidades.
+- **Qualidade**: Siga os princípios SOLID e Clean Code.
+- **CI/CD**: Não ignore ou ignore erros de Lint (Husky/ESLint).
+
+## 5. Documentação
+- **Swagger**: Sempre atualize decoradores do Swagger (`@ApiTags`, `@ApiOperation`, etc.) ao criar ou alterar endpoints.
+- **Auto-documentação**: Atualize `README.md` ou `GEMINI.md` se houver mudanças arquiteturais significativas.
+
+## 6. Processo de Alteração e Commit
+Para garantir a qualidade, o Antigravity **DEVE** seguir o workflow `.agent/workflows/alteracao-segura.md` obrigatoriamente **antes de realizar o commit final**.
+1. Durante o desenvolvimento, o foco deve ser a agilidade e iteração rápida.
+2. Antes de entregar a tarefa (commit/push), execute o ciclo completo:
+    - **Verifique** dependências (`npm outdated`, `npm audit`).
+    - **Execute** Lint e todos os testes (Unitários e E2E).
+    - **Corrija** proativamente qualquer erro ou aviso (warnings).
+    - **Valide** a build final e execute `npm update`.
+3. O commit só deve ocorrer após o ciclo de verde (todos os testes passando).
