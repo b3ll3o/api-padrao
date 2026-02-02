@@ -87,6 +87,24 @@ describe('PrismaUsuarioRepository', () => {
 
       expect(result.data).toHaveLength(1);
       expect(result.total).toBe(1);
+      expect(mockPrismaService.usuario.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { deletedAt: null },
+        }),
+      );
+    });
+
+    it('deve retornar inclusive deletados se includeDeleted for true', async () => {
+      mockPrismaService.usuario.findMany.mockResolvedValue([mockPrismaUser]);
+      mockPrismaService.usuario.count.mockResolvedValue(1);
+
+      await repository.findAll({ page: 1, limit: 10 }, true);
+
+      expect(mockPrismaService.usuario.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {},
+        }),
+      );
     });
   });
 
@@ -128,6 +146,20 @@ describe('PrismaUsuarioRepository', () => {
     });
   });
 
+  describe('findByEmail', () => {
+    it('deve retornar um usuário por email', async () => {
+      mockPrismaService.usuario.findUnique.mockResolvedValue(mockPrismaUser);
+      const result = await repository.findByEmail('test@test.com');
+      expect(result?.email).toBe('test@test.com');
+    });
+
+    it('deve retornar null se email não for encontrado', async () => {
+      mockPrismaService.usuario.findUnique.mockResolvedValue(null);
+      const result = await repository.findByEmail('ghost@test.com');
+      expect(result).toBeNull();
+    });
+  });
+
   describe('atualização e remoção', () => {
     it('deve atualizar um usuário', async () => {
       mockPrismaService.usuario.update.mockResolvedValue(mockPrismaUser);
@@ -153,6 +185,20 @@ describe('PrismaUsuarioRepository', () => {
       await expect(repository.restore(999)).rejects.toThrow(
         'Usuário com ID 999 não encontrado.',
       );
+    });
+
+    it('remove deve disparar erro genérico se falha do Prisma não for P2025', async () => {
+      const error = new Error('Generic DB Error');
+      mockPrismaService.usuario.update.mockRejectedValue(error);
+
+      await expect(repository.remove(1)).rejects.toThrow('Generic DB Error');
+    });
+
+    it('restore deve disparar erro genérico se falha do Prisma não for P2025', async () => {
+      const error = new Error('Generic DB Error');
+      mockPrismaService.usuario.update.mockRejectedValue(error);
+
+      await expect(repository.restore(1)).rejects.toThrow('Generic DB Error');
     });
   });
 });

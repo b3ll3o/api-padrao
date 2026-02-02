@@ -16,6 +16,7 @@ Gerencia as permissões atômicas do sistema que são atribuídas aos perfis.
 ### 2. Listar Permissões
 - **URL**: `GET /permissoes`
 - **Permissão**: `READ_PERMISSOES`
+- **Parâmetros**: `PaginationDto` (page, limit).
 
 ### 3. Buscar por ID
 - **URL**: `GET /permissoes/:id`
@@ -24,6 +25,7 @@ Gerencia as permissões atômicas do sistema que são atribuídas aos perfis.
 ### 4. Atualizar Permissão
 - **URL**: `PATCH /permissoes/:id`
 - **Permissão**: `UPDATE_PERMISSAO`
+- **Nota**: Apenas administradores podem restaurar permissões deletadas.
 
 ## Estrutura de uma Permissão
 - **Nome**: Nome legível (ex: "Criar Usuário").
@@ -31,4 +33,4 @@ Gerencia as permissões atômicas do sistema que são atribuídas aos perfis.
 - **Descrição**: Detalhes sobre o que a permissão autoriza.
 
 ## Governança
-Diferente dos perfis, as permissões são geralmente **globais** no sistema, representando as ações possíveis que o código pode executar, independente da empresa.
+Diferente dos perfis, as permissões são **globais** no sistema, representando as ações possíveis que o código pode executar, independente da empresa. O header `x-empresa-id` é opcional nessas rotas, exceto para validação de contexto administrativo.

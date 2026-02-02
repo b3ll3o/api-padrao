@@ -21,6 +21,17 @@ Contém utilitários, decoradores, filtros e serviços que são utilizados por m
 ### 5. Hasher de Senha
 - Interface `PasswordHasher` e implementação `BcryptPasswordHasherService` para garantir segurança uniforme nas senhas.
 
+### 6. Entidade Base (`BaseEntity`)
+- **Campos**: `id`, `createdAt`, `updatedAt`, `deletedAt`, `ativo`.
+- **Função**: Fornece a estrutura comum para suporte a soft delete em todas as entidades do sistema.
+
+### 7. Interceptores de Sistema
+- `LoggerErrorInterceptor`: Garante que erros sejam logados corretamente usando o Pino.
+- `LoggingInterceptor`: Interceptor customizado para logar tempo de resposta e detalhes das requisições HTTP.
+
+## Segurança e Rate Limit
+- **ThrottlerModule**: Configurado globalmente com limite de 100 requisições por minuto por IP para prevenir ataques de força bruta e DoS.
+
 ## DTOs Globais
 - `PaginationDto`: Padronização para todos os endpoints de listagem.
 - `PaginatedResponseDto`: Estrutura padrão de resposta para listas (contendo `data`, `total`, `page`, `limit`, `totalPages`).

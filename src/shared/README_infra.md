@@ -38,3 +38,10 @@ A validação das variáveis de ambiente é feita em `src/config/env.validation.
 - `DATABASE_URL`: String de conexão do Prisma.
 - `JWT_SECRET`: Chave para assinatura dos tokens.
 - `OTEL_EXPORTER_OTLP_ENDPOINT`: Endpoint do coletor OTel.
+
+## 4. Configuração do Coletor OTEL
+
+O arquivo `otel-collector-config.yaml` define como os traces são recebidos e para onde são enviados. Ele está configurado para:
+1. Receber dados via **OTLP** (gRPC na porta 4317 e HTTP na porta 4318).
+2. Processar os dados (batching).
+3. Exportar para o **Jaeger** via gRPC.

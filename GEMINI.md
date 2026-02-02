@@ -72,3 +72,24 @@ Use custom decorators to access request context instead of raw `@Req()`.
 ## Continuous Integration (CI)
 
 A GitHub Actions workflow (`ci.yml`) runs Linting, Unit Tests, and E2E Tests on every PR to `main`.
+
+## Prisma Migrations
+
+### Creating Migrations
+When you change `prisma/schema.prisma`, run:
+```bash
+npx prisma migrate dev --name name_of_migration
+```
+
+### Applying Migrations in Production
+```bash
+npx prisma migrate deploy
+```
+
+## Environment Variables
+
+Ensure your `.env` file contains at least:
+- `DATABASE_URL`: PostgreSQL connection string.
+- `JWT_SECRET`: Secret key for JWT signing.
+- `PORT`: Application port (default 3001).
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry collector endpoint (default http://localhost:4318).

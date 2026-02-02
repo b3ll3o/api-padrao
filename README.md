@@ -30,6 +30,19 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 
 A aplicação utiliza um modelo multi-tenant onde os **Perfis e Permissões** de um usuário são definidos no contexto de uma **Empresa**.
 
+```mermaid
+graph TD
+    U[Usuário] --> UE[UsuarioEmpresa]
+    E[Empresa] --> UE
+    UE --> P[Perfis]
+    P --> PE[Permissões]
+    
+    subgraph "Contexto da Empresa"
+        UE
+        P
+    end
+```
+
 ### Como funciona a Autorização
 
 Para acessar rotas protegidas que exigem permissões específicas (decorador `@TemPermissao`), o cliente deve enviar:
@@ -37,6 +50,14 @@ Para acessar rotas protegidas que exigem permissões específicas (decorador `@T
 2.  O ID da empresa no header `x-empresa-id: <uuid>`.
 
 O sistema validará se o usuário possui os perfis necessários para a ação especificamente na empresa informada.
+
+## Arquitetura do Sistema
+
+O projeto segue os princípios da **Clean Architecture**, organizado em camadas para garantir separação de preocupações e testabilidade:
+
+1.  **Domain (Domínio):** Contém as entidades de negócio e interfaces de repositório. É o núcleo da aplicação.
+2.  **Application (Aplicação):** Contém os casos de uso (Services), controladores e DTOs.
+3.  **Infrastructure (Infraestrutura):** Implementações técnicas como repositórios Prisma, estratégias de autenticação e serviços externos.
 
 ## Tecnologias Utilizadas
 

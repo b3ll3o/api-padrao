@@ -12,6 +12,8 @@ import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 import { IUsuarioAuthorizationService } from './usuario-authorization.service';
+import { PaginationDto } from '../../../shared/dto/pagination.dto';
+import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { EmpresaRepository } from '../../../empresas/domain/repositories/empresa.repository';
 
 describe('UsuariosService', () => {
@@ -26,6 +28,10 @@ describe('UsuariosService', () => {
     update: jest.Mock<Promise<Usuario>, [number, Partial<Usuario>]>;
     remove: jest.Mock<Promise<Usuario>, [number]>;
     restore: jest.Mock<Promise<Usuario>, [number]>;
+    findAll: jest.Mock<
+      Promise<PaginatedResponseDto<Usuario>>,
+      [PaginationDto, boolean | undefined]
+    >;
   };
   let mockPasswordHasher: {
     hash: jest.Mock<Promise<string>, [string]>;
@@ -53,6 +59,7 @@ describe('UsuariosService', () => {
       }),
       remove: jest.fn(),
       restore: jest.fn(),
+      findAll: jest.fn(),
     };
     mockPasswordHasher = {
       hash: jest.fn().mockResolvedValue('hashedPassword'),
@@ -156,6 +163,68 @@ describe('UsuariosService', () => {
       await service.create(createDto);
 
       expect(mockPasswordHasher.hash).toHaveBeenCalledWith(createDto.senha);
+    });
+  });
+
+  describe('findAll', () => {
+    const mockUsuarioLogado: JwtPayload = {
+      userId: 1,
+      email: 'test@example.com',
+      empresas: [],
+    };
+
+    const mockAdminUsuarioLogado: JwtPayload = {
+      userId: 2,
+      email: 'admin@example.com',
+      empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
+    };
+
+    it('deve listar usuários para um administrador', async () => {
+      mockUsuarioRepository.findAll.mockResolvedValue({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+      });
+
+      const result = await service.findAll(
+        { page: 1, limit: 10 },
+        mockAdminUsuarioLogado,
+      );
+
+      expect(result.data).toBeInstanceOf(Array);
+      expect(mockUsuarioRepository.findAll).toHaveBeenCalledWith(
+        { page: 1, limit: 10 },
+        false,
+      );
+    });
+
+    it('deve lançar ForbiddenException para não-administradores', async () => {
+      await expect(
+        service.findAll({ page: 1, limit: 10 }, mockUsuarioLogado),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('deve permitir incluir deletados na listagem', async () => {
+      mockUsuarioRepository.findAll.mockResolvedValue({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+      });
+
+      await service.findAll(
+        { page: 1, limit: 10 },
+        mockAdminUsuarioLogado,
+        true,
+      );
+
+      expect(mockUsuarioRepository.findAll).toHaveBeenCalledWith(
+        { page: 1, limit: 10 },
+        true,
+      );
     });
   });
 
@@ -348,6 +417,59 @@ describe('UsuariosService', () => {
 
       expect(result.deletedAt).not.toBeNull();
       expect(mockUsuarioRepository.remove).toHaveBeenCalledWith(1);
+    });
+
+    it('deve lançar ConflictException ao tentar restaurar usuário que não está deletado', async () => {
+      const nonDeletedUser = { ...mockUser, deletedAt: null };
+      const updateDto: UpdateUsuarioDto = { ativo: true };
+
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedUser,
+      );
+
+      await expect(
+        service.update(1, updateDto, mockUsuarioLogado),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('deve lançar ForbiddenException ao tentar restaurar sem permissão', async () => {
+      const softDeletedUser = { ...mockUser, deletedAt: new Date() };
+      const updateDto: UpdateUsuarioDto = { ativo: true };
+
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedUser,
+      );
+      mockUsuarioAuthorizationService.canRestoreUsuario.mockReturnValue(false);
+
+      await expect(
+        service.update(1, updateDto, mockUsuarioLogado),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('deve lançar ConflictException ao tentar deletar usuário já deletado', async () => {
+      const softDeletedUser = { ...mockUser, deletedAt: new Date() };
+      const updateDto: UpdateUsuarioDto = { ativo: false };
+
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedUser,
+      );
+
+      await expect(
+        service.update(1, updateDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('deve lançar ForbiddenException ao tentar deletar sem ser admin', async () => {
+      const nonDeletedUser = { ...mockUser, deletedAt: null };
+      const updateDto: UpdateUsuarioDto = { ativo: false };
+
+      (mockUsuarioRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedUser,
+      );
+
+      await expect(
+        service.update(1, updateDto, mockUsuarioLogado),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
