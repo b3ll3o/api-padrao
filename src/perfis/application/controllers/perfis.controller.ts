@@ -48,7 +48,7 @@ export class PerfisController {
     type: Perfil,
   })
   @ApiResponse({ status: 400, description: 'Requisição inválida.' })
-  create(@Body() createPerfilDto: CreatePerfilDto): Promise<Perfil> {
+  async create(@Body() createPerfilDto: CreatePerfilDto): Promise<Perfil> {
     return this.perfisService.create(createPerfilDto);
   }
 

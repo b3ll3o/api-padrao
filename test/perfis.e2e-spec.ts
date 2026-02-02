@@ -1,103 +1,154 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from './../src/app.module';
+import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { cleanDatabase } from './e2e-utils';
-import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { cleanDatabase } from './e2e-utils';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 
 describe('PerfisController (e2e)', () => {
-  let app: INestApplication;
+  let app: NestFastifyApplication;
   let prisma: PrismaService;
   let jwtService: JwtService;
   let adminToken: string;
   let globalEmpresaId: string;
+  let adminUser: any;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    try {
+      const moduleFixture: TestingModule = await Test.createTestingModule({
+        imports: [AppModule],
+      }).compile();
 
-    app = moduleFixture.createNestApplication();
-    prisma = app.get<PrismaService>(PrismaService);
-    jwtService = app.get<JwtService>(JwtService);
+      app = moduleFixture.createNestApplication<NestFastifyApplication>(
+        new FastifyAdapter(),
+        {
+          logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+        },
+      );
+      prisma = app.get<PrismaService>(PrismaService);
+      // Habilita logs do prisma via $on se possível, ou garante que o serviço esteja configurado
+      jwtService = app.get<JwtService>(JwtService);
 
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+      // Injeta logger de erro global no Fastify para testes (DEVE ser antes do init/listen)
+      app
+        .getHttpAdapter()
+        .getInstance()
+        .setErrorHandler((error: any, request: any, reply: any) => {
+          console.error('--- FASTIFY ERROR ---');
+          console.error('URL:', request.url);
+          console.error('Error:', error);
+          if (error && (error as any).stack)
+            console.error('Stack:', (error as any).stack);
+          console.error('---------------------');
+          reply.status(500).send({ message: error.message });
+        });
 
-    await app.init();
+      await app.init();
+      await app.getHttpAdapter().getInstance().ready();
+    } catch (error) {
+      console.error('--- BEFORE ALL ERROR ---');
+      console.error(error);
+      console.error('------------------------');
+      throw error;
+    }
   });
 
   afterAll(async () => {
+    await cleanDatabase(prisma);
     await app.close();
   });
 
   beforeEach(async () => {
     await cleanDatabase(prisma);
 
-    const permissionsData = [
-      { nome: 'create:perfis', codigo: 'CREATE_PERFIL', descricao: 'Criar' },
-      { nome: 'read:perfis', codigo: 'READ_PERFIS', descricao: 'Ler' },
-      {
-        nome: 'read:perfis_by_id',
-        codigo: 'READ_PERFIL_BY_ID',
-        descricao: 'ID',
+    // Setup: Criar usuário responsável primeiro
+    adminUser = await prisma.usuario.create({
+      data: {
+        email: 'responsavel-e2e@example.com',
+        senha: 'password123',
+        ativo: true,
       },
-      {
-        nome: 'update:perfis',
-        codigo: 'UPDATE_PERFIL',
-        descricao: 'Atualizar',
-      },
-    ];
-    const permissions = await Promise.all(
-      permissionsData.map((p) => prisma.permissao.create({ data: p })),
-    );
-
-    const responsavel = await prisma.usuario.create({
-      data: { email: 'resp@test.com' },
     });
 
+    // Setup: Criar empresa com responsável
     const empresa = await prisma.empresa.create({
-      data: { nome: 'Empresa Teste', responsavelId: responsavel.id },
+      data: {
+        nome: 'Empresa Teste E2E',
+        descricao: 'Descrição da empresa de teste',
+        responsavelId: adminUser.id,
+        ativo: true,
+      },
     });
     globalEmpresaId = empresa.id;
 
-    const adminProfile = await prisma.perfil.create({
-      data: {
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Admin',
-        empresaId: globalEmpresaId,
-        permissoes: { connect: permissions.map((p) => ({ id: p.id })) },
-      },
-      include: { permissoes: true },
+    // Setup: Criar permissões necessárias
+    await prisma.permissao.createMany({
+      data: [
+        {
+          nome: 'Criar Perfil',
+          codigo: 'CREATE_PERFIL',
+          descricao: 'Permite criar perfis',
+        },
+        {
+          nome: 'Ler Perfis',
+          codigo: 'READ_PERFIS',
+          descricao: 'Permite listar perfis',
+        },
+        {
+          nome: 'Ler Perfil por ID',
+          codigo: 'READ_PERFIL_BY_ID',
+          descricao: 'Permite ver detalhes de um perfil',
+        },
+        {
+          nome: 'Atualizar Perfil',
+          codigo: 'UPDATE_PERFIL',
+          descricao: 'Permite atualizar perfis',
+        },
+      ],
     });
 
-    const adminUser = await prisma.usuario.create({
+    const permissoes = await prisma.permissao.findMany();
+
+    // Setup: Criar perfil ADMIN com todas as permissões (N:N relation)
+    const adminPerfil = await prisma.perfil.create({
       data: {
-        email: 'admin@test.com',
-        senha: await bcrypt.hash('admin123', 10),
-        empresas: {
-          create: {
-            empresaId: globalEmpresaId,
-            perfis: { connect: { id: adminProfile.id } },
-          },
+        nome: 'Administrador',
+        codigo: 'ADMIN',
+        descricao: 'Perfil de administrador do sistema',
+        empresaId: globalEmpresaId,
+        permissoes: {
+          connect: permissoes.map((p) => ({ id: p.id })),
         },
       },
     });
 
+    // Vincular adminUser à empresa e perfil no UsuarioEmpresa
+    await prisma.usuarioEmpresa.create({
+      data: {
+        usuarioId: adminUser.id,
+        empresaId: globalEmpresaId,
+        perfis: {
+          connect: { id: adminPerfil.id },
+        },
+      },
+    });
+
+    // Gerar token real para os testes
     adminToken = jwtService.sign({
       sub: adminUser.id,
       email: adminUser.email,
+      empresaId: globalEmpresaId,
       empresas: [
         {
           id: globalEmpresaId,
           perfis: [
             {
-              codigo: adminProfile.codigo,
-              permissoes: adminProfile.permissoes.map((p) => ({
-                codigo: p.codigo,
-              })),
+              codigo: 'ADMIN',
+              permissoes: permissoes.map((p) => ({ codigo: p.codigo })),
             },
           ],
         },
@@ -106,12 +157,13 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('POST /perfis', () => {
-    it('deve criar um perfil', async () => {
+    it('deve criar um novo perfil com sucesso', async () => {
       const dto = {
         nome: 'Novo Perfil',
-        codigo: 'NOVO',
-        descricao: 'Desc',
+        codigo: 'NOVO_PERFIL',
+        descricao: 'Descrição do novo perfil',
         empresaId: globalEmpresaId,
+        permissoesIds: [],
       };
 
       return request(app.getHttpServer())
@@ -119,20 +171,35 @@ describe('PerfisController (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .set('x-empresa-id', globalEmpresaId)
         .send(dto)
+        .expect((res) => {
+          if (res.status !== 201) {
+            console.log('--- ERROR LOG ---');
+            console.log('Status:', res.status);
+            console.log('Body:', JSON.stringify(res.body, null, 2));
+            console.log('-----------------');
+          }
+        })
         .expect(201);
     });
 
     it('deve retornar 409 se o perfil com o mesmo nome já existir na mesma empresa', async () => {
       const dto = {
-        nome: 'Repetido',
-        codigo: 'REPETIDO',
-        descricao: 'Desc',
+        nome: 'Perfil Duplicado',
+        descricao: 'Descrição duplicada',
         empresaId: globalEmpresaId,
       };
+
+      // Criar o primeiro
       await prisma.perfil.create({
-        data: { ...dto, empresaId: globalEmpresaId },
+        data: {
+          nome: dto.nome,
+          codigo: 'DUPLICADO',
+          descricao: dto.descricao,
+          empresaId: globalEmpresaId,
+        },
       });
 
+      // Tentar criar o segundo
       return request(app.getHttpServer())
         .post('/perfis')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -146,7 +213,6 @@ describe('PerfisController (e2e)', () => {
     it('deve retornar uma lista paginada de perfis', async () => {
       return request(app.getHttpServer())
         .get('/perfis')
-        .query({ empresaId: globalEmpresaId })
         .set('Authorization', `Bearer ${adminToken}`)
         .set('x-empresa-id', globalEmpresaId)
         .expect(200)
@@ -160,16 +226,15 @@ describe('PerfisController (e2e)', () => {
     it('deve retornar um único perfil', async () => {
       const perfil = await prisma.perfil.create({
         data: {
-          nome: 'ID',
-          codigo: 'ID',
-          descricao: 'ID',
+          nome: 'Perfil Busca',
+          codigo: 'BUSCA',
+          descricao: 'Perfil para busca',
           empresaId: globalEmpresaId,
         },
       });
 
       return request(app.getHttpServer())
         .get(`/perfis/${perfil.id}`)
-        .query({ empresaId: globalEmpresaId })
         .set('Authorization', `Bearer ${adminToken}`)
         .set('x-empresa-id', globalEmpresaId)
         .expect(200);
@@ -180,9 +245,9 @@ describe('PerfisController (e2e)', () => {
     it('deve atualizar um perfil', async () => {
       const perfil = await prisma.perfil.create({
         data: {
-          nome: 'U',
-          codigo: 'U',
-          descricao: 'U',
+          nome: 'Perfil Antigo',
+          codigo: 'ANTIGO',
+          descricao: 'Descrição antiga',
           empresaId: globalEmpresaId,
         },
       });
@@ -198,12 +263,11 @@ describe('PerfisController (e2e)', () => {
     it('deve restaurar um perfil deletado', async () => {
       const perfil = await prisma.perfil.create({
         data: {
-          nome: 'R',
-          codigo: 'R',
-          descricao: 'R',
-          deletedAt: new Date(),
-          ativo: false,
+          nome: 'Perfil Deletado',
+          codigo: 'DELETADO',
+          descricao: 'Descrição deletado',
           empresaId: globalEmpresaId,
+          deletedAt: new Date(),
         },
       });
 

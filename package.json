@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "NODE_ENV=test jest --config ./test/jest-e2e.json",
     "test:migrate": "npx prisma migrate deploy",
-    "prepare": "husky"
+    "prepare": "husky",
+    "validate": "npm run lint && npm run build && npm run test && npm run test:e2e"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",
@@ -67,9 +68,11 @@
     "@typescript-eslint/eslint-plugin": "^8.43.0",
     "@typescript-eslint/parser": "^8.43.0",
     "depcheck": "^1.4.7",
+    "dotenv": "^17.2.3",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
+    "express": "^5.2.1",
     "husky": "^9.1.7",
     "jest": "^30.1.3",
     "lint-staged": "^16.1.6",

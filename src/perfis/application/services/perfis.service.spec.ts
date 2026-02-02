@@ -466,7 +466,10 @@ describe('PerfisService', () => {
         mockPerfilRepository.findByNomeContaining as jest.Mock
       ).mockResolvedValue([[expectedPerfis[0]], 1]);
 
-      const result = await service.findByNome('Test Perfil', paginationDto);
+      const result = await service.findByNomeContaining(
+        'Test Perfil',
+        paginationDto,
+      );
 
       expect(result.data).toEqual([expectedPerfis[0]]);
       expect(result.total).toBe(1);
@@ -485,7 +488,7 @@ describe('PerfisService', () => {
         mockPerfilRepository.findByNomeContaining as jest.Mock
       ).mockResolvedValue([expectedPerfis, 2]);
 
-      const result = await service.findByNome(
+      const result = await service.findByNomeContaining(
         'Test Perfil',
         paginationDto,
         true,

@@ -44,9 +44,7 @@ export class PerfisService {
         `Perfil com o nome '${createPerfilDto.nome}' já existe para esta empresa.`,
       );
     }
-    const perfil = await this.perfilRepository.create(createPerfilDto);
-    this.logger.log(`Perfil criado: ${perfil.nome} (ID: ${perfil.id})`);
-    return perfil;
+    return this.perfilRepository.create(createPerfilDto);
   }
 
   async findAll(
@@ -90,20 +88,6 @@ export class PerfisService {
     return perfil;
   }
 
-  async findByNome(
-    nome: string,
-    paginationDto: PaginationDto,
-    includeDeleted: boolean = false,
-    empresaId?: string,
-  ): Promise<PaginatedResponseDto<Perfil>> {
-    return this.findByNomeContaining(
-      nome,
-      paginationDto,
-      includeDeleted,
-      empresaId,
-    );
-  }
-
   async findByNomeContaining(
     nome: string,
     paginationDto: PaginationDto,
@@ -134,20 +118,18 @@ export class PerfisService {
   async update(
     id: number,
     updatePerfilDto: UpdatePerfilDto,
-    usuarioLogado: UsuarioLogado, // Add usuarioLogado parameter
+    usuarioLogado: UsuarioLogado,
   ): Promise<Perfil> {
     if (updatePerfilDto.permissoesIds) {
       for (const permId of updatePerfilDto.permissoesIds) {
-        await this.permissoesService.findOne(permId); // Validate if permission exists
+        await this.permissoesService.findOne(permId);
       }
     }
-    // Find including deleted to allow update on soft-deleted
     const perfil = await this.perfilRepository.findOne(id, true);
     if (!perfil) {
       throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }
 
-    // Handle 'ativo' flag for soft delete/restore
     if (updatePerfilDto.ativo !== undefined) {
       const isAdmin = usuarioLogado.empresas?.some((e: any) =>
         e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
@@ -159,35 +141,28 @@ export class PerfisService {
       }
 
       if (updatePerfilDto.ativo === true) {
-        // Attempt to restore
         if (perfil.deletedAt === null) {
-          throw new ConflictException(`Perfil com ID ${id} não está deletado.`);
+          throw new ConflictException(`Perfil with ID ${id} is not deleted.`);
         }
         const restoredPerfil = await this.perfilRepository.restore(id);
         if (!restoredPerfil) {
           throw new NotFoundException(
-            `Perfil com ID ${id} não encontrado após restauração.`,
+            `Perfil with ID ${id} not found after restore.`,
           );
         }
-        this.logger.log(
-          `Perfil restaurado: ${restoredPerfil.nome} (ID: ${id})`,
-        );
         return restoredPerfil;
       } else {
-        // updatePerfilDto.ativo === false
-        // Attempt to soft delete
         if (perfil.deletedAt !== null) {
-          throw new ConflictException(`Perfil com ID ${id} já está deletado.`);
+          throw new ConflictException(
+            `Perfil with ID ${id} is already deleted.`,
+          );
         }
         const softDeletedPerfil = await this.perfilRepository.remove(id);
         if (!softDeletedPerfil) {
           throw new NotFoundException(
-            `Perfil com ID ${id} não encontrado após soft delete.`,
+            `Perfil with ID ${id} not found after removal.`,
           );
         }
-        this.logger.log(
-          `Perfil removido: ${softDeletedPerfil.nome} (ID: ${id})`,
-        );
         return softDeletedPerfil;
       }
     }
@@ -198,10 +173,9 @@ export class PerfisService {
     );
     if (!updatedPerfil) {
       throw new NotFoundException(
-        `Perfil com ID ${id} não encontrado após atualização.`,
+        `Perfil with ID ${id} not found after update.`,
       );
     }
-    this.logger.log(`Perfil atualizado: ${updatedPerfil.nome} (ID: ${id})`);
     return updatedPerfil;
   }
 }

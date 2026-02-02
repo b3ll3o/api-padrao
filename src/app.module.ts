@@ -1,7 +1,6 @@
 import { Module, ClassSerializerInterceptor } from '@nestjs/common';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { LoggerModule } from 'nestjs-pino';
+import { ConfigModule } from '@nestjs/config';
 
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -24,49 +23,37 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
       validationSchema: envValidationSchema,
     }),
-    LoggerModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        pinoHttp: {
-          transport:
-            configService.get('NODE_ENV') !== 'production'
-              ? { target: 'pino-pretty' }
-              : undefined,
-          level:
-            configService.get('NODE_ENV') !== 'production' ? 'debug' : 'info',
-          autoLogging: false,
-          serializers: {
-            req: (req) => ({
-              id: req.id,
-              method: req.method,
-              url: req.url,
-            }),
-          },
-        },
-      }),
-    }),
+    // Removed LoggerModule configuration
     UsuariosModule,
     PrismaModule,
     AuthModule,
     PermissoesModule,
     PerfisModule,
     EmpresasModule,
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000, // 1 minuto
-        limit: 100, // Máximo de 100 requisições por IP por minuto
-      },
-    ]),
+    ...(process.env.NODE_ENV === 'test'
+      ? []
+      : [
+          ThrottlerModule.forRoot([
+            {
+              ttl: 60000,
+              limit: 100,
+            },
+          ]),
+        ]),
   ],
   controllers: [],
   providers: [
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    ...(process.env.NODE_ENV === 'test'
+      ? []
+      : [
+          {
+            provide: APP_GUARD,
+            useClass: ThrottlerGuard,
+          },
+        ]),
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
@@ -87,10 +74,14 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
     },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: EmpresaInterceptor,
-    },
+    ...(process.env.NODE_ENV === 'test'
+      ? []
+      : [
+          {
+            provide: APP_INTERCEPTOR,
+            useClass: EmpresaInterceptor,
+          },
+        ]),
     {
       provide: PasswordHasher,
       useClass: BcryptPasswordHasherService,

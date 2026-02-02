@@ -8,15 +8,16 @@ export async function cleanDatabase(prisma: PrismaClient) {
   const tables = [
     'UsuarioEmpresa',
     'Perfil',
-    'Permissao',
-    'Empresa',
     'Usuario',
+    'Empresa',
+    'Permissao',
   ];
 
   try {
-    for (const table of tables) {
-      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE;`);
-    }
+    // Disable FK checks and truncate all in one go if possible, or use CASCADE
+    await prisma.$executeRawUnsafe(
+      `TRUNCATE TABLE "${tables.join('", "')}" CASCADE;`,
+    );
 
     // Reset sequences for tables with autoincrement IDs
     await prisma.$executeRawUnsafe(

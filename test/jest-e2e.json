@@ -1,22 +1,32 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
   "rootDir": "../",
   "testEnvironment": "node",
+  "setupFiles": [
+    "<rootDir>/test/setup-e2e.ts"
+  ],
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": ["ts-jest", {
-      "tsconfig": {
-        "allowJs": true,
-        "allowSyntheticDefaultImports": true,
-        "esModuleInterop": true,
-        "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true,
-        "noImplicitAny": false,
-        "strictNullChecks": true,
-        "strictBindCallApply": false,
-        "noFallthroughCasesInSwitch": false
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "allowJs": true,
+          "allowSyntheticDefaultImports": true,
+          "esModuleInterop": true,
+          "skipLibCheck": true,
+          "forceConsistentCasingInFileNames": true,
+          "noImplicitAny": false,
+          "strictNullChecks": true,
+          "strictBindCallApply": false,
+          "noFallthroughCasesInSwitch": false
+        }
       }
-    }]
+    ]
   },
   "moduleNameMapper": {
     "^src/(.*)$": "<rootDir>/src/$1"

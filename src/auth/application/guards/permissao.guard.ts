@@ -52,11 +52,11 @@ export class PermissaoGuard implements CanActivate {
       ? requiredPermissoes
       : [requiredPermissoes];
 
-    const hasPermissao = vinculoEmpresa.perfis.some((perfil: any) =>
-      perfil.permissoes?.some((permissao: any) =>
-        requiredPermissoesArray.includes(permissao.codigo),
-      ),
-    );
+    const hasPermissao = vinculoEmpresa.perfis.some((perfil: any) => {
+      return perfil.permissoes?.some((permissao: any) => {
+        return requiredPermissoesArray.includes(permissao.codigo);
+      });
+    });
 
     if (!hasPermissao) {
       throw new ForbiddenException(
