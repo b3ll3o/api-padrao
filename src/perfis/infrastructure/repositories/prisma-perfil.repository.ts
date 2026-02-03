@@ -38,7 +38,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
 
   async create(data: CreatePerfilDto): Promise<Perfil> {
     const { permissoesIds, ...perfilData } = data;
-    const perfil = await this.prisma.perfil.create({
+    const perfil = await this.prisma.extended.perfil.create({
       data: {
         ...perfilData,
         permissoes: {
@@ -57,21 +57,22 @@ export class PrismaPerfilRepository implements PerfilRepository {
     empresaId?: string,
   ): Promise<[Perfil[], number]> {
     const whereClause: any = {};
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
     if (empresaId) {
       whereClause.empresaId = empresaId;
     }
 
-    const data = await this.prisma.perfil.findMany({
+    const client = includeDeleted
+      ? this.prisma.perfil
+      : this.prisma.extended.perfil;
+
+    const data = await client.findMany({
       skip,
       take,
       where: whereClause,
       include: { permissoes: true },
     });
-    const total = await this.prisma.perfil.count({ where: whereClause });
-    return [data.map((p) => this.toDomain(p)), total];
+    const total = await client.count({ where: whereClause });
+    return [data.map((p: any) => this.toDomain(p)), total];
   }
 
   async findOne(
@@ -80,14 +81,15 @@ export class PrismaPerfilRepository implements PerfilRepository {
     empresaId?: string,
   ): Promise<Perfil | undefined> {
     const whereClause: any = { id };
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
     if (empresaId) {
       whereClause.empresaId = empresaId;
     }
 
-    const perfil = await this.prisma.perfil.findFirst({
+    const client = includeDeleted
+      ? this.prisma.perfil
+      : this.prisma.extended.perfil;
+
+    const perfil = await client.findFirst({
       where: whereClause,
       include: { permissoes: true },
     });
@@ -105,7 +107,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
         return undefined; // Or throw NotFoundException
       }
 
-      const perfil = await this.prisma.perfil.update({
+      const perfil = await this.prisma.extended.perfil.update({
         where: { id },
         data: {
           ...perfilData,
@@ -126,9 +128,8 @@ export class PrismaPerfilRepository implements PerfilRepository {
 
   async remove(id: number): Promise<Perfil> {
     try {
-      const softDeletedPerfil = await this.prisma.perfil.update({
+      const softDeletedPerfil = await this.prisma.extended.perfil.delete({
         where: { id },
-        data: { deletedAt: new Date(), ativo: false },
         include: { permissoes: true },
       });
       return this.toDomain(softDeletedPerfil);
@@ -162,13 +163,15 @@ export class PrismaPerfilRepository implements PerfilRepository {
     empresaId?: string,
   ): Promise<Perfil | null> {
     const whereClause: any = { nome };
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
     if (empresaId) {
       whereClause.empresaId = empresaId;
     }
-    const perfil = await this.prisma.perfil.findFirst({
+
+    const client = includeDeleted
+      ? this.prisma.perfil
+      : this.prisma.extended.perfil;
+
+    const perfil = await client.findFirst({
       where: whereClause,
       include: { permissoes: true },
     });
@@ -188,22 +191,23 @@ export class PrismaPerfilRepository implements PerfilRepository {
         mode: 'insensitive',
       },
     };
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
     if (empresaId) {
       whereClause.empresaId = empresaId;
     }
 
-    const data = await this.prisma.perfil.findMany({
+    const client = includeDeleted
+      ? this.prisma.perfil
+      : this.prisma.extended.perfil;
+
+    const data = await client.findMany({
       skip,
       take,
       where: whereClause,
       include: { permissoes: true },
     });
-    const total = await this.prisma.perfil.count({
+    const total = await client.count({
       where: whereClause,
     });
-    return [data.map((p) => this.toDomain(p)), total];
+    return [data.map((p: any) => this.toDomain(p)), total];
   }
 }

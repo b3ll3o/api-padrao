@@ -47,9 +47,12 @@ export class AuthService {
 
     const payload = { email: user.email, sub: user.id, empresas };
     return {
-      access_token: this.jwtService.sign(payload as any, {
-        expiresIn: this.configService.get<string>('JWT_EXPIRES_IN'),
-      } as any),
+      access_token: this.jwtService.sign(
+        payload as any,
+        {
+          expiresIn: this.configService.get<string>('JWT_EXPIRES_IN'),
+        } as any,
+      ),
     };
   }
 }

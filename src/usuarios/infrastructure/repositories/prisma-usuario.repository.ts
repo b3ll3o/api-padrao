@@ -13,7 +13,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
 
   async create(data: Partial<Usuario>): Promise<Usuario> {
     const { email, senha } = data;
-    const usuario = await this.prisma.usuario.create({
+    const usuario = await this.prisma.extended.usuario.create({
       data: {
         email: email as string,
         senha: senha,
@@ -26,17 +26,14 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     id: number,
     includeDeleted: boolean = false,
   ): Promise<Usuario | undefined> {
-    const whereClause: any = { id };
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
+    // If we want to include deleted, we should bypass the extension by providing deletedAt filter
+    const queryResult = includeDeleted
+      ? await this.prisma.usuario.findUnique({ where: { id } })
+      : await this.prisma.extended.usuario.findUnique({ where: { id } });
 
-    const usuario = await this.prisma.usuario.findUnique({
-      where: whereClause,
-    });
-    if (!usuario) return undefined;
+    if (!queryResult) return undefined;
 
-    return this.mapToEntity(usuario);
+    return this.mapToEntity(queryResult);
   }
 
   async findAll(
@@ -46,25 +43,23 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const whereClause: any = {};
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
+    const client = includeDeleted
+      ? this.prisma.usuario
+      : this.prisma.extended.usuario;
 
     const [items, total] = await Promise.all([
-      this.prisma.usuario.findMany({
-        where: whereClause,
+      client.findMany({
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.usuario.count({ where: whereClause }),
+      client.count(),
     ]);
 
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: items.map((usuario) => this.mapToEntity(usuario)),
+      data: items.map((usuario: any) => this.mapToEntity(usuario)),
       total,
       page,
       limit,
@@ -73,8 +68,8 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
   }
 
   async findByEmail(email: string): Promise<Usuario | null> {
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { email, deletedAt: null },
+    const usuario = await this.prisma.extended.usuario.findUnique({
+      where: { email },
     });
     if (!usuario) return null;
     return this.mapToEntity(usuario);
@@ -83,8 +78,8 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
   async findByEmailWithPerfisAndPermissoes(
     email: string,
   ): Promise<Usuario | null> {
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { email, deletedAt: null },
+    const usuario = await this.prisma.extended.usuario.findUnique({
+      where: { email },
       include: {
         empresas: {
           include: {
@@ -104,7 +99,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
 
   async update(id: number, data: Partial<Usuario>): Promise<Usuario> {
     const { email, senha, ativo } = data;
-    const updatedUsuario = await this.prisma.usuario.update({
+    const updatedUsuario = await this.prisma.extended.usuario.update({
       where: { id },
       data: {
         email,
@@ -118,9 +113,9 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
 
   async remove(id: number): Promise<Usuario> {
     try {
-      const softDeletedUsuario = await this.prisma.usuario.update({
+      // The extension will turn this 'delete' into an 'update' automatically
+      const softDeletedUsuario = await this.prisma.extended.usuario.delete({
         where: { id },
-        data: { deletedAt: new Date(), ativo: false },
       });
 
       return this.mapToEntity(softDeletedUsuario);

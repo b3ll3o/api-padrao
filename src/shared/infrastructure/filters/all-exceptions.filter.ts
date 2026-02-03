@@ -24,7 +24,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const httpStatus =
         exception instanceof HttpException
           ? exception.getStatus()
-          : HttpStatus.INTERNAL_SERVER_ERROR;
+          : this.mapPrismaErrorToStatus(exception);
+
+      const message = this.extractErrorMessage(exception, httpStatus);
 
       if (httpStatus >= 500) {
         // Log critical errors in all environments to the logger
@@ -56,10 +58,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         statusCode: httpStatus,
         timestamp: new Date().toISOString(),
         path: httpAdapter.getRequestUrl(request),
-        message:
-          exception instanceof HttpException
-            ? (exception.getResponse() as any).message || exception.message
-            : 'Erro interno no servidor',
+        message,
       };
 
       httpAdapter.reply(response, responseBody, httpStatus);
@@ -81,5 +80,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
           .send({ message: 'Filter crashed', error: String(err) });
       }
     }
+  }
+
+  private mapPrismaErrorToStatus(exception: any): number {
+    if (exception.code === 'P2002') return HttpStatus.CONFLICT;
+    if (exception.code === 'P2025') return HttpStatus.NOT_FOUND;
+    return HttpStatus.INTERNAL_SERVER_ERROR;
+  }
+
+  private extractErrorMessage(exception: any, status: number): string {
+    if (exception instanceof HttpException) {
+      return (exception.getResponse() as any).message || exception.message;
+    }
+    if (exception.code === 'P2002') {
+      return `Conflito de dados: campo '${exception.meta?.target}' já existe.`;
+    }
+    if (exception.code === 'P2025') {
+      return 'Registro não encontrado.';
+    }
+    return status >= 500 ? 'Erro interno no servidor' : exception.message;
   }
 }

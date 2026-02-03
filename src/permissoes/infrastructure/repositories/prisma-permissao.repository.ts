@@ -21,7 +21,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
   }
 
   async create(data: CreatePermissaoDto): Promise<Permissao> {
-    const permissao = await this.prisma.permissao.create({ data });
+    const permissao = await this.prisma.extended.permissao.create({ data });
     return this.toDomain(permissao);
   }
 
@@ -30,31 +30,28 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     take: number,
     includeDeleted: boolean = false,
   ): Promise<[Permissao[], number]> {
-    const whereClause: any = {};
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
+    const client = includeDeleted
+      ? this.prisma.permissao
+      : this.prisma.extended.permissao;
 
-    const data = await this.prisma.permissao.findMany({
+    const data = await client.findMany({
       skip,
       take,
-      where: whereClause,
     });
-    const total = await this.prisma.permissao.count({ where: whereClause });
-    return [data.map((p) => this.toDomain(p)), total];
+    const total = await client.count();
+    return [data.map((p: any) => this.toDomain(p)), total];
   }
 
   async findOne(
     id: number,
     includeDeleted: boolean = false,
   ): Promise<Permissao | undefined> {
-    const whereClause: any = { id };
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
+    const client = includeDeleted
+      ? this.prisma.permissao
+      : this.prisma.extended.permissao;
 
-    const permissao = await this.prisma.permissao.findFirst({
-      where: whereClause,
+    const permissao = await client.findFirst({
+      where: { id },
     });
     return permissao ? this.toDomain(permissao) : undefined;
   }
@@ -72,7 +69,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
         return undefined; // Or throw NotFoundException
       }
 
-      const permissao = await this.prisma.permissao.update({
+      const permissao = await this.prisma.extended.permissao.update({
         where: { id },
         data,
       });
@@ -87,9 +84,8 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
 
   async remove(id: number): Promise<Permissao> {
     try {
-      const softDeletedPermissao = await this.prisma.permissao.update({
+      const softDeletedPermissao = await this.prisma.extended.permissao.delete({
         where: { id },
-        data: { deletedAt: new Date(), ativo: false },
       });
       return this.toDomain(softDeletedPermissao);
     } catch (error) {
@@ -119,12 +115,12 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     nome: string,
     includeDeleted: boolean = false,
   ): Promise<Permissao | null> {
-    const whereClause: any = { nome };
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
-    const permissao = await this.prisma.permissao.findFirst({
-      where: whereClause,
+    const client = includeDeleted
+      ? this.prisma.permissao
+      : this.prisma.extended.permissao;
+
+    const permissao = await client.findFirst({
+      where: { nome },
     });
     return permissao ? this.toDomain(permissao) : null;
   }
@@ -135,24 +131,28 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     take: number,
     includeDeleted: boolean = false,
   ): Promise<[Permissao[], number]> {
-    const whereClause: any = {
-      nome: {
-        contains: nome,
-        mode: 'insensitive',
-      },
-    };
-    if (!includeDeleted) {
-      whereClause.deletedAt = null;
-    }
+    const client = includeDeleted
+      ? this.prisma.permissao
+      : this.prisma.extended.permissao;
 
-    const data = await this.prisma.permissao.findMany({
+    const data = await client.findMany({
       skip,
       take,
-      where: whereClause,
+      where: {
+        nome: {
+          contains: nome,
+          mode: 'insensitive',
+        },
+      },
     });
-    const total = await this.prisma.permissao.count({
-      where: whereClause,
+    const total = await client.count({
+      where: {
+        nome: {
+          contains: nome,
+          mode: 'insensitive',
+        },
+      },
     });
-    return [data.map((p) => this.toDomain(p)), total];
+    return [data.map((p: any) => this.toDomain(p)), total];
   }
 }

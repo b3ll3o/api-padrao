@@ -18,6 +18,7 @@ import { LoggingInterceptor } from './shared/infrastructure/interceptors/logging
 import { EmpresaContext } from './shared/infrastructure/services/empresa-context.service';
 import { EmpresaInterceptor } from './shared/infrastructure/interceptors/empresa.interceptor';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { HealthModule } from './shared/infrastructure/health/health.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     PermissoesModule,
     PerfisModule,
     EmpresasModule,
+    HealthModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

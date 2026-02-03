@@ -6,7 +6,15 @@ import { UpdatePerfilDto } from '../../dto/update-perfil.dto';
 
 describe('PrismaPerfilRepository', () => {
   let repository: PrismaPerfilRepository;
-  let prismaService: PrismaService;
+
+  const mockPerfilModel = {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
+    count: jest.fn(),
+    delete: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -15,12 +23,9 @@ describe('PrismaPerfilRepository', () => {
         {
           provide: PrismaService,
           useValue: {
-            perfil: {
-              create: jest.fn(),
-              findMany: jest.fn(),
-              findFirst: jest.fn(),
-              update: jest.fn(),
-              count: jest.fn(),
+            perfil: mockPerfilModel,
+            extended: {
+              perfil: mockPerfilModel,
             },
           },
         },
@@ -28,7 +33,6 @@ describe('PrismaPerfilRepository', () => {
     }).compile();
 
     repository = module.get<PrismaPerfilRepository>(PrismaPerfilRepository);
-    prismaService = module.get<PrismaService>(PrismaService);
   });
 
   it('deve ser definido', () => {
@@ -56,7 +60,7 @@ describe('PrismaPerfilRepository', () => {
         empresaId: 'empresa-1',
       };
 
-      (prismaService.perfil.create as jest.Mock).mockResolvedValue({
+      mockPerfilModel.create.mockResolvedValue({
         ...mockPerfil,
         permissoes: [{ id: 1 }, { id: 2 }],
       });
@@ -64,16 +68,14 @@ describe('PrismaPerfilRepository', () => {
       const result = await repository.create(createPerfilDto);
 
       expect(result.nome).toBe(createPerfilDto.nome);
-      expect(prismaService.perfil.create).toHaveBeenCalled();
+      expect(mockPerfilModel.create).toHaveBeenCalled();
     });
   });
 
   describe('findAll', () => {
     it('deve retornar uma lista de perfis e o total', async () => {
-      (prismaService.perfil.findMany as jest.Mock).mockResolvedValue([
-        mockPerfil,
-      ]);
-      (prismaService.perfil.count as jest.Mock).mockResolvedValue(1);
+      mockPerfilModel.findMany.mockResolvedValue([mockPerfil]);
+      mockPerfilModel.count.mockResolvedValue(1);
 
       const [result, total] = await repository.findAll(0, 10);
 
@@ -82,14 +84,12 @@ describe('PrismaPerfilRepository', () => {
     });
 
     it('deve filtrar por empresaId se fornecido', async () => {
-      (prismaService.perfil.findMany as jest.Mock).mockResolvedValue([
-        mockPerfil,
-      ]);
-      (prismaService.perfil.count as jest.Mock).mockResolvedValue(1);
+      mockPerfilModel.findMany.mockResolvedValue([mockPerfil]);
+      mockPerfilModel.count.mockResolvedValue(1);
 
       await repository.findAll(0, 10, false, 'empresa-1');
 
-      expect(prismaService.perfil.findMany).toHaveBeenCalledWith(
+      expect(mockPerfilModel.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ empresaId: 'empresa-1' }),
         }),
@@ -100,10 +100,8 @@ describe('PrismaPerfilRepository', () => {
   describe('update', () => {
     it('deve atualizar um perfil com sucesso', async () => {
       const dto: UpdatePerfilDto = { nome: 'Novo Nome' };
-      (prismaService.perfil.findFirst as jest.Mock).mockResolvedValue(
-        mockPerfil,
-      );
-      (prismaService.perfil.update as jest.Mock).mockResolvedValue({
+      mockPerfilModel.findFirst.mockResolvedValue(mockPerfil);
+      mockPerfilModel.update.mockResolvedValue({
         ...mockPerfil,
         nome: 'Novo Nome',
       });
@@ -111,19 +109,19 @@ describe('PrismaPerfilRepository', () => {
       const result = await repository.update(1, dto);
 
       expect(result?.nome).toBe('Novo Nome');
-      expect(prismaService.perfil.update).toHaveBeenCalled();
+      expect(mockPerfilModel.update).toHaveBeenCalled();
     });
 
     it('deve retornar undefined se o perfil não existir', async () => {
-      (prismaService.perfil.findFirst as jest.Mock).mockResolvedValue(null);
+      mockPerfilModel.findFirst.mockResolvedValue(null);
       const result = await repository.update(99, {});
       expect(result).toBeUndefined();
     });
   });
 
   describe('remove', () => {
-    it('deve realizar soft delete', async () => {
-      (prismaService.perfil.update as jest.Mock).mockResolvedValue({
+    it('deve realizar soft delete chamando delete do client estendido', async () => {
+      mockPerfilModel.delete.mockResolvedValue({
         ...mockPerfil,
         ativo: false,
         deletedAt: new Date(),
@@ -132,9 +130,9 @@ describe('PrismaPerfilRepository', () => {
       const result = await repository.remove(1);
 
       expect(result.ativo).toBe(false);
-      expect(prismaService.perfil.update).toHaveBeenCalledWith(
+      expect(mockPerfilModel.delete).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ ativo: false }),
+          where: { id: 1 },
         }),
       );
     });
@@ -142,7 +140,7 @@ describe('PrismaPerfilRepository', () => {
 
   describe('restore', () => {
     it('deve restaurar um perfil deletado', async () => {
-      (prismaService.perfil.update as jest.Mock).mockResolvedValue(mockPerfil);
+      mockPerfilModel.update.mockResolvedValue(mockPerfil);
 
       const result = await repository.restore(1);
 
@@ -153,14 +151,12 @@ describe('PrismaPerfilRepository', () => {
 
   describe('findByNome', () => {
     it('deve buscar por nome exato', async () => {
-      (prismaService.perfil.findFirst as jest.Mock).mockResolvedValue(
-        mockPerfil,
-      );
+      mockPerfilModel.findFirst.mockResolvedValue(mockPerfil);
 
       const result = await repository.findByNome('Admin', false, 'empresa-1');
 
       expect(result?.nome).toBe('Admin');
-      expect(prismaService.perfil.findFirst).toHaveBeenCalledWith(
+      expect(mockPerfilModel.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             nome: 'Admin',
@@ -173,10 +169,8 @@ describe('PrismaPerfilRepository', () => {
 
   describe('findByNomeContaining', () => {
     it('deve buscar por parte do nome', async () => {
-      (prismaService.perfil.findMany as jest.Mock).mockResolvedValue([
-        mockPerfil,
-      ]);
-      (prismaService.perfil.count as jest.Mock).mockResolvedValue(1);
+      mockPerfilModel.findMany.mockResolvedValue([mockPerfil]);
+      mockPerfilModel.count.mockResolvedValue(1);
 
       const [result, total] = await repository.findByNomeContaining(
         'Adm',
@@ -186,7 +180,7 @@ describe('PrismaPerfilRepository', () => {
 
       expect(result).toHaveLength(1);
       expect(total).toBe(1);
-      expect(prismaService.perfil.findMany).toHaveBeenCalledWith(
+      expect(mockPerfilModel.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             nome: expect.objectContaining({ contains: 'Adm' }),
