@@ -26,7 +26,9 @@ export class HealthController {
   @Get('live')
   @Public()
   @HealthCheck()
-  @ApiOperation({ summary: 'Liveness probe - Verifica se o processo está ativo' })
+  @ApiOperation({
+    summary: 'Liveness probe - Verifica se o processo está ativo',
+  })
   checkLiveness() {
     // Verifica apenas recursos básicos do processo
     return this.health.check([
@@ -37,7 +39,9 @@ export class HealthController {
   @Get('ready')
   @Public()
   @HealthCheck()
-  @ApiOperation({ summary: 'Readiness probe - Verifica se as dependências estão prontas' })
+  @ApiOperation({
+    summary: 'Readiness probe - Verifica se as dependências estão prontas',
+  })
   checkReadiness() {
     return this.health.check([
       () => this.prismaIndicator.pingCheck('database', this.prismaService),

@@ -19,7 +19,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
         senha: senha,
       },
     });
-    return this.mapToEntity(usuario);
+    return this.mapToEntity(usuario)!;
   }
 
   async findOne(
@@ -33,7 +33,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
 
     if (!queryResult) return undefined;
 
-    return this.mapToEntity(queryResult);
+    return this.mapToEntity(queryResult) ?? undefined;
   }
 
   async findAll(
@@ -59,7 +59,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: items.map((usuario: any) => this.mapToEntity(usuario)),
+      data: items.map((usuario: any) => this.mapToEntity(usuario)!),
       total,
       page,
       limit,
@@ -72,7 +72,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       where: { email },
     });
     if (!usuario) return null;
-    return this.mapToEntity(usuario);
+    return this.mapToEntity(usuario)!;
   }
 
   async findByEmailWithPerfisAndPermissoes(
@@ -94,7 +94,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     });
     if (!usuario) return null;
 
-    return this.mapToEntity(usuario);
+    return this.mapToEntity(usuario)!;
   }
 
   async update(id: number, data: Partial<Usuario>): Promise<Usuario> {
@@ -108,7 +108,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       },
     });
 
-    return this.mapToEntity(updatedUsuario);
+    return this.mapToEntity(updatedUsuario)!;
   }
 
   async remove(id: number): Promise<Usuario> {
@@ -118,7 +118,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
         where: { id },
       });
 
-      return this.mapToEntity(softDeletedUsuario);
+      return this.mapToEntity(softDeletedUsuario)!;
     } catch (error) {
       if (
         error &&
@@ -139,7 +139,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
         data: { deletedAt: null, ativo: true },
       });
 
-      return this.mapToEntity(restoredUsuario);
+      return this.mapToEntity(restoredUsuario)!;
     } catch (error) {
       if (
         error &&
@@ -153,7 +153,9 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     }
   }
 
-  private mapToEntity(prismaUsuario: any): Usuario {
+  private mapToEntity(prismaUsuario: any): Usuario | null {
+    if (!prismaUsuario) return null;
+
     const newUsuario = new Usuario();
     newUsuario.id = prismaUsuario.id;
     newUsuario.email = prismaUsuario.email;

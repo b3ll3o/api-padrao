@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { UsuariosService } from './application/services/usuarios.service';
 import { UsuariosController } from './application/controllers/usuarios.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
@@ -9,21 +9,16 @@ import {
   UsuarioAuthorizationService,
 } from './application/services/usuario-authorization.service';
 import { SharedModule } from '../shared/shared.module';
-import { EmpresaRepository } from '../empresas/domain/repositories/empresa.repository';
-import { PrismaEmpresaRepository } from '../empresas/infrastructure/repositories/prisma-empresa.repository';
+import { EmpresasModule } from '../empresas/empresas.module';
 
 @Module({
-  imports: [PrismaModule, SharedModule],
+  imports: [PrismaModule, SharedModule, forwardRef(() => EmpresasModule)],
   controllers: [UsuariosController],
   providers: [
     UsuariosService,
     {
       provide: UsuarioRepository,
       useClass: PrismaUsuarioRepository,
-    },
-    {
-      provide: EmpresaRepository,
-      useClass: PrismaEmpresaRepository,
     },
     {
       provide: IUsuarioAuthorizationService,

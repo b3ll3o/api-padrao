@@ -15,7 +15,7 @@ import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { IUsuarioAuthorizationService } from './usuario-authorization.service';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
-import { EmpresaRepository } from '../../../empresas/domain/repositories/empresa.repository';
+import { Roles } from '../../../shared/domain/constants/auth.constants';
 
 type UsuarioLogado = JwtPayload;
 
@@ -27,7 +27,6 @@ export class UsuariosService {
     private readonly usuarioRepository: UsuarioRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly usuarioAuthorizationService: IUsuarioAuthorizationService,
-    private readonly empresaRepository: EmpresaRepository,
   ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto) {
@@ -63,14 +62,14 @@ export class UsuariosService {
     empresaId?: string,
   ): Promise<PaginatedResponseDto<Usuario>> {
     const isAdminGlobal = usuarioLogado.empresas?.some((e) =>
-      e.perfis?.some((p) => p.codigo === 'ADMIN'),
+      e.perfis?.some((p) => p.codigo === Roles.ADMIN),
     );
 
     const isAdminInEmpresa =
       empresaId &&
       usuarioLogado.empresas?.some(
         (e) =>
-          e.id === empresaId && e.perfis?.some((p) => p.codigo === 'ADMIN'),
+          e.id === empresaId && e.perfis?.some((p) => p.codigo === Roles.ADMIN),
       );
 
     if (!isAdminGlobal && !isAdminInEmpresa) {
@@ -136,8 +135,9 @@ export class UsuariosService {
             'Você não tem permissão para restaurar este usuário',
           );
         }
-        const restoredUsuario = await this.usuarioRepository.restore(id);
-        return restoredUsuario; // Return immediately after restore
+        await this.usuarioRepository.restore(id);
+        usuario.deletedAt = null;
+        usuario.ativo = true;
       } else {
         // updateUsuarioDto.ativo === false
         // Attempt to soft delete
@@ -158,11 +158,10 @@ export class UsuariosService {
           );
         }
 
-        const softDeletedUsuario = await this.usuarioRepository.remove(id);
-        this.logger.log(
-          `Usuário removido (soft-delete): ${softDeletedUsuario.email}`,
-        );
-        return softDeletedUsuario; // Return immediately after soft delete
+        await this.usuarioRepository.remove(id);
+        usuario.deletedAt = new Date();
+        usuario.ativo = false;
+        this.logger.log(`Usuário removido (soft-delete): ${usuario.email}`);
       }
     }
 
@@ -201,13 +200,5 @@ export class UsuariosService {
     this.logger.log(`Usuário atualizado: ${updatedUsuario.email}`);
 
     return updatedUsuario;
-  }
-
-  async findCompaniesByUser(usuarioId: number, paginationDto: PaginationDto) {
-    const usuario = await this.usuarioRepository.findOne(usuarioId);
-    if (!usuario) {
-      throw new NotFoundException(`Usuário com ID ${usuarioId} não encontrado`);
-    }
-    return this.empresaRepository.findCompaniesByUser(usuarioId, paginationDto);
   }
 }

@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
-// import { Usuario } from '../domain/entities/usuario.entity'; // Não é mais necessário importar Usuario aqui
+import {
+  Roles,
+  Permissoes,
+} from '../../../shared/domain/constants/auth.constants';
 
 export abstract class IUsuarioAuthorizationService {
   abstract canAccessUsuario(
@@ -26,7 +29,7 @@ export class UsuarioAuthorizationService implements IUsuarioAuthorizationService
   private isAdmin(usuarioLogado: JwtPayload): boolean {
     return (
       usuarioLogado.empresas?.some((e) =>
-        e.perfis?.some((p) => p.codigo === 'ADMIN'),
+        e.perfis?.some((p) => p.codigo === Roles.ADMIN),
       ) || false
     );
   }
@@ -55,7 +58,9 @@ export class UsuarioAuthorizationService implements IUsuarioAuthorizationService
     return (
       usuarioLogado.empresas?.some((e) =>
         e.perfis?.some((p) =>
-          p.permissoes?.some((perm) => perm.codigo === 'RESTORE_USUARIO'),
+          p.permissoes?.some(
+            (perm) => perm.codigo === Permissoes.RESTORE_USUARIO,
+          ),
         ),
       ) || false
     );

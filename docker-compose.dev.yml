@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    container_name: postgres_container_dev
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - '5434:5432'
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data:Z
+    networks:
+      - local-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  pgadmin:
+    image: docker.io/dpage/pgadmin4:8.12
+    container_name: pgadmin_container_dev
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "8081:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - local-network
+    volumes:
+      - pgadmin_data_dev:/var/lib/pgadmin:Z
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  otel-collector:
+    image: docker.io/otel/opentelemetry-collector:0.111.0
+    container_name: otel_collector_container_dev
+    restart: always
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:Z
+    ports:
+      - "43170:4317"
+      - "4318:4318"
+      - "13133:13133"
+    networks:
+      - local-network
+    depends_on:
+      jaeger:
+        condition: service_healthy
+
+  jaeger:
+    image: docker.io/jaegertracing/all-in-one:1.62.0
+    container_name: jaeger_container_dev
+    restart: always
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+    networks:
+      - local-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:16686"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_dev:
+  pgadmin_data_dev:
+
+networks:
+  local-network:
+    driver: bridge

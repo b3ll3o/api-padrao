@@ -8,13 +8,18 @@ receivers:
 
 exporters:
   otlp:
-    endpoint: jaeger:4317 # Jaeger v2 aceita OTLP gRPC na porta 4317
+    endpoint: jaeger:4317
     tls:
       insecure: true
   debug:
     verbosity: normal
 
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
 service:
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]

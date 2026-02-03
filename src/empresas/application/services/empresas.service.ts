@@ -82,4 +82,13 @@ export class EmpresasService {
     await this.findOne(empresaId); // Valida existência
     return this.empresaRepository.findUsersByCompany(empresaId, paginationDto);
   }
+
+  async findCompaniesByUser(usuarioId: number, paginationDto: PaginationDto) {
+    // Validar existência do usuário
+    const usuario = await this.usuarioRepository.findOne(usuarioId);
+    if (!usuario) {
+      throw new NotFoundException(`Usuário com ID ${usuarioId} não encontrado`);
+    }
+    return this.empresaRepository.findCompaniesByUser(usuarioId, paginationDto);
+  }
 }

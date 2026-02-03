@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { EmpresasService } from './application/services/empresas.service';
 import { EmpresasController } from './application/controllers/empresas.controller';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -8,7 +8,7 @@ import { UsuariosModule } from '../usuarios/usuarios.module';
 import { PerfisModule } from '../perfis/perfis.module';
 
 @Module({
-  imports: [PrismaModule, UsuariosModule, PerfisModule],
+  imports: [PrismaModule, forwardRef(() => UsuariosModule), PerfisModule],
   controllers: [EmpresasController],
   providers: [
     EmpresasService,
@@ -17,6 +17,6 @@ import { PerfisModule } from '../perfis/perfis.module';
       useClass: PrismaEmpresaRepository,
     },
   ],
-  exports: [EmpresasService],
+  exports: [EmpresasService, EmpresaRepository],
 })
 export class EmpresasModule {}

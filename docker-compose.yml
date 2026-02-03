@@ -1,22 +1,34 @@
 services:
   postgres:
-    image: docker.io/library/postgres:latest
+    image: docker.io/library/postgres:16-alpine
     container_name: postgres_container
     restart: always
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - '5433:5432'
+      - '5434:5432'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data:Z
     networks:
       - local-network
-    # Removido healthcheck e limites de recursos para compatibilidade com Podman 3.4.4 e cgroups locais
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   pgadmin:
-    image: docker.io/dpage/pgadmin4:latest
+    image: docker.io/dpage/pgadmin4:8.12
     container_name: pgadmin_container
     restart: always
     environment:
@@ -25,15 +37,60 @@ services:
     ports:
       - "8081:80"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - local-network
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - pgadmin_data:/var/lib/pgadmin:Z
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
-  # Novo serviço: OpenTelemetry Collector
+  api:
+    build: 
+      context: .
+      target: runner
+    container_name: api_container
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      NODE_ENV: production
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    networks:
+      - local-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
   otel-collector:
-    image: docker.io/otel/opentelemetry-collector:latest
+    image: docker.io/otel/opentelemetry-collector:0.111.0
     container_name: otel_collector_container
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
@@ -45,17 +102,38 @@ services:
     networks:
       - local-network
     depends_on:
-      - jaeger
+      jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
-  # Novo serviço: Jaeger v2 (mais moderno e com suporte OTLP nativo)
   jaeger:
-    image: docker.io/jaegertracing/jaeger:latest
+    image: docker.io/jaegertracing/all-in-one:1.62.0
     container_name: jaeger_container
+    restart: always
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
     ports:
       - "16686:16686" # Jaeger UI
       - "4317:4317"   # OTLP gRPC receiver
     networks:
       - local-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:16686"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 volumes:
   postgres_data:
@@ -63,3 +141,4 @@ volumes:
 
 networks:
   local-network:
+    driver: bridge

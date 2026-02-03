@@ -25,6 +25,8 @@ import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto
 import { UsuarioLogado } from '../../../shared/application/decorators/usuario-logado.decorator';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { EmpresaId } from '../../../shared/application/decorators/empresa-id.decorator';
+import { EmpresasService } from '../../../empresas/application/services/empresas.service';
+import { Permissoes } from '../../../shared/domain/constants/auth.constants';
 
 @ApiTags('Usuários')
 @ApiBearerAuth('JWT-auth')
@@ -35,7 +37,10 @@ import { EmpresaId } from '../../../shared/application/decorators/empresa-id.dec
 })
 @Controller('usuarios')
 export class UsuariosController {
-  constructor(private readonly usuariosService: UsuariosService) {}
+  constructor(
+    private readonly usuariosService: UsuariosService,
+    private readonly empresasService: EmpresasService,
+  ) {}
 
   @Public()
   @Post()
@@ -48,7 +53,7 @@ export class UsuariosController {
   }
 
   @Get()
-  @TemPermissao('READ_USUARIOS')
+  @TemPermissao(Permissoes.READ_USUARIOS)
   @ApiOperation({ summary: 'Listar todos os usuários paginados' })
   @ApiResponse({
     status: 200,
@@ -94,7 +99,7 @@ export class UsuariosController {
     description:
       'Usuário não encontrado - O ID especificado não existe no sistema ou está deletado.',
   })
-  @TemPermissao('READ_USUARIO_BY_ID')
+  @TemPermissao(Permissoes.READ_USUARIO_BY_ID)
   findOne(
     @Param('id') id: string,
     @UsuarioLogado() usuarioLogado: JwtPayload,
@@ -121,7 +126,7 @@ export class UsuariosController {
     status: 404,
     description: 'Usuário não encontrado - O ID especificado não existe.',
   })
-  @TemPermissao('UPDATE_USUARIO')
+  @TemPermissao(Permissoes.UPDATE_USUARIO)
   update(
     @Param('id') id: string,
     @Body() updateUsuarioDto: UpdateUsuarioDto,
@@ -137,7 +142,7 @@ export class UsuariosController {
   }
 
   @Get(':id/empresas')
-  @TemPermissao('READ_USUARIO_EMPRESAS')
+  @TemPermissao(Permissoes.READ_USUARIO_EMPRESAS)
   @ApiOperation({ summary: 'Listar empresas vinculadas a um usuário' })
   @ApiResponse({
     status: 200,
@@ -147,6 +152,6 @@ export class UsuariosController {
     @Param('id') id: string,
     @Query() paginationDto: PaginationDto,
   ) {
-    return this.usuariosService.findCompaniesByUser(+id, paginationDto);
+    return this.empresasService.findCompaniesByUser(+id, paginationDto);
   }
 }

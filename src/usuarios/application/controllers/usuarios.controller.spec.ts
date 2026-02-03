@@ -5,6 +5,7 @@ import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+import { EmpresasService } from '../../../empresas/application/services/empresas.service';
 
 describe('UsuariosController', () => {
   let controller: UsuariosController;
@@ -17,6 +18,10 @@ describe('UsuariosController', () => {
     remove: jest.fn(),
     restore: jest.fn(),
     findAll: jest.fn(),
+  };
+
+  const mockEmpresasService = {
+    findCompaniesByUser: jest.fn(),
   };
 
   const mockUsuarioLogado: JwtPayload = {
@@ -32,6 +37,10 @@ describe('UsuariosController', () => {
         {
           provide: UsuariosService,
           useValue: mockUsuariosService,
+        },
+        {
+          provide: EmpresasService,
+          useValue: mockEmpresasService,
         },
       ],
     }).compile();

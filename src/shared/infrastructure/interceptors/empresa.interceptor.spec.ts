@@ -16,7 +16,7 @@ describe('EmpresaInterceptor', () => {
     expect(interceptor).toBeDefined();
   });
 
-  it('deve extrair empresaId do header x-empresa-id', () => {
+  it('deve extrair empresaId do header x-empresa-id', (done) => {
     const request = {
       headers: { 'x-empresa-id': 'header-uuid' },
       user: { sub: 1 },
@@ -27,16 +27,19 @@ describe('EmpresaInterceptor', () => {
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
-      handle: () => of(null),
+      handle: () => {
+        expect(context.empresaId).toBe('header-uuid');
+        expect(context.usuarioId).toBe(1);
+        return of(null);
+      },
     };
 
-    interceptor.intercept(executionContext, next);
-
-    expect(context.empresaId).toBe('header-uuid');
-    expect(context.usuarioId).toBe(1);
+    interceptor.intercept(executionContext, next).subscribe({
+      complete: () => done(),
+    });
   });
 
-  it('deve extrair empresaId do usuário logado se o header estiver ausente', () => {
+  it('deve extrair empresaId do usuário logado se o header estiver ausente', (done) => {
     const request = {
       headers: {},
       user: { sub: 1, empresaId: 'jwt-uuid' },
@@ -47,15 +50,18 @@ describe('EmpresaInterceptor', () => {
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
-      handle: () => of(null),
+      handle: () => {
+        expect(context.empresaId).toBe('jwt-uuid');
+        return of(null);
+      },
     };
 
-    interceptor.intercept(executionContext, next);
-
-    expect(context.empresaId).toBe('jwt-uuid');
+    interceptor.intercept(executionContext, next).subscribe({
+      complete: () => done(),
+    });
   });
 
-  it('deve priorizar o header x-empresa-id sobre o JWT', () => {
+  it('deve priorizar o header x-empresa-id sobre o JWT', (done) => {
     const request = {
       headers: { 'x-empresa-id': 'header-uuid' },
       user: { sub: 1, empresaId: 'jwt-uuid' },
@@ -66,15 +72,18 @@ describe('EmpresaInterceptor', () => {
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
-      handle: () => of(null),
+      handle: () => {
+        expect(context.empresaId).toBe('header-uuid');
+        return of(null);
+      },
     };
 
-    interceptor.intercept(executionContext, next);
-
-    expect(context.empresaId).toBe('header-uuid');
+    interceptor.intercept(executionContext, next).subscribe({
+      complete: () => done(),
+    });
   });
 
-  it('não deve setar contexto se o usuário não estiver logado', () => {
+  it('não deve setar contexto se o usuário não estiver logado', (done) => {
     const request = {
       headers: { 'x-empresa-id': 'header-uuid' },
     };
@@ -84,11 +93,14 @@ describe('EmpresaInterceptor', () => {
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
-      handle: () => of(null),
+      handle: () => {
+        expect(() => context.empresaId).toThrow();
+        return of(null);
+      },
     };
 
-    interceptor.intercept(executionContext, next);
-
-    expect(() => context.empresaId).toThrow();
+    interceptor.intercept(executionContext, next).subscribe({
+      complete: () => done(),
+    });
   });
 });
