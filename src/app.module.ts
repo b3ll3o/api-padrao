@@ -26,34 +26,25 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
       envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
       validationSchema: envValidationSchema,
     }),
-    // Removed LoggerModule configuration
     UsuariosModule,
     PrismaModule,
     AuthModule,
     PermissoesModule,
     PerfisModule,
     EmpresasModule,
-    ...(process.env.NODE_ENV === 'test'
-      ? []
-      : [
-          ThrottlerModule.forRoot([
-            {
-              ttl: 60000,
-              limit: 100,
-            },
-          ]),
-        ]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
   ],
   controllers: [],
   providers: [
-    ...(process.env.NODE_ENV === 'test'
-      ? []
-      : [
-          {
-            provide: APP_GUARD,
-            useClass: ThrottlerGuard,
-          },
-        ]),
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
@@ -74,14 +65,10 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
     },
-    ...(process.env.NODE_ENV === 'test'
-      ? []
-      : [
-          {
-            provide: APP_INTERCEPTOR,
-            useClass: EmpresaInterceptor,
-          },
-        ]),
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: EmpresaInterceptor,
+    },
     {
       provide: PasswordHasher,
       useClass: BcryptPasswordHasherService,
@@ -90,5 +77,3 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
   ],
 })
 export class AppModule {}
-
-// Test comment for pre-commit hooks

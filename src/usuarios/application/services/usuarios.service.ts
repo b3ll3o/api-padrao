@@ -60,12 +60,21 @@ export class UsuariosService {
     paginationDto: PaginationDto,
     usuarioLogado: UsuarioLogado,
     includeDeleted: boolean = false,
+    empresaId?: string,
   ): Promise<PaginatedResponseDto<Usuario>> {
-    // Basic admin check for listing all users - Check if admin in ANY company
-    const isAdmin = usuarioLogado.empresas?.some((e: any) =>
+    const isAdminGlobal = usuarioLogado.empresas?.some((e: any) =>
       e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
     );
-    if (!isAdmin) {
+
+    const isAdminInEmpresa =
+      empresaId &&
+      usuarioLogado.empresas?.some(
+        (e: any) =>
+          e.id === empresaId &&
+          e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
+      );
+
+    if (!isAdminGlobal && !isAdminInEmpresa) {
       throw new ForbiddenException(
         'Você não tem permissão para listar usuários',
       );
@@ -102,6 +111,7 @@ export class UsuariosService {
     id: number,
     updateUsuarioDto: UpdateUsuarioDto,
     usuarioLogado: UsuarioLogado,
+    empresaId?: string,
   ): Promise<Usuario> {
     const usuario = await this.usuarioRepository.findOne(id, true); // Find including deleted to allow update on soft-deleted
     if (!usuario) {
@@ -136,11 +146,15 @@ export class UsuariosService {
           throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
         }
 
-        // Check if user is admin (restored check) - Check if admin in ANY company
-        const isAdmin = usuarioLogado.empresas?.some((e: any) =>
-          e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
-        );
-        if (!isAdmin) {
+        const isAdminInEmpresa =
+          empresaId &&
+          usuarioLogado.empresas?.some(
+            (e: any) =>
+              e.id === empresaId &&
+              e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
+          );
+
+        if (!isAdminInEmpresa) {
           throw new ForbiddenException(
             'Você não tem permissão para deletar este usuário',
           );

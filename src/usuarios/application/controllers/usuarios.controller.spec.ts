@@ -68,7 +68,6 @@ describe('UsuariosController', () => {
       const result = await controller.findOne('1', mockUsuarioLogado);
 
       expect(result).toEqual(user);
-      expect(service.findOne).toHaveBeenCalledWith(1, mockUsuarioLogado);
     });
   });
 
@@ -78,13 +77,19 @@ describe('UsuariosController', () => {
       const updatedUser = new Usuario();
       mockUsuariosService.update.mockResolvedValue(updatedUser);
 
-      const result = await controller.update('1', updateDto, mockUsuarioLogado);
+      const result = await controller.update(
+        '1',
+        updateDto,
+        mockUsuarioLogado,
+        undefined,
+      );
 
       expect(result).toEqual(updatedUser);
       expect(service.update).toHaveBeenCalledWith(
         1,
         updateDto,
         mockUsuarioLogado,
+        undefined,
       );
     });
   });

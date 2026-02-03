@@ -119,13 +119,14 @@ export class PerfisService {
     id: number,
     updatePerfilDto: UpdatePerfilDto,
     usuarioLogado: UsuarioLogado,
+    empresaId?: string,
   ): Promise<Perfil> {
     if (updatePerfilDto.permissoesIds) {
       for (const permId of updatePerfilDto.permissoesIds) {
         await this.permissoesService.findOne(permId);
       }
     }
-    const perfil = await this.perfilRepository.findOne(id, true);
+    const perfil = await this.perfilRepository.findOne(id, true, empresaId);
     if (!perfil) {
       throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
     }

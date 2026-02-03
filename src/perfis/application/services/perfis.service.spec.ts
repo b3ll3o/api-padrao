@@ -555,7 +555,11 @@ describe('PerfisService', () => {
       );
 
       expect(result).toEqual(expectedPerfil);
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true); // Should find including deleted
+      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(
+        1,
+        true,
+        undefined,
+      ); // Should find including deleted
       expect(mockPerfilRepository.update).toHaveBeenCalledWith(
         1,
         updatePerfilDto,
@@ -588,7 +592,11 @@ describe('PerfisService', () => {
       );
 
       expect(result).toEqual(expectedPerfil);
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(1, true);
+      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(
+        1,
+        true,
+        undefined,
+      );
       expect(mockPerfilRepository.update).toHaveBeenCalledWith(
         1,
         updatePerfilDto,
@@ -606,7 +614,11 @@ describe('PerfisService', () => {
           mockAdminUsuarioLogado,
         ),
       ).rejects.toThrow(NotFoundException);
-      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(999, true);
+      expect(mockPerfilRepository.findOne).toHaveBeenCalledWith(
+        999,
+        true,
+        undefined,
+      );
       expect(mockPerfilRepository.update).not.toHaveBeenCalled();
     });
 

@@ -136,7 +136,13 @@ export class PerfisController {
     @Param('id') id: string,
     @Body() updatePerfilDto: UpdatePerfilDto,
     @UsuarioLogado() usuarioLogado: JwtPayload,
+    @EmpresaId() empresaId?: string,
   ): Promise<Perfil> {
-    return this.perfisService.update(+id, updatePerfilDto, usuarioLogado);
+    return this.perfisService.update(
+      +id,
+      updatePerfilDto,
+      usuarioLogado,
+      empresaId,
+    );
   }
 }

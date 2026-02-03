@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -30,7 +31,6 @@ describe('PerfisController (e2e)', () => {
         },
       );
       prisma = app.get<PrismaService>(PrismaService);
-      // Habilita logs do prisma via $on se possível, ou garante que o serviço esteja configurado
       jwtService = app.get<JwtService>(JwtService);
 
       // Injeta logger de erro global no Fastify para testes (DEVE ser antes do init/listen)
@@ -48,6 +48,13 @@ describe('PerfisController (e2e)', () => {
         });
 
       await app.init();
+      app.useGlobalPipes(
+        new ValidationPipe({
+          whitelist: true,
+          forbidNonWhitelisted: true,
+          transform: true,
+        }),
+      );
       await app.getHttpAdapter().getInstance().ready();
     } catch (error) {
       console.error('--- BEFORE ALL ERROR ---');
@@ -171,20 +178,13 @@ describe('PerfisController (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .set('x-empresa-id', globalEmpresaId)
         .send(dto)
-        .expect((res) => {
-          if (res.status !== 201) {
-            console.log('--- ERROR LOG ---');
-            console.log('Status:', res.status);
-            console.log('Body:', JSON.stringify(res.body, null, 2));
-            console.log('-----------------');
-          }
-        })
         .expect(201);
     });
 
     it('deve retornar 409 se o perfil com o mesmo nome já existir na mesma empresa', async () => {
       const dto = {
         nome: 'Perfil Duplicado',
+        codigo: 'DUPLICADO',
         descricao: 'Descrição duplicada',
         empresaId: globalEmpresaId,
       };
@@ -193,7 +193,7 @@ describe('PerfisController (e2e)', () => {
       await prisma.perfil.create({
         data: {
           nome: dto.nome,
-          codigo: 'DUPLICADO',
+          codigo: dto.codigo,
           descricao: dto.descricao,
           empresaId: globalEmpresaId,
         },

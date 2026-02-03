@@ -24,6 +24,7 @@ import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { UsuarioLogado } from '../../../shared/application/decorators/usuario-logado.decorator';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+import { EmpresaId } from '../../../shared/application/decorators/empresa-id.decorator';
 
 @ApiTags('Usuários')
 @ApiBearerAuth('JWT-auth')
@@ -57,8 +58,14 @@ export class UsuariosController {
   findAll(
     @Query() paginationDto: PaginationDto,
     @UsuarioLogado() usuarioLogado: JwtPayload,
+    @EmpresaId() empresaId?: string,
   ) {
-    return this.usuariosService.findAll(paginationDto, usuarioLogado);
+    return this.usuariosService.findAll(
+      paginationDto,
+      usuarioLogado,
+      false,
+      empresaId,
+    );
   }
 
   @Get(':id')
@@ -119,8 +126,14 @@ export class UsuariosController {
     @Param('id') id: string,
     @Body() updateUsuarioDto: UpdateUsuarioDto,
     @UsuarioLogado() usuarioLogado: JwtPayload,
+    @EmpresaId() empresaId?: string,
   ): Promise<Usuario> {
-    return this.usuariosService.update(+id, updateUsuarioDto, usuarioLogado);
+    return this.usuariosService.update(
+      +id,
+      updateUsuarioDto,
+      usuarioLogado,
+      empresaId,
+    );
   }
 
   @Get(':id/empresas')

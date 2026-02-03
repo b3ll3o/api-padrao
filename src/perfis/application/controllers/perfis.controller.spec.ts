@@ -108,6 +108,7 @@ describe('PerfisController', () => {
         '1',
         updatePerfilDto,
         mockUsuarioLogado,
+        undefined,
       );
 
       expect(result).toBe(expectedResult);
@@ -115,6 +116,7 @@ describe('PerfisController', () => {
         1,
         updatePerfilDto,
         mockUsuarioLogado,
+        undefined,
       );
     });
   });
