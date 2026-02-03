@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { LoginUsuarioDto } from '../../dto/login-usuario.dto';
 import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
-import { jwtConstants } from '../../infrastructure/constants/jwt.constants';
+import { ConfigService } from '@nestjs/config';
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 
 @Injectable()
@@ -11,6 +11,7 @@ export class AuthService {
     private usuarioRepository: UsuarioRepository,
     private jwtService: JwtService,
     private passwordHasher: PasswordHasher,
+    private configService: ConfigService,
   ) {}
 
   async login(loginUsuarioDto: LoginUsuarioDto) {
@@ -46,12 +47,9 @@ export class AuthService {
 
     const payload = { email: user.email, sub: user.id, empresas };
     return {
-      access_token: this.jwtService.sign(
-        payload as any,
-        {
-          expiresIn: jwtConstants.expiresIn,
-        } as any,
-      ),
+      access_token: this.jwtService.sign(payload as any, {
+        expiresIn: this.configService.get<string>('JWT_EXPIRES_IN'),
+      } as any),
     };
   }
 }

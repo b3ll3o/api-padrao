@@ -27,6 +27,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
           : HttpStatus.INTERNAL_SERVER_ERROR;
 
       if (httpStatus >= 500) {
+        // Log critical errors in all environments to the logger
+        this.logger.error(
+          `Critical Error at ${httpAdapter.getRequestUrl(request)}: ${
+            exception instanceof Error ? exception.message : String(exception)
+          }`,
+          exception instanceof Error ? exception.stack : undefined,
+        );
+
         if (process.env.NODE_ENV === 'test') {
           process.stderr.write('\n--- CRITICAL E2E ERROR ---\n');
           process.stderr.write(

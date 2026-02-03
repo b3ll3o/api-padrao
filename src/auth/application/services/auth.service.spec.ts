@@ -8,6 +8,7 @@ import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
 import { Permissao } from '../../../permissoes/domain/entities/permissao.entity';
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 import { UsuarioEmpresa } from '../../../usuarios/domain/entities/usuario-empresa.entity';
+import { ConfigService } from '@nestjs/config';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -22,6 +23,13 @@ describe('AuthService', () => {
 
   const mockPasswordHasher = {
     compare: jest.fn(),
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      if (key === 'JWT_EXPIRES_IN') return '60s';
+      return null;
+    }),
   };
 
   beforeEach(async () => {
@@ -39,6 +47,10 @@ describe('AuthService', () => {
         {
           provide: PasswordHasher,
           useValue: mockPasswordHasher,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();

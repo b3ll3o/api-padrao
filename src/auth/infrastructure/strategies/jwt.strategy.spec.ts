@@ -1,6 +1,7 @@
 import { JwtStrategy, JwtPayload } from './jwt.strategy';
 import { UsuariosService } from '../../../usuarios/application/services/usuarios.service';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 // import { Strategy } from 'passport-jwt'; // Removed unused import
 
 // Mock PassportStrategy and Strategy
@@ -31,19 +32,27 @@ jest.mock('@nestjs/passport', () => ({
   }),
 }));
 
-// Mock jwtConstants using the exact relative path as in jwt.strategy.ts
-jest.mock('../constants/jwt.constants', () => ({
-  jwtConstants: {
-    secret: 'mockSecret',
-  },
-}));
-
 describe('JwtStrategy', () => {
   let jwtStrategy: JwtStrategy;
   // let usuariosService: UsuariosService; // Removed unused variable
 
   const mockUsuariosService = {
     // Mock any methods of UsuariosService that JwtStrategy might use
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      if (key === 'JWT_SECRET') {
+        return 'mockSecret';
+      }
+      return null;
+    }),
+    getOrThrow: jest.fn((key: string) => {
+      if (key === 'JWT_SECRET') {
+        return 'mockSecret';
+      }
+      throw new Error(`Config ${key} missing`);
+    }),
   };
 
   beforeEach(async () => {
@@ -56,6 +65,10 @@ describe('JwtStrategy', () => {
         {
           provide: UsuariosService,
           useValue: mockUsuariosService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();
