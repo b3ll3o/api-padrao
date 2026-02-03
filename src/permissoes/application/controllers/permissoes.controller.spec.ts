@@ -54,6 +54,13 @@ describe('PermissoesController', () => {
             isAdmin: jest.fn(() => true), // Mock isAdmin to return true for testing purposes
           },
         },
+        {
+          provide: 'CACHE_MANAGER',
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

@@ -1,4 +1,5 @@
 // IMPORTANT: This MUST be the very first import in your application!
+import './instrument';
 import './tracing';
 
 import { NestFactory } from '@nestjs/core';
@@ -25,16 +26,35 @@ async function bootstrap() {
   app.useGlobalInterceptors(new LoggerErrorInterceptor());
 
   // Security: Helmet
-  await app.register(helmet);
-
-  // Security: CORS
-  app.enableCors({
-    origin: true, // Em produção, deve ser uma lista explícita de domínios
-    credentials: true,
-  });
-
   const configService = app.get(ConfigService);
   const logger = app.get(Logger);
+
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: [`'self'`],
+        styleSrc: [`'self'`, `'unsafe-inline'`],
+        imgSrc: [`'self'`, 'data:', 'validator.swagger.io'],
+        scriptSrc: [`'self'`, `https: 'unsafe-inline'`],
+      },
+    },
+  });
+
+  // Security: CORS
+  const isProduction = configService.get('NODE_ENV') === 'production';
+  app.enableCors({
+    origin: isProduction
+      ? configService.get<string>('ALLOWED_ORIGINS')?.split(',') || false
+      : true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-empresa-id',
+      'x-request-id',
+    ],
+  });
 
   logger.log(`NODE_ENV: ${configService.get('NODE_ENV')}`);
 

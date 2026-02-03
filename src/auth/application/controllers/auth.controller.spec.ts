@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from '../services/auth.service';
 import { LoginUsuarioDto } from '../../dto/login-usuario.dto';
+import { FastifyRequest } from 'fastify';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -36,14 +37,22 @@ describe('AuthController', () => {
         email: 'test@example.com',
         senha: 'password123',
       };
+      const mockReq = {
+        ip: '127.0.0.1',
+        headers: { 'user-agent': 'mockAgent' },
+      } as unknown as FastifyRequest;
       const expectedResult = { access_token: 'mockAccessToken' };
 
       mockAuthService.login.mockResolvedValue(expectedResult);
 
-      const result = await controller.login(loginDto);
+      const result = await controller.login(loginDto, mockReq);
 
       expect(result).toEqual(expectedResult);
-      expect(authService.login).toHaveBeenCalledWith(loginDto);
+      expect(authService.login).toHaveBeenCalledWith(
+        loginDto,
+        mockReq.ip,
+        mockReq.headers['user-agent'],
+      );
     });
   });
 });

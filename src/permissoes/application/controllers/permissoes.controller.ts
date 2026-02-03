@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   ForbiddenException,
+  UseInterceptors,
 } from '@nestjs/common';
 import { PermissoesService } from '../services/permissoes.service';
 import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
@@ -27,6 +28,7 @@ import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { FastifyRequest } from 'fastify';
 import { AuthorizationService } from '../../../shared/domain/services/authorization.service';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 
 @ApiTags('Permissões')
 @ApiBearerAuth('JWT-auth')
@@ -58,6 +60,8 @@ export class PermissoesController {
 
   @TemPermissao('READ_PERMISSOES')
   @Get()
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60) // 1 minute for permissions
   @ApiOperation({
     summary: 'Listar todas as permissões',
     description: 'Retorna todas as permissões não deletadas por padrão.',

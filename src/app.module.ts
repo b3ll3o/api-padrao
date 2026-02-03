@@ -2,6 +2,9 @@ import { Module, ClassSerializerInterceptor } from '@nestjs/common';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
+import { BullModule } from '@nestjs/bullmq';
 
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -20,6 +23,9 @@ import { EmpresaContext } from './shared/infrastructure/services/empresa-context
 import { EmpresaInterceptor } from './shared/infrastructure/interceptors/empresa.interceptor';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { HealthModule } from './shared/infrastructure/health/health.module';
+import { SharedModule } from './shared/shared.module';
+import { AppConfig } from './shared/infrastructure/config/app.config';
+import { AuditInterceptor } from './shared/infrastructure/interceptors/audit.interceptor';
 
 @Module({
   imports: [
@@ -37,6 +43,30 @@ import { HealthModule } from './shared/infrastructure/health/health.module';
             : undefined,
       },
     }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [SharedModule],
+      inject: [AppConfig],
+      useFactory: async (config: AppConfig) => ({
+        store: await redisStore({
+          socket: {
+            host: config.redisHost,
+            port: config.redisPort,
+          },
+          ttl: 600, // 10 minutes default
+        }),
+      }),
+    }),
+    BullModule.forRootAsync({
+      imports: [SharedModule],
+      inject: [AppConfig],
+      useFactory: (config: AppConfig) => ({
+        connection: {
+          host: config.redisHost,
+          port: config.redisPort,
+        },
+      }),
+    }),
     UsuariosModule,
     PrismaModule,
     AuthModule,
@@ -46,8 +76,24 @@ import { HealthModule } from './shared/infrastructure/health/health.module';
     HealthModule,
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,
+        name: 'short',
+        ttl: 1000, // 1 segundo
+        limit: 3, // Máximo 3 req/seg (proteção contra picos)
+      },
+      {
+        name: 'medium',
+        ttl: 10000, // 10 segundos
+        limit: 20,
+      },
+      {
+        name: 'long',
+        ttl: 60000, // 1 minuto
         limit: 100,
+      },
+      {
+        name: 'sensitive',
+        ttl: 60000, // 1 minuto
+        limit: 10, // Apenas 10 req/min para ações sensíveis
       },
     ]),
   ],
@@ -80,6 +126,10 @@ import { HealthModule } from './shared/infrastructure/health/health.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: EmpresaInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
     },
     {
       provide: PasswordHasher,

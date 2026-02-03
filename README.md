@@ -12,8 +12,6 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 *   **Gerenciamento de Usuários:** Funcionalidades completas para criação, leitura, atualização, **deleção lógica (soft delete) e restauração** de usuários.
 *   **Perfis e Permissões por Contexto:** Sistema granular de perfis e permissões escopados por empresa. Cada empresa possui sua própria lista de perfis, permitindo que diferentes empresas usem os mesmos nomes de perfil com permissões distintas.
 
-...
-
 ## Mudanças Recentes
 
 *   **Arquitetura Multi-tenant:** Perfis de usuário agora são escopados por empresa. Cada empresa possui sua própria lista independente de perfis.
@@ -25,6 +23,67 @@ Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, u
 *   **Endpoints de Relacionamento:**
     *   `GET /empresas/:id/usuarios`: Lista usuários de uma empresa.
     *   `GET /usuarios/:id/empresas`: Lista empresas de um usuário.
+
+---
+
+## Documentação da API
+
+### Documentação Interativa (Swagger)
+A aplicação conta com uma documentação interativa via Swagger UI, onde é possível visualizar todos os endpoints, modelos de dados e testar as requisições diretamente pelo navegador.
+
+**URL:** `http://localhost:3001/swagger`
+
+### Autenticação
+A maioria dos endpoints desta API requer autenticação via JWT (JSON Web Token).
+
+#### 1. Obter Token
+Para obter um token, você deve se autenticar com seu e-mail e senha.
+**Endpoint:** `POST /auth/login`
+**Público:** Sim
+
+#### 2. Usar o Token
+Para acessar endpoints protegidos, inclua o token no header `Authorization`:
+```
+Authorization: Bearer YOUR_TOKEN
+```
+
+#### 3. Contexto de Empresa
+Muitos endpoints suportam ou requerem o header `x-empresa-id` para filtrar dados pelo contexto da empresa.
+```
+x-empresa-id: YOUR_EMPRESA_UUID
+```
+
+### Endpoints de Saúde (Health Check)
+*   **Liveness Probe:** `GET /health/live` - Verifica se o processo está ativo.
+*   **Readiness Probe:** `GET /health/ready` - Verifica dependências (DB, etc.).
+*   **Network Probe:** `GET /health/network` - Verifica conectividade externa.
+
+### Módulos e Recursos
+
+#### Usuários
+Gerenciamento de usuários do sistema.
+*   `GET /usuarios`: Listar todos os usuários (paginado).
+*   `GET /usuarios/:id`: Buscar um usuário por ID.
+*   `POST /usuarios`: Criar um novo usuário.
+*   `PATCH /usuarios/:id`: Atualizar um usuário (inclui soft delete/restore).
+*   `GET /usuarios/:id/empresas`: Listar empresas vinculadas ao usuário.
+
+#### Empresas
+Gerenciamento de empresas (Multi-tenancy).
+*   `GET /empresas`: Listar todas as empresas.
+*   `GET /empresas/:id`: Buscar uma empresa pelo ID.
+*   `POST /empresas`: Criar uma nova empresa.
+*   `PATCH /empresas/:id`: Atualizar uma empresa.
+*   `DELETE /empresas/:id`: Remover (soft delete) uma empresa.
+*   `POST /empresas/:id/usuarios`: Vincular usuário à empresa com perfis.
+*   `GET /empresas/:id/usuarios`: Listar usuários vinculados a uma empresa.
+
+#### Perfis e Permissões
+*   `GET /perfis`: Listar perfis vinculados à empresa.
+*   `GET /perfis/:id`: Buscar perfil por ID.
+*   `GET /permissoes`: Listar todas as permissões globais.
+
+---
 
 ## Arquitetura Multi-tenant
 
@@ -51,6 +110,8 @@ Para acessar rotas protegidas que exigem permissões específicas (decorador `@T
 
 O sistema validará se o usuário possui os perfis necessários para a ação especificamente na empresa informada.
 
+---
+
 ## Arquitetura do Sistema
 
 O projeto segue os princípios da **Clean Architecture**, organizado em camadas para garantir separação de preocupações e testabilidade:
@@ -59,90 +120,49 @@ O projeto segue os princípios da **Clean Architecture**, organizado em camadas 
 2.  **Application (Aplicação):** Contém os casos de uso (Services), controladores e DTOs.
 3.  **Infrastructure (Infraestrutura):** Implementações técnicas como repositórios Prisma, estratégias de autenticação e serviços externos.
 
+---
+
 ## Tecnologias Utilizadas
 
 *   **Framework:** NestJS (v11.1.6)
 *   **HTTP Server:** Fastify (via @nestjs/platform-fastify)
-*   **Linguagem:** TypeScript (v5.6.2)
 *   **ORM:** Prisma (v6.15.0)
 *   **Banco de Dados:** PostgreSQL (via Docker)
 *   **Autenticação:** JWT, Passport.js, bcrypt
-*   **Logging:** nestjs-pino
-*   **Configuração:** @nestjs/config, Joi
-*   **Validação:** class-validator, class-transformer
 *   **Observabilidade:** OpenTelemetry, Jaeger
 *   **Testes:** Jest, Supertest
 
-## Primeiros Passos
+---
+
+## Configuração e Execução
 
 ### Pré-requisitos
+*   Node.js (v20+)
+*   Docker e Docker Compose
 
-*   [Node.js](https://nodejs.org/en/) (v20+)
-*   [Docker](https://www.docker.com/) e Docker Compose
-
-### Instalação
-
-1.  Clone o repositório:
-    ```bash
-    git clone <URL_DO_REPOSITORIO>
-    cd api-padrao
-    ```
-2.  Instale as dependências:
-    ```bash
-    npm install
-    ```
-
-### Configuração e Execução
-
-1.  Crie um arquivo `.env` (baseado no exemplo anterior).
-2.  Inicie os serviços (Postgres, Jaeger):
-    ```bash
-    docker compose up --build -d
-    ```
-3.  Execute as migrações:
-    ```bash
-    npx prisma migrate dev
-    ```
-4.  Inicie a aplicação:
-    ```bash
-    npm run start:dev
-    ```
-
-## Estrutura do Projeto e Documentação
-
-Cada módulo possui seu próprio arquivo de documentação detalhada:
-
-- [**Autenticação**](src/auth/README.md)
-- [**Empresas**](src/empresas/README.md)
-- [**Usuários**](src/usuarios/README.md)
-- [**Perfis**](src/perfis/README.md)
-- [**Permissões**](src/permissoes/README.md)
-- [**Módulo Compartilhado**](src/shared/README.md)
-- [**Infraestrutura e Observabilidade**](src/shared/README_infra.md)
-
-### Estrutura de Pastas
-```
-src/
-├── auth/                   # Autenticação
-├── empresas/               # Módulo de Empresas
-├── usuarios/               # Módulo de Usuários
-├── perfis/                 # Módulo de Perfis
-├── permissoes/             # Módulo de Permissões
-├── shared/                 # Compartilhados (Utils, DTOs)
-└── prisma/                 # Prisma ORM
-```
-
-## Mudanças Recentes
-
-*   **Empresas:** Adicionado módulo de empresas.
-*   **Perfis de Usuário:** A relação entre Usuários e Perfis agora é mediada pela Empresa (`UsuarioEmpresa`). Um usuário não possui perfis globais, mas sim perfis específicos dentro de cada empresa que participa.
+### Instalação e Execução
+1.  Clone o repositório e instale dependências: `npm install`
+2.  Configure o arquivo `.env`.
+3.  Inicie a infraestrutura: `docker compose up -d`
+4.  Execute migrações: `npx prisma migrate dev`
+5.  Inicie a API: `npm run start:dev`
 
 ### Testes
-
 *   **Unitários:** `npm run test`
 *   **E2E:** `npm run test:e2e` (Requer `npm run test:migrate` antes)
-*   **Limpeza:** `npm run clean` (Remove arquivos temporários de log e relatórios)
+
+---
+
+## Error Handling
+A API utiliza um formato de erro padronizado:
+```json
+{
+  "statusCode": 400,
+  "timestamp": "2026-02-03T17:00:00.000Z",
+  "path": "/usuarios",
+  "message": "Mensagem de erro explicativa"
+}
+```
 
 ## Licença
-
 MIT

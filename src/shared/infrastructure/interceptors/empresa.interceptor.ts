@@ -8,6 +8,7 @@ import {
 import { Observable } from 'rxjs';
 import { EmpresaContext } from '../services/empresa-context.service';
 import { contextStorage, IRequestContext } from '../services/context.storage';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class EmpresaInterceptor implements NestInterceptor {
@@ -19,7 +20,9 @@ export class EmpresaInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    const contextData: IRequestContext = {};
+    const contextData: IRequestContext = {
+      requestId: (request.headers['x-request-id'] as string) || uuidv4(),
+    };
 
     if (user) {
       EmpresaInterceptor.logger.debug(`Usuário logado encontrado: ${user.sub}`);

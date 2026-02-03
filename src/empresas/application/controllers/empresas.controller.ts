@@ -23,6 +23,8 @@ import {
   ApiHeader,
 } from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
+import { Auditar } from '../../../shared/application/decorators/audit.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Empresas')
 @ApiBearerAuth('JWT-auth')
@@ -37,6 +39,8 @@ export class EmpresasController {
 
   @Post()
   @TemPermissao('CREATE_EMPRESA')
+  @Auditar({ acao: 'CRIAR', recurso: 'EMPRESA' })
+  @Throttle({ sensitive: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Criar uma nova empresa' })
   @ApiResponse({ status: 201, description: 'Empresa criada com sucesso.' })
   create(@Body() createEmpresaDto: CreateEmpresaDto) {
@@ -65,6 +69,8 @@ export class EmpresasController {
 
   @Patch(':id')
   @TemPermissao('UPDATE_EMPRESA')
+  @Auditar({ acao: 'ATUALIZAR', recurso: 'EMPRESA' })
+  @Throttle({ sensitive: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Atualizar uma empresa' })
   @ApiResponse({ status: 200, description: 'Empresa atualizada com sucesso.' })
   update(@Param('id') id: string, @Body() updateEmpresaDto: UpdateEmpresaDto) {
@@ -74,6 +80,8 @@ export class EmpresasController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @TemPermissao('DELETE_EMPRESA')
+  @Auditar({ acao: 'REMOVER', recurso: 'EMPRESA' })
+  @Throttle({ sensitive: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Remover (soft delete) uma empresa' })
   @ApiResponse({ status: 204, description: 'Empresa removida com sucesso.' })
   remove(@Param('id') id: string) {

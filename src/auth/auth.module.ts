@@ -9,10 +9,12 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 import { AuthorizationService } from '../shared/domain/services/authorization.service';
 import { DefaultAuthorizationService } from './infrastructure/services/default-authorization.service';
 import { SharedModule } from '../shared/shared.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
     UsuariosModule,
+    PrismaModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

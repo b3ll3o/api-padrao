@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
+import * as Sentry from '@sentry/node';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -29,6 +30,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const message = this.extractErrorMessage(exception, httpStatus);
 
       if (httpStatus >= 500) {
+        // Log critical errors in all environments to Sentry
+        Sentry.captureException(exception);
+
         // Log critical errors in all environments to the logger
         this.logger.error(
           `Critical Error at ${httpAdapter.getRequestUrl(request)}: ${

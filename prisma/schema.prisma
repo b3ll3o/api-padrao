@@ -13,6 +13,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model AuditLog {
+  id        String   @id @default(uuid())
+  usuarioId Int?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+  acao      String
+  recurso   String
+  recursoId String?
+  detalhes  Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
+  @@index([recurso, recursoId])
+}
+
 model Usuario {
   id                  Int              @id @default(autoincrement())
   email               String           @unique
@@ -23,8 +39,34 @@ model Usuario {
   ativo               Boolean          @default(true)
   empresas            UsuarioEmpresa[]
   empresasResponsavel Empresa[]        @relation("EmpresaResponsavel")
+  refreshTokens       RefreshToken[]
+  auditLogs           AuditLog[]
+  loginHistory        LoginHistory[]
 
   @@index([deletedAt, ativo])
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid())
+  userId    Int
+  user      Usuario  @relation(fields: [userId], references: [id])
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    Int
+  user      Usuario  @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Perfil {

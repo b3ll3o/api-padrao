@@ -27,6 +27,8 @@ import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { EmpresaId } from '../../../shared/application/decorators/empresa-id.decorator';
 import { EmpresasService } from '../../../empresas/application/services/empresas.service';
 import { Permissoes } from '../../../shared/domain/constants/auth.constants';
+import { Auditar } from '../../../shared/application/decorators/audit.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Usuários')
 @ApiBearerAuth('JWT-auth')
@@ -44,6 +46,7 @@ export class UsuariosController {
 
   @Public()
   @Post()
+  @Auditar({ acao: 'CRIAR', recurso: 'USUARIO' })
   @ApiOperation({ summary: 'Cria um novo usuário' })
   @ApiResponse({ status: 201, description: 'Usuário criado com sucesso.' })
   @ApiResponse({ status: 400, description: 'Dados inválidos.' })
@@ -108,6 +111,8 @@ export class UsuariosController {
   }
 
   @Patch(':id')
+  @Auditar({ acao: 'ATUALIZAR', recurso: 'USUARIO' })
+  @Throttle({ sensitive: { limit: 10, ttl: 60000 } })
   @ApiOperation({
     summary: 'Atualiza um usuário por ID',
     description:

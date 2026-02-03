@@ -10,4 +10,8 @@ export const envValidationSchema = Joi.object({
     'superSecretKeyThatShouldBeInEnvironmentVariables',
   ), // Default for now to avoid breaking if not set, but should be required in prod
   JWT_EXPIRES_IN: Joi.string().default('60s'),
+  REDIS_HOST: Joi.string().default('localhost'),
+  REDIS_PORT: Joi.number().default(6379),
+  SENTRY_DSN: Joi.string().uri().optional(),
+  ALLOWED_ORIGINS: Joi.string().optional(),
 });
