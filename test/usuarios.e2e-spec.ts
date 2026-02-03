@@ -1,11 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import supertestRequest from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { cleanDatabase } from './e2e-utils';
 import * as bcrypt from 'bcrypt';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 
 // Helper function to create admin user and profile, connecting to existing permissions
 async function setupAdminUserAndProfile(
@@ -101,7 +105,7 @@ async function findOrCreatePerfil(
 }
 
 describe('UsuariosController (e2e)', () => {
-  let app: INestApplication;
+  let app: NestFastifyApplication;
   let prisma: PrismaService;
   let jwtService: JwtService;
   let adminToken: string;
@@ -114,7 +118,9 @@ describe('UsuariosController (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestFastifyApplication>(
+      new FastifyAdapter(),
+    );
     prisma = app.get<PrismaService>(PrismaService);
     jwtService = app.get<JwtService>(JwtService);
 
@@ -127,6 +133,7 @@ describe('UsuariosController (e2e)', () => {
     );
 
     await app.init();
+    await app.getHttpAdapter().getInstance().ready();
   });
 
   afterAll(async () => {

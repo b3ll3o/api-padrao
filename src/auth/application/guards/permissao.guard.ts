@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PERMISSAO_KEY } from '../decorators/temPermissao.decorator'; // Changed import path
-import { Request } from 'express';
+import { FastifyRequest } from 'fastify';
 
 @Injectable()
 export class PermissaoGuard implements CanActivate {
@@ -21,7 +21,7 @@ export class PermissaoGuard implements CanActivate {
       return true; // No permissao required for this route
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<FastifyRequest>();
     const user = request.usuarioLogado; // User attached by AuthGuard
     const empresaId = request.headers['x-empresa-id'] as string;
 

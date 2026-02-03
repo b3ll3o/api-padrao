@@ -25,7 +25,7 @@ import {
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
-import { Request } from 'express';
+import { FastifyRequest } from 'fastify';
 import { AuthorizationService } from '../../../shared/domain/services/authorization.service';
 
 @ApiTags('Permissões')
@@ -130,7 +130,7 @@ export class PermissoesController {
   update(
     @Param('id') id: string,
     @Body() updatePermissaoDto: UpdatePermissaoDto,
-    @Req() req: Request,
+    @Req() req: FastifyRequest,
   ): Promise<Permissao> {
     if (!req.usuarioLogado) {
       throw new ForbiddenException('Usuário não autenticado');

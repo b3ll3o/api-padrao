@@ -16,6 +16,14 @@ export class EmpresaInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     try {
+      // Check if empresaContext is available (it might not be in some test scenarios)
+      if (!this.empresaContext) {
+        EmpresaInterceptor.logger.warn(
+          'EmpresaContext not available, skipping context setup',
+        );
+        return next.handle();
+      }
+
       const request = context.switchToHttp().getRequest();
       const user = request.user;
 

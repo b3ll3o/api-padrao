@@ -62,6 +62,7 @@ O projeto segue os princípios da **Clean Architecture**, organizado em camadas 
 ## Tecnologias Utilizadas
 
 *   **Framework:** NestJS (v11.1.6)
+*   **HTTP Server:** Fastify (via @nestjs/platform-fastify)
 *   **Linguagem:** TypeScript (v5.6.2)
 *   **ORM:** Prisma (v6.15.0)
 *   **Banco de Dados:** PostgreSQL (via Docker)
@@ -140,6 +141,7 @@ src/
 
 *   **Unitários:** `npm run test`
 *   **E2E:** `npm run test:e2e` (Requer `npm run test:migrate` antes)
+*   **Limpeza:** `npm run clean` (Remove arquivos temporários de log e relatórios)
 
 ## Licença
 

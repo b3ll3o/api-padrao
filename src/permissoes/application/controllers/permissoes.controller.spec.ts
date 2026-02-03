@@ -6,7 +6,7 @@ import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';
 import { Permissao } from '../../domain/entities/permissao.entity';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
-import { Request } from 'express'; // Import Request
+import { FastifyRequest } from 'fastify'; // Import Request
 import { AuthorizationService } from '../../../shared/domain/services/authorization.service';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 
@@ -26,7 +26,7 @@ describe('PermissoesController', () => {
 
   // Mock Request object for @Req()
   const mockRequest = (isAdmin: boolean = false, userId?: number) => {
-    const req: Partial<Request> = {
+    const req: Partial<FastifyRequest> = {
       usuarioLogado: {
         userId: userId || 1,
         email: 'test@example.com',
@@ -34,8 +34,9 @@ describe('PermissoesController', () => {
           ? [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }]
           : [],
       },
+      headers: {}, // Add headers for FastifyRequest compatibility if needed
     };
-    return req as Request;
+    return req as FastifyRequest;
   };
 
   beforeEach(async () => {
@@ -149,7 +150,7 @@ describe('PermissoesController', () => {
       await expect(
         controller.update('999', { nome: 'Non Existent' }, {
           usuarioLogado: mockRequest(true).usuarioLogado,
-        } as Request),
+        } as FastifyRequest),
       ).rejects.toThrow(NotFoundException);
       expect(mockPermissoesService.update).toHaveBeenCalledWith(
         999,
@@ -160,7 +161,7 @@ describe('PermissoesController', () => {
 
     it('deve lançar ForbiddenException se o usuário não estiver autenticado', async () => {
       const updatePermissaoDto: UpdatePermissaoDto = { nome: 'Test' };
-      const req = {} as Request; // No usuarioLogado
+      const req = {} as FastifyRequest; // No usuarioLogado
 
       let error: ForbiddenException | undefined;
       try {

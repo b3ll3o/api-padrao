@@ -1,11 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
 import { AppModule } from '../src/app.module';
 import { PerfilRepository } from '../src/perfis/domain/repositories/perfil.repository';
 import { UsuarioRepository } from '../src/usuarios/domain/repositories/usuario.repository';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 
 describe('Coverage Tests (e2e)', () => {
-  let app: INestApplication;
+  let app: NestFastifyApplication;
   let perfilRepository: PerfilRepository;
   let usuarioRepository: UsuarioRepository;
 
@@ -14,8 +17,11 @@ describe('Coverage Tests (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestFastifyApplication>(
+      new FastifyAdapter(),
+    );
     await app.init();
+    await app.getHttpAdapter().getInstance().ready();
     perfilRepository = app.get<PerfilRepository>(PerfilRepository);
     usuarioRepository = app.get<UsuarioRepository>(UsuarioRepository);
   });
