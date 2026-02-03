@@ -20,7 +20,8 @@
     "test:e2e": "NODE_ENV=test jest --config ./test/jest-e2e.json",
     "test:migrate": "npx prisma migrate deploy",
     "prepare": "husky",
-    "validate": "npm run lint && npm run build && npm run test && npm run test:e2e"
+    "validate": "npm run lint && npm run build && npm run test && npm run test:e2e",
+    "validate:quick": "npm run lint && npm run build && npm run test"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",
@@ -107,7 +108,7 @@
             "esModuleInterop": true,
             "skipLibCheck": true,
             "forceConsistentCasingInFileNames": true,
-            "noImplicitAny": false,
+            "noImplicitAny": true,
             "strictNullChecks": true,
             "strictBindCallApply": false,
             "noFallthroughCasesInSwitch": false

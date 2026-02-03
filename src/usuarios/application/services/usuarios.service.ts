@@ -62,16 +62,15 @@ export class UsuariosService {
     includeDeleted: boolean = false,
     empresaId?: string,
   ): Promise<PaginatedResponseDto<Usuario>> {
-    const isAdminGlobal = usuarioLogado.empresas?.some((e: any) =>
-      e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
+    const isAdminGlobal = usuarioLogado.empresas?.some((e) =>
+      e.perfis?.some((p) => p.codigo === 'ADMIN'),
     );
 
     const isAdminInEmpresa =
       empresaId &&
       usuarioLogado.empresas?.some(
-        (e: any) =>
-          e.id === empresaId &&
-          e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
+        (e) =>
+          e.id === empresaId && e.perfis?.some((p) => p.codigo === 'ADMIN'),
       );
 
     if (!isAdminGlobal && !isAdminInEmpresa) {
@@ -149,9 +148,8 @@ export class UsuariosService {
         const isAdminInEmpresa =
           empresaId &&
           usuarioLogado.empresas?.some(
-            (e: any) =>
-              e.id === empresaId &&
-              e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
+            (e) =>
+              e.id === empresaId && e.perfis?.some((p) => p.codigo === 'ADMIN'),
           );
 
         if (!isAdminInEmpresa) {

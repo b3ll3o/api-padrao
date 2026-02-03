@@ -3,9 +3,7 @@ import { UsuariosService } from './usuarios.service';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import { Usuario } from '../../domain/entities/usuario.entity';
-import {
-  ForbiddenException,
-} from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
