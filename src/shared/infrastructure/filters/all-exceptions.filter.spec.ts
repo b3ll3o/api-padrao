@@ -6,8 +6,13 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 describe('AllExceptionsFilter', () => {
   let filter: AllExceptionsFilter;
   let mockHttpAdapter: any;
+  let stderrWriteSpy: jest.SpyInstance;
 
   beforeEach(async () => {
+    stderrWriteSpy = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true);
+
     mockHttpAdapter = {
       getRequestUrl: jest.fn().mockReturnValue('/test'),
       reply: jest.fn(),
@@ -26,6 +31,10 @@ describe('AllExceptionsFilter', () => {
     }).compile();
 
     filter = module.get<AllExceptionsFilter>(AllExceptionsFilter);
+  });
+
+  afterEach(() => {
+    stderrWriteSpy.mockRestore();
   });
 
   const mockArgumentsHost = {
