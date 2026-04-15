@@ -169,9 +169,74 @@ Protected endpoints require:
 
 ## Required Services (Docker)
 
-- **PostgreSQL** (port 5434 host, 5432 container)
-- **Redis** (port 6379) for cache and BullMQ queues
-- **Jaeger** (port 16686) and **OTEL Collector** (4318) for tracing
+### Docker Setup (Standard)
+
+Este projeto usa **Docker** e **Docker Compose** como padrão para infraestrutura local.
+
+**Pré-requisitos:**
+
+- Docker Engine 20.10+
+- Docker Compose v2 (comando: `docker compose` - com espaço)
+
+**Verificar instalação:**
+
+```bash
+docker --version
+docker compose version
+```
+
+**Permissão Docker (Linux):**
+O usuário deve pertencer ao grupo `docker`. Se receber erro de permissão:
+
+```bash
+# Adicionar usuário ao grupo docker (requer root)
+sudo usermod -aG docker $USER
+
+# Ou ativar para sessão atual (requer senha)
+newgrp docker
+
+# Ou fazer logout e login novamente
+```
+
+### Serviços Infraestrutura
+
+| Serviço        | Host Port | Container Port | Propósito      |
+| -------------- | --------- | -------------- | -------------- |
+| PostgreSQL     | 5434      | 5432           | Banco de dados |
+| Redis          | 6379      | 6379           | Cache e filas  |
+| Jaeger UI      | 16686     | 16686          | Tracing UI     |
+| OTEL Collector | 4318      | 4318           | OTLP receiver  |
+
+### Comandos Docker Compose
+
+```bash
+# Iniciar toda infraestrutura (PostgreSQL + Redis + Jaeger + OTEL)
+docker compose up -d
+
+# Iniciar apenas PostgreSQL e Redis (para testes)
+docker compose up -d postgres redis
+
+# Parar todos os serviços
+docker compose down
+
+# Parar e remover volumes (reset completo)
+docker compose down -v
+
+# Ver logs de um serviço
+docker compose logs -f postgres
+
+# Ver status dos serviços
+docker compose ps
+```
+
+### Variáveis de Ambiente
+
+O `docker-compose.yml` usa variáveis do `.env` ou `.env.local`:
+
+- `POSTGRES_USER` - usuário do banco
+- `POSTGRES_PASSWORD` - senha do banco
+- `POSTGRES_DB` - nome do banco
+- `DATABASE_URL` - string de conexão (porta 5434 para host)
 
 ## Environment
 
