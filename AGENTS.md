@@ -1,5 +1,28 @@
 # AGENTS.md
 
+## SDD (Specification-Driven Development)
+
+### Core Principle
+
+You MUST follow Specification-Driven Development (SDD). **NEVER write implementation code before the specification is defined and approved.**
+
+### Workflow
+
+1. **Understand**: Ask clarifying questions to understand the requirement fully.
+2. **Specify**: Write or update specifications in the `.openspec/specs/` directory.
+3. **Plan**: Break down the spec into a task list in `.openspec/changes/<feature>/tasks.md`.
+4. **Implement**: Only after the spec and plan are complete, switch to **Build Mode** to write code.
+
+### Mode Usage
+
+- Use **Plan Mode** for: analysis, creating/editing specs, planning tasks. (Read-only)
+- Use **Build Mode** ONLY for: writing code, running tests, applying migrations. (Write permissions)
+
+### SDD Directories
+
+- `.openspec/specs/` - Specification documents
+- `.openspec/changes/` - Feature-specific changes and tasks
+
 ## Developer Commands
 
 ```bash
