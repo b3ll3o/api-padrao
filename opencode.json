@@ -1,11 +1,13 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "nvidia/minimaxai/minimax-m2.7",
+  "plugin": ["oh-my-opencode-lite", "opencode-plugin-openspec"],
   "mode": {
     "plan": {
       "permissions": {
         "read": true,
-        "write": false
+        "write": false,
+        "bash": false
       }
     },
     "build": {
@@ -16,9 +18,8 @@
       }
     }
   },
-  "sdd": {
-    "specsDir": ".openspec/specs",
-    "changesDir": ".openspec/changes",
-    "requireSpecBeforeCode": true
+  "skills": {
+    "enabled": true,
+    "directory": "~/.config/opencode/skills"
   }
 }
