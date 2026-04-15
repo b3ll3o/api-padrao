@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
@@ -126,7 +126,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
         'code' in error &&
         error.code === 'P2025'
       ) {
-        throw new Error(`Usuário com ID ${id} não encontrado.`);
+        throw new NotFoundException(`Usuário com ID ${id} não encontrado.`);
       }
       throw error;
     }
@@ -147,7 +147,7 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
         'code' in error &&
         error.code === 'P2025'
       ) {
-        throw new Error(`Usuário com ID ${id} não encontrado.`);
+        throw new NotFoundException(`Usuário com ID ${id} não encontrado.`);
       }
       throw error;
     }

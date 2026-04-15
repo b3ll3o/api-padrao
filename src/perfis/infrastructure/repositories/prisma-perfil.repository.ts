@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PerfilRepository } from '../../domain/repositories/perfil.repository';
 import { Perfil } from '../../domain/entities/perfil.entity';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
@@ -135,7 +135,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
       return this.toDomain(softDeletedPerfil);
     } catch (error) {
       if (error.code === 'P2025') {
-        throw new Error(`Perfil com ID ${id} não encontrado.`); // Or throw NotFoundException
+        throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
       }
       throw error;
     }
@@ -151,7 +151,7 @@ export class PrismaPerfilRepository implements PerfilRepository {
       return this.toDomain(restoredPerfil);
     } catch (error) {
       if (error.code === 'P2025') {
-        throw new Error(`Perfil com ID ${id} não encontrado.`); // Or throw NotFoundException
+        throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
       }
       throw error;
     }

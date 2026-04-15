@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PermissaoRepository } from '../../domain/repositories/permissao.repository';
 import { Permissao } from '../../domain/entities/permissao.entity';
 import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
@@ -90,7 +90,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
       return this.toDomain(softDeletedPermissao);
     } catch (error) {
       if (error.code === 'P2025') {
-        throw new Error(`Permissão com ID ${id} não encontrada.`); // Or throw NotFoundException
+        throw new NotFoundException(`Permissão com ID ${id} não encontrada.`);
       }
       throw error;
     }
@@ -105,7 +105,7 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
       return this.toDomain(restoredPermissao);
     } catch (error) {
       if (error.code === 'P2025') {
-        throw new Error(`Permissão com ID ${id} não encontrada.`); // Or throw NotFoundException
+        throw new NotFoundException(`Permissão com ID ${id} não encontrada.`);
       }
       throw error;
     }

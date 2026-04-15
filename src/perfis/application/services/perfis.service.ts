@@ -143,25 +143,23 @@ export class PerfisService {
 
       if (updatePerfilDto.ativo === true) {
         if (perfil.deletedAt === null) {
-          throw new ConflictException(`Perfil with ID ${id} is not deleted.`);
+          throw new ConflictException(`Perfil com ID ${id} não está deletado.`);
         }
         const restoredPerfil = await this.perfilRepository.restore(id);
         if (!restoredPerfil) {
           throw new NotFoundException(
-            `Perfil with ID ${id} not found after restore.`,
+            `Perfil com ID ${id} não encontrado após restauração.`,
           );
         }
         return restoredPerfil;
       } else {
         if (perfil.deletedAt !== null) {
-          throw new ConflictException(
-            `Perfil with ID ${id} is already deleted.`,
-          );
+          throw new ConflictException(`Perfil com ID ${id} já está deletado.`);
         }
         const softDeletedPerfil = await this.perfilRepository.remove(id);
         if (!softDeletedPerfil) {
           throw new NotFoundException(
-            `Perfil with ID ${id} not found after removal.`,
+            `Perfil com ID ${id} não encontrado após remoção.`,
           );
         }
         return softDeletedPerfil;
@@ -174,7 +172,7 @@ export class PerfisService {
     );
     if (!updatedPerfil) {
       throw new NotFoundException(
-        `Perfil with ID ${id} not found after update.`,
+        `Perfil com ID ${id} não encontrado após atualização.`,
       );
     }
     return updatedPerfil;

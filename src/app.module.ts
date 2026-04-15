@@ -53,7 +53,7 @@ import { AuditInterceptor } from './shared/infrastructure/interceptors/audit.int
             host: config.redisHost,
             port: config.redisPort,
           },
-          ttl: 600, // 10 minutes default
+          ttl: config.cacheTtl,
         }),
       }),
     }),
@@ -77,23 +77,23 @@ import { AuditInterceptor } from './shared/infrastructure/interceptors/audit.int
     ThrottlerModule.forRoot([
       {
         name: 'short',
-        ttl: 1000, // 1 segundo
-        limit: 3, // Máximo 3 req/seg (proteção contra picos)
+        ttl: parseInt(process.env.THROTTLER_SHORT_TTL || '1000', 10),
+        limit: parseInt(process.env.THROTTLER_SHORT_LIMIT || '3', 10),
       },
       {
         name: 'medium',
-        ttl: 10000, // 10 segundos
-        limit: 20,
+        ttl: parseInt(process.env.THROTTLER_MEDIUM_TTL || '10000', 10),
+        limit: parseInt(process.env.THROTTLER_MEDIUM_LIMIT || '20', 10),
       },
       {
         name: 'long',
-        ttl: 60000, // 1 minuto
-        limit: 100,
+        ttl: parseInt(process.env.THROTTLER_LONG_TTL || '60000', 10),
+        limit: parseInt(process.env.THROTTLER_LONG_LIMIT || '100', 10),
       },
       {
         name: 'sensitive',
-        ttl: 60000, // 1 minuto
-        limit: 10, // Apenas 10 req/min para ações sensíveis
+        ttl: parseInt(process.env.THROTTLER_SENSITIVE_TTL || '60000', 10),
+        limit: parseInt(process.env.THROTTLER_SENSITIVE_LIMIT || '10', 10),
       },
     ]),
   ],

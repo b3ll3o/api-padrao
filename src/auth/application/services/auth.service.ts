@@ -72,11 +72,10 @@ export class AuthService {
     const payload = { email, sub: userId, empresas: mappedEmpresas };
 
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '15m', // Curta duração para segurança
+      expiresIn: '15m',
       secret: this.configService.getOrThrow<string>('JWT_SECRET'),
     });
 
-    // Gera um UUID único para o Refresh Token
     const refreshTokenValue = uuidv4();
     const expiresInDays = 7;
     const expiresAt = new Date();

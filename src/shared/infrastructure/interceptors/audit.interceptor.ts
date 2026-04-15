@@ -3,6 +3,7 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
@@ -15,6 +16,8 @@ import {
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditInterceptor.name);
+
   constructor(
     private reflector: Reflector,
     private prisma: PrismaService,
@@ -54,9 +57,8 @@ export class AuditInterceptor implements NestInterceptor {
               userAgent,
             },
           });
-        } catch (error) {
-          // Não falhamos a requisição se o log de auditoria falhar, mas avisamos no console
-          console.error('Falha ao salvar log de auditoria:', error);
+        } catch {
+          this.logger.warn('Falha ao salvar log de auditoria');
         }
       }),
     );

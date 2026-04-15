@@ -1,5 +1,3 @@
-// IMPORTANT: This MUST be the very first import in your application!
-import './instrument';
 import './tracing';
 
 import { NestFactory } from '@nestjs/core';

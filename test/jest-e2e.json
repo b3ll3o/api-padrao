@@ -29,7 +29,11 @@
     ]
   },
   "moduleNameMapper": {
-    "^src/(.*)$": "<rootDir>/src/$1"
+    "^src/(.*)$": "<rootDir>/src/$1",
+    "^uuid$": "uuid"
   },
+  "transformIgnorePatterns": [
+    "/node_modules/(?!(uuid)/)"
+  ],
   "maxWorkers": 1
 }
