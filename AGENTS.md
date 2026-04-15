@@ -1,27 +1,45 @@
 # AGENTS.md
 
-## SDD (Specification-Driven Development)
+## SDD + ATDD (Specification-Driven Development + Acceptance Test-Driven Development)
 
 ### Core Principle
 
-You MUST follow Specification-Driven Development (SDD). **NEVER write implementation code before the specification is defined and approved.**
+You MUST follow **Specification-Driven Development (SDD)** and **Acceptance Test-Driven Development (ATDD)**.
+**NEVER write implementation code before the specification is defined AND acceptance tests are written.**
 
-### Workflow
+### SDD + ATDD Workflow (7-Step Pipeline)
 
-1. **Understand**: Ask clarifying questions to understand the requirement fully.
-2. **Specify**: Write or update specifications in the `.openspec/specs/` directory.
-3. **Plan**: Break down the spec into a task list in `.openspec/changes/<feature>/tasks.md`.
-4. **Implement**: Only after the spec and plan are complete, switch to **Build Mode** to write code.
+1. **propose** - Analyze requirement and create proposal in `.openspec/changes/<feature>/proposal.md`
+2. **spec** - Write detailed specification in `.openspec/changes/<feature>/design.md`
+3. **tasks** - Break down into atomic tasks in `.openspec/changes/<feature>/tasks.md`
+4. **tests** - Write acceptance tests BEFORE implementation (ATDD)
+5. **apply** - Switch to **Build Mode** and implement the code
+6. **verify** - Run tests and validate implementation matches spec
+7. **archive** - Move approved spec to `.openspec/specs/` and clean up changes/
 
 ### Mode Usage
 
-- Use **Plan Mode** for: analysis, creating/editing specs, planning tasks. (Read-only)
-- Use **Build Mode** ONLY for: writing code, running tests, applying migrations. (Write permissions)
+- **Plan Mode** (Tab key): Analysis, specs, tests, planning tasks. (Read-only, no code writing)
+- **Build Mode** (Tab key): Implementation, tests, migrations. (Write permissions)
+
+### ATDD Requirements
+
+- Write acceptance tests in `*.spec.ts` files using Jest with natural language descriptions
+- Tests MUST fail before implementation (red phase)
+- Tests pass after implementation (green phase)
+- Never commit code without passing acceptance tests
 
 ### SDD Directories
 
-- `.openspec/specs/` - Specification documents
-- `.openspec/changes/` - Feature-specific changes and tasks
+```
+.openspec/
+├── specs/           # Approved specifications (live specs)
+└── changes/         # Work in progress
+    └── <feature>/
+        ├── proposal.md  # Initial proposal
+        ├── design.md    # Detailed specification
+        └── tasks.md     # Task breakdown
+```
 
 ## Developer Commands
 
