@@ -190,3 +190,233 @@ When you receive a requirement like "add a discount function for premium custome
 5. Write TDD unit tests (that fail initially)
 6. Implement code until all tests pass
 7. **Never write code without completing all previous steps first**
+
+---
+
+## Application Modules
+
+### Module Architecture
+
+```
+src/
+├── auth/           # Authentication & Authorization
+├── usuarios/       # User Management
+├── empresas/       # Company Management (Multi-tenancy)
+├── perfis/         # Profiles/Roles
+├── permissoes/     # Permissions (Atomic)
+├── shared/         # Shared Utilities
+├── prisma/         # Database ORM
+└── health/         # Health Checks
+```
+
+### Module Details
+
+#### 1. Auth Module (`auth`)
+
+**Purpose**: Authentication and Authorization
+**Path**: `src/auth/`
+
+| Sub-layer                   | Components                     |
+| --------------------------- | ------------------------------ |
+| `application/controllers`   | `AuthController`               |
+| `application/services`      | `AuthService`                  |
+| `application/guards`        | `AuthGuard`, `PermissaoGuard`  |
+| `application/decorators`    | `@Public()`, `@TemPermissao()` |
+| `infrastructure/strategies` | `JwtStrategy`                  |
+| `infrastructure/services`   | `DefaultAuthorizationService`  |
+
+**Key Features**:
+
+- JWT token generation and validation
+- Global `AuthGuard` protecting all routes
+- `@Public()` decorator for public endpoints
+- `@TemPermissao()` decorator for permission-based access
+
+#### 2. Usuarios Module (`usuarios`)
+
+**Purpose**: User Management
+**Path**: `src/usuarios/`
+
+| Sub-layer                     | Components                                       |
+| ----------------------------- | ------------------------------------------------ |
+| `domain/entities`             | `UsuarioEntity`, `UsuarioEmpresaEntity`          |
+| `domain/repositories`         | `UsuarioRepository` (interface)                  |
+| `application/controllers`     | `UsuariosController`                             |
+| `application/services`        | `UsuariosService`, `UsuarioAuthorizationService` |
+| `infrastructure/repositories` | `PrismaUsuarioRepository`                        |
+
+**Key Features**:
+
+- User CRUD with soft delete
+- Password hashing with bcrypt
+- User-Company relationship (many-to-many)
+
+#### 3. Empresas Module (`empresas`)
+
+**Purpose**: Company Management (Multi-tenancy)
+**Path**: `src/empresas/`
+
+| Sub-layer                     | Components                      |
+| ----------------------------- | ------------------------------- |
+| `domain/entities`             | `EmpresaEntity`                 |
+| `domain/repositories`         | `EmpresaRepository` (interface) |
+| `application/controllers`     | `EmpresasController`            |
+| `application/services`        | `EmpresasService`               |
+| `infrastructure/repositories` | `PrismaEmpresaRepository`       |
+
+**Key Features**:
+
+- Company CRUD with soft delete
+- User-Company profile binding
+- Company-scoped data isolation
+
+#### 4. Perfis Module (`perfis`)
+
+**Purpose**: Profiles/Roles Management
+**Path**: `src/perfis/`
+
+| Sub-layer                     | Components                     |
+| ----------------------------- | ------------------------------ |
+| `domain/entities`             | `PerfilEntity`                 |
+| `domain/repositories`         | `PerfilRepository` (interface) |
+| `application/controllers`     | `PerfisController`             |
+| `application/services`        | `PerfisService`                |
+| `infrastructure/repositories` | `PrismaPerfilRepository`       |
+
+**Key Features**:
+
+- Company-scoped profiles (not global)
+- Profile-Permission assignment
+- Context-aware operations via `x-empresa-id`
+
+#### 5. Permissoes Module (`permissoes`)
+
+**Purpose**: Atomic Permissions
+**Path**: `src/permissoes/`
+
+| Sub-layer                     | Components                        |
+| ----------------------------- | --------------------------------- |
+| `domain/entities`             | `PermissaoEntity`                 |
+| `domain/repositories`         | `PermissaoRepository` (interface) |
+| `application/controllers`     | `PermissoesController`            |
+| `application/services`        | `PermissoesService`               |
+| `infrastructure/repositories` | `PrismaPermissaoRepository`       |
+
+**Key Features**:
+
+- Global permissions (not company-scoped)
+- Permission codes: `CREATE_USUARIO`, `READ_USUARIOS`, etc.
+- Soft delete with restore capability
+
+#### 6. Shared Module (`shared`)
+
+**Purpose**: Cross-cutting Concerns
+**Path**: `src/shared/`
+
+| Sub-layer                     | Components                                                     |
+| ----------------------------- | -------------------------------------------------------------- |
+| `domain/entities`             | `BaseEntity`, `SoftDeleteInterface`                            |
+| `domain/services`             | `PasswordHasher`, `AuthorizationService`                       |
+| `application/decorators`      | `@UsuarioLogado()`, `@EmpresaId()`, `@Audit()`                 |
+| `infrastructure/filters`      | `AllExceptionsFilter`                                          |
+| `infrastructure/interceptors` | `LoggingInterceptor`, `EmpresaInterceptor`, `AuditInterceptor` |
+| `infrastructure/services`     | `EmpresaContext`, `BcryptPasswordHasherService`                |
+| `infrastructure/config`       | `AppConfig`                                                    |
+| `dto`                         | `PaginationDto`, `PaginatedResponseDto`                        |
+
+**Key Features**:
+
+- Global exception handling
+- Request/response logging
+- Multi-tenant context extraction
+- Password hashing abstraction
+- Standardized pagination
+
+#### 7. Prisma Module (`prisma`)
+
+**Purpose**: Database ORM
+**Path**: `src/prisma/`
+
+| Components        | Description                                     |
+| ----------------- | ----------------------------------------------- |
+| `PrismaService`   | Extended Prisma client with soft delete         |
+| `PrismaExtension` | Query extensions for auto `deletedAt` filtering |
+
+#### 8. Health Module (`health`)
+
+**Purpose**: Health Checks
+**Path**: `src/shared/infrastructure/health/`
+
+| Components         | Description                               |
+| ------------------ | ----------------------------------------- |
+| `HealthController` | `/health/live`, `/health/ready` endpoints |
+
+---
+
+### Module Dependencies
+
+```
+AppModule
+├── AuthModule
+│   └── UsuariosModule
+├── UsuariosModule
+│   └── EmpresasModule (forwardRef)
+├── EmpresasModule
+│   ├── UsuariosModule (forwardRef)
+│   └── PerfisModule
+├── PerfisModule
+│   └── PermissoesModule
+├── PermissoesModule
+│   └── AuthModule
+├── SharedModule
+├── PrismaModule
+└── HealthModule
+```
+
+---
+
+### Multi-tenancy Model
+
+1. **Request** must include `x-empresa-id` header
+2. **EmpresaInterceptor** extracts and validates company context
+3. **EmpresaContext** provides request-scoped company ID
+4. All data queries are automatically scoped to the company
+
+---
+
+### Global Guards (AppModule)
+
+| Guard            | Purpose                                |
+| ---------------- | -------------------------------------- |
+| `ThrottlerGuard` | Rate limiting (100 req/min default)    |
+| `AuthGuard`      | JWT validation on all protected routes |
+| `PermissaoGuard` | Permission-based access control        |
+
+---
+
+### Global Interceptors (AppModule)
+
+| Interceptor                  | Purpose                           |
+| ---------------------------- | --------------------------------- |
+| `ClassSerializerInterceptor` | Auto-excludes `@Exclude()` fields |
+| `LoggingInterceptor`         | Request/response logging          |
+| `EmpresaInterceptor`         | Multi-tenant context extraction   |
+| `AuditInterceptor`           | Audit logging                     |
+
+---
+
+### Test Coverage
+
+| Type       | Location             | Count                |
+| ---------- | -------------------- | -------------------- |
+| Unit Tests | `src/**/*.spec.ts`   | 29 suites, 230 tests |
+| E2E Tests  | `test/*.e2e-spec.ts` | 6 suites             |
+
+**Run Commands**:
+
+```bash
+npm run test              # Unit tests
+npm run test:e2e          # E2E tests (requires Docker)
+npm run validate:quick    # lint + build + test
+npm run validate          # lint + build + test + e2e
+```
