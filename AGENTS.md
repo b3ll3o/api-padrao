@@ -26,15 +26,18 @@ You MUST follow Specification-Driven Development (SDD). **NEVER write implementa
 ## Developer Commands
 
 ```bash
-npm run start:dev       # Start dev server with hot reload (port 3001)
-npm run test            # Unit tests (jest, rootDir: src, testRegex: .spec.ts)
-npm run test:e2e        # E2E tests (requires npm run test:migrate first)
-npm run test:migrate    # Run prisma migrate deploy
-npm run lint            # ESLint with --fix
-npm run build           # Nest build
-npm run format          # Prettier write
-npm run validate        # lint + build + test + test:e2e
-npm run validate:quick  # lint + build + test
+npm run start:dev # Start dev server with hot reload (port 3001)
+npm run test # Unit tests (jest, rootDir: src, testRegex: .spec.ts)
+npm run test:e2e # E2E tests (requires npm run test:migrate first)
+npm run test:migrate # Run prisma migrate deploy
+npm run lint # ESLint with --fix
+npm run build # Nest build
+npm run format # Prettier write
+npm run validate # lint + build + test + test:e2e
+npm run validate:quick # lint + build + test
+npm run security:check # Audit de segurança (bloqueia em high+)
+npm run deps:check # Lista dependências desatualizadas
+npm run deps:update # Atualiza dependências
 ```
 
 ## Test Requirements

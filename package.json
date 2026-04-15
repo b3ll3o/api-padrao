@@ -22,7 +22,10 @@
     "test:migrate": "npx prisma migrate deploy",
     "prepare": "husky",
     "validate": "npm run lint && npm run build && npm run test && npm run test:e2e",
-    "validate:quick": "npm run lint && npm run build && npm run test"
+    "validate:quick": "npm run lint && npm run build && npm run test",
+    "security:check": "npm audit --audit-level=high",
+    "deps:check": "npm outdated",
+    "deps:update": "npm update"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",
