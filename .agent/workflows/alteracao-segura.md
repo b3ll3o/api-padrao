@@ -2,6 +2,8 @@
 description: [ciclo completo de validação PRÉ-COMMIT: dependências, lint, testes, fix e commit]
 ---
 
+> **Autoridade geral**: [`/AGENTS.md`](../../AGENTS.md). Este workflow é o procedimento detalhado do passo-a-passo; leia AGENTS.md para contexto, comandos e convenções.
+
 Este workflow deve ser seguido obrigatoriamente ANTES de realizar o commit final das alterações.
 
 1. **Verificação de Dependências**:

@@ -2,6 +2,8 @@
 description: [SDD + ATDD workflow implementation guide]
 ---
 
+> **Autoridade geral**: [`/AGENTS.md`](../../AGENTS.md). Este workflow detalha a pipeline SDD+ATDD; a visão completa do workflow DDD→BDD→SDD→ATDD→TDD está em AGENTS.md.
+
 # SDD + ATDD Workflow Guide
 
 ## Overview

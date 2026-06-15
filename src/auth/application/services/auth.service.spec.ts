@@ -28,7 +28,7 @@ describe('AuthService', () => {
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
-      if (key === 'JWT_EXPIRES_IN') return '60s';
+      if (key === 'JWT_ACCESS_EXPIRES_IN') return '60s';
       return null;
     }),
     getOrThrow: jest.fn((key: string) => {

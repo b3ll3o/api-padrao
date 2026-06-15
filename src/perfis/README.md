@@ -1,34 +1,45 @@
 # Módulo de Perfis (`perfis`)
 
-Gerencia os perfis de acesso (ex: ADMIN, GESTOR, OPERADOR) vinculados às empresas.
+Gerencia os perfis de acesso (ex.: ADMIN, GESTOR, OPERADOR) vinculados às empresas. O modelo multi-tenant e o decorator `@TemPermissao` estão em [AGENTS.md](../../AGENTS.md).
 
 ## Funcionalidades
+
 - CRUD de perfis contextuais.
 - Atribuição de permissões aos perfis.
 - Busca por nome ou código.
 
 ## Endpoints
 
-### 1. Criar Perfil
+### Criar Perfil
+
 - **URL**: `POST /perfis`
-- **Permissão**: `CREATE_PERFIL`
-- **Contexto**: Exige `x-empresa-id` se a criação for vinculada a uma empresa específica.
+- **Permissão**: `CREATE_PERFIL`.
+- **Contexto**: exige `x-empresa-id` se a criação for vinculada a uma empresa específica.
 
-### 2. Listar Perfis
+### Listar Perfis
+
 - **URL**: `GET /perfis`
-- **Permissão**: `READ_PERFIS`
-- **Contexto**: Exige `x-empresa-id` para filtrar perfis da empresa.
-- **Parâmetros**: `PaginationDto` (page, limit).
+- **Permissão**: `READ_PERFIS`.
+- **Contexto**: exige `x-empresa-id` para filtrar perfis da empresa.
+- **Parâmetros**: `PaginationDto` (`page`, `limit`).
 
-### 3. Buscar Perfil por ID
+### Buscar Perfil por ID
+
 - **URL**: `GET /perfis/:id`
-- **Permissão**: `READ_PERFIL_BY_ID`
-- **Contexto**: Exige `x-empresa-id`.
+- **Permissão**: `READ_PERFIL_BY_ID`.
+- **Contexto**: exige `x-empresa-id`.
 
-### 4. Atualizar Perfil
+### Atualizar Perfil
+
 - **URL**: `PATCH /perfis/:id`
-- **Permissão**: `UPDATE_PERFIL`
-- **Contexto**: Exige `x-empresa-id`.
+- **Permissão**: `UPDATE_PERFIL`.
+- **Contexto**: exige `x-empresa-id`.
 
 ## Conceito de Escopo
+
 Os perfis **não são globais**. Eles pertencem a uma empresa específica (`empresaId`). Isso permite que a Empresa A tenha um perfil "Gerente" com permissões diferentes do perfil "Gerente" da Empresa B. Todas as operações de Perfis devem informar o contexto da empresa através do header `x-empresa-id`.
+
+## Documentação relacionada
+
+- [AGENTS.md](../../AGENTS.md) — fonte canônica: arquitetura, multi-tenancy, `@TemPermissao`.
+- [src/permissoes/README.md](../permissoes/README.md) — permissões globais atribuídas aos perfis.

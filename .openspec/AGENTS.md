@@ -1,5 +1,7 @@
 # OpenSpec Agent Rules
 
+> **Autoridade geral**: [`/AGENTS.md`](../AGENTS.md). Este arquivo cobre **apenas** as regras de OpenSpec (formato de spec, RFC 2119, fluxo de change). Para arquitetura, comandos, workflow DDD→BDD→SDD→ATDD→TDD, catálogo de módulos e convenções, consulte o `AGENTS.md` na raiz. Artefatos em `.openspec/specs/` são **archived** (imutáveis); artefatos em `.openspec/changes/` são work-in-progress.
+
 ## Spec Writing Guidelines
 
 ### Spec File Naming

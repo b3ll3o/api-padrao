@@ -1,106 +1,73 @@
 # API Padrão
 
-## Descrição do Projeto
+API RESTful multi-tenant construída com **NestJS 11** + **Fastify**, **Prisma 6** + **PostgreSQL 16**, autenticação via **JWT**, com observabilidade via **OpenTelemetry/Jaeger**. Arquitetura em camadas (**Clean Architecture**) por módulo.
 
-Este projeto é uma API RESTful robusta e escalável, desenvolvida com NestJS, utilizando Prisma como ORM e PostgreSQL como banco de dados. A arquitetura segue princípios de Clean Architecture, garantindo modularidade, testabilidade e fácil manutenção. A API inclui módulos essenciais para autenticação, gerenciamento de empresas, usuários, perfis e permissões, fornecendo uma base sólida para aplicações SaaS ou multi-tenant.
+> **Toda a documentação técnica detalhada (comandos, workflow, módulo a módulo, env vars, convenções) está em [AGENTS.md](./AGENTS.md).** Este README é o entry point público: o que o projeto é, como rodar, e onde achar o resto.
 
-### Características Principais
+## Características
 
-- **Autenticação Segura:** Implementação de autenticação JWT (JSON Web Tokens) para acesso seguro aos recursos da API.
-- **Gerenciamento de Empresas (Multi-tenancy):** Suporte a múltiplas empresas, onde usuários podem pertencer a várias empresas com perfis distintos em cada uma.
-- **Autorização Contextual:** Exigência do header `x-empresa-id` em requisições protegidas para validar permissões dentro do contexto de uma empresa específica.
-- **Gerenciamento de Usuários:** Funcionalidades completas para criação, leitura, atualização, **deleção lógica (soft delete) e restauração** de usuários.
-- **Perfis e Permissões por Contexto:** Sistema granular de perfis e permissões escopados por empresa. Cada empresa possui sua própria lista de perfis, permitindo que diferentes empresas usem os mesmos nomes de perfil com permissões distintas.
+- **Multi-tenancy com escopo por empresa**: usuários podem pertencer a várias empresas com perfis distintos em cada uma. Endpoints protegidos exigem os headers `Authorization: Bearer <jwt>` e `x-empresa-id: <uuid>`.
+- **JWT + perfis/permissões**: perfis são escopados por empresa; permissões são globais. Use `@TemPermissao('READ_USUARIOS')` para gates de permissão.
+- **Soft delete** automático em todas as entidades (via extensão do PrismaService).
+- **Paginação padronizada** em todos os endpoints de listagem.
+- **Observabilidade**: traces via OpenTelemetry, visualização no Jaeger (`http://localhost:16686`).
+- **Rate limit** com 4 tiers configuráveis (default dominante: 100 req/min).
 
-## Mudanças Recentes
+## Quickstart
 
-- **Arquitetura Multi-tenant:** Perfis de usuário agora são escopados por empresa. Cada empresa possui sua própria lista independente de perfis.
-- **Segurança Avançada:** Implementado `ClassSerializerInterceptor` global para ocultação automática de campos sensíveis (como senhas) via `@Exclude()`.
-- **Padronização de Erros:** Filtro global de exceções para respostas de erro consistentes em toda a API.
-- **Código Limpo:** Decoradores customizados `@UsuarioLogado()` e `@EmpresaId()` para simplificar controladores.
-- **Observabilidade:** Interceptor de logging automático para monitoramento de performance e status de requisições.
-- **Infraestrutura:** Migração para Jaeger v2 e otimização do coletor OpenTelemetry para suporte OTLP gRPC.
-- **Endpoints de Relacionamento:**
-  - `GET /empresas/:id/usuarios`: Lista usuários de uma empresa.
-  - `GET /usuarios/:id/empresas`: Lista empresas de um usuário.
+```bash
+# 1. Deps
+npm install
 
----
+# 2. Configure o ambiente (edite JWT_SECRET em .env)
+cp .env.example .env
 
-## Documentação da API
+# 3. Suba a infra mínima (Postgres + Redis)
+docker compose up -d postgres redis
 
-### Documentação Interativa (Swagger)
+# 4. Migre o schema
+npx prisma migrate dev
 
-A aplicação conta com uma documentação interativa via Swagger UI, onde é possível visualizar todos os endpoints, modelos de dados e testar as requisições diretamente pelo navegador.
+# 5. Rode a API
+npm run start:dev
+```
 
-**URL:** `http://localhost:3001/swagger`
+- API: `http://localhost:3001`
+- Swagger: `http://localhost:3001/swagger`
+- Jaeger: `http://localhost:16686`
+
+Para a stack completa (incluindo pgAdmin, Jaeger, OTEL Collector e a própria API containerizada), use `docker compose up -d`.
+
+## Documentação da API (resumo)
 
 ### Autenticação
 
-A maioria dos endpoints desta API requer autenticação via JWT (JSON Web Token).
+```bash
+# Login (público)
+curl -X POST http://localhost:3001/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@empresa.com","senha":"senha"}'
 
-#### 1. Obter Token
-
-Para obter um token, você deve se autenticar com seu e-mail e senha.
-**Endpoint:** `POST /auth/login`
-**Público:** Sim
-
-#### 2. Usar o Token
-
-Para acessar endpoints protegidos, inclua o token no header `Authorization`:
-
-```
-Authorization: Bearer YOUR_TOKEN
+# Resposta: { "access_token": "...", "refresh_token": "..." }
 ```
 
-#### 3. Contexto de Empresa
+Use o `access_token` em `Authorization: Bearer <token>` e o `x-empresa-id: <uuid>` nas chamadas protegidas.
 
-Muitos endpoints suportam ou requerem o header `x-empresa-id` para filtrar dados pelo contexto da empresa.
+### Endpoints de saúde
 
-```
-x-empresa-id: YOUR_EMPRESA_UUID
-```
+- `GET /health/live` — liveness
+- `GET /health/ready` — readiness (DB + disco)
+- `GET /health/network` — conectividade externa
 
-### Endpoints de Saúde (Health Check)
+### Recursos por módulo
 
-- **Liveness Probe:** `GET /health/live` - Verifica se o processo está ativo.
-- **Readiness Probe:** `GET /health/ready` - Verifica dependências (DB, etc.).
-- **Network Probe:** `GET /health/network` - Verifica conectividade externa.
-
-### Módulos e Recursos
-
-#### Usuários
-
-Gerenciamento de usuários do sistema.
-
-- `GET /usuarios`: Listar todos os usuários (paginado).
-- `GET /usuarios/:id`: Buscar um usuário por ID.
-- `POST /usuarios`: Criar um novo usuário.
-- `PATCH /usuarios/:id`: Atualizar um usuário (inclui soft delete/restore).
-- `GET /usuarios/:id/empresas`: Listar empresas vinculadas ao usuário.
-
-#### Empresas
-
-Gerenciamento de empresas (Multi-tenancy).
-
-- `GET /empresas`: Listar todas as empresas.
-- `GET /empresas/:id`: Buscar uma empresa pelo ID.
-- `POST /empresas`: Criar uma nova empresa.
-- `PATCH /empresas/:id`: Atualizar uma empresa.
-- `DELETE /empresas/:id`: Remover (soft delete) uma empresa.
-- `POST /empresas/:id/usuarios`: Vincular usuário à empresa com perfis.
-- `GET /empresas/:id/usuarios`: Listar usuários vinculados a uma empresa.
-
-#### Perfis e Permissões
-
-- `GET /perfis`: Listar perfis vinculados à empresa.
-- `GET /perfis/:id`: Buscar perfil por ID.
-- `GET /permissoes`: Listar todas as permissões globais.
-
----
+- **Auth**: `POST /auth/login` — [src/auth/README.md](./src/auth/README.md).
+- **Usuários**: CRUD + soft delete/restore + `GET /usuarios/:id/empresas` — [src/usuarios/README.md](./src/usuarios/README.md).
+- **Empresas**: CRUD + soft delete + `POST/GET /empresas/:id/usuarios` — [src/empresas/README.md](./src/empresas/README.md).
+- **Perfis**: CRUD escopado por empresa — [src/perfis/README.md](./src/perfis/README.md).
+- **Permissões**: CRUD global — [src/permissoes/README.md](./src/permissoes/README.md).
 
 ## Arquitetura Multi-tenant
-
-A aplicação utiliza um modelo multi-tenant onde os **Perfis e Permissões** de um usuário são definidos no contexto de uma **Empresa**.
 
 ```mermaid
 graph TD
@@ -110,70 +77,16 @@ graph TD
     P --> PE[Permissões]
 
     subgraph "Contexto da Empresa"
-        UE
-        P
+    UE
+    P
     end
 ```
 
-### Como funciona a Autorização
+**Como funciona a autorização**: o cliente envia o JWT + o `x-empresa-id`. O `PermissaoGuard` valida se o usuário possui os perfis necessários **especificamente naquela empresa**. O mesmo nome de perfil pode existir em empresas diferentes com permissões diferentes.
 
-Para acessar rotas protegidas que exigem permissões específicas (decorador `@TemPermissao`), o cliente deve enviar:
+## Erros
 
-1.  O token JWT no header `Authorization: Bearer <token>`.
-2.  O ID da empresa no header `x-empresa-id: <uuid>`.
-
-O sistema validará se o usuário possui os perfis necessários para a ação especificamente na empresa informada.
-
----
-
-## Arquitetura do Sistema
-
-O projeto segue os princípios da **Clean Architecture**, organizado em camadas para garantir separação de preocupações e testabilidade:
-
-1.  **Domain (Domínio):** Contém as entidades de negócio e interfaces de repositório. É o núcleo da aplicação.
-2.  **Application (Aplicação):** Contém os casos de uso (Services), controladores e DTOs.
-3.  **Infrastructure (Infraestrutura):** Implementações técnicas como repositórios Prisma, estratégias de autenticação e serviços externos.
-
----
-
-## Tecnologias Utilizadas
-
-- **Framework:** NestJS (v11.1.6)
-- **HTTP Server:** Fastify (via @nestjs/platform-fastify)
-- **ORM:** Prisma (v6.15.0)
-- **Banco de Dados:** PostgreSQL (via Docker)
-- **Autenticação:** JWT, Passport.js, bcrypt
-- **Observabilidade:** OpenTelemetry, Jaeger
-- **Testes:** Jest, Supertest
-
----
-
-## Configuração e Execução
-
-### Pré-requisitos
-
-- Node.js (v20+)
-- Docker e Docker Compose v2 (comando `docker compose` com espaço)
-
-### Instalação e Execução
-
-1. Clone o repositório e instale dependências: `npm install`
-2. Configure o arquivo `.env` (ou use `.env.local` para desenvolvimento).
-3. Adicione seu usuário ao grupo docker: `sudo usermod -aG docker $USER` (ou faça logout/login)
-4. Inicie a infraestrutura: `docker compose up -d postgres redis`
-5. Execute migrações: `npm run test:migrate` (para testes) ou `npx prisma migrate dev` (para desenvolvimento)
-6. Inicie a API: `npm run start:dev`
-
-### Testes
-
-- **Unitários:** `npm run test`
-- **E2E:** `npm run test:e2e` (Requer `npm run test:migrate` antes e infraestrutura rodando)
-
----
-
-## Error Handling
-
-A API utiliza um formato de erro padronizado:
+Todas as respostas de erro seguem o envelope:
 
 ```json
 {
@@ -183,6 +96,26 @@ A API utiliza um formato de erro padronizado:
   "message": "Mensagem de erro explicativa"
 }
 ```
+
+## Onde achar o resto
+
+- Comandos de teste/lint/build, workflow DDD→BDD→SDD→ATDD→TDD, catálogo de módulos, env vars, entry points → **[AGENTS.md](./AGENTS.md)**
+- Detalhes de Docker, OpenTelemetry/Jaeger, portas da stack → [src/shared/README_infra.md](./src/shared/README_infra.md)
+- Regras de OpenSpec (RFC 2119, formato de spec) → [.openspec/AGENTS.md](./.openspec/AGENTS.md)
+- Procedimentos passo a passo (SDD, alteração segura, E2E) → [.agent/workflows/](./.agent/workflows/)
+- Contrato de um módulo específico → [src/<módulo>/README.md](./src/)
+- Specs aprovadas/históricas → [.openspec/specs/](./.openspec/specs/)
+
+## Testes
+
+```bash
+npm run test              # unitários
+npm run test:e2e          # E2E (requer `npm run test:migrate` + infra)
+npm run validate          # lint + build + test + e2e
+npm run validate:quick    # lint + build + test
+```
+
+Mais detalhes em [AGENTS.md → Testing](./AGENTS.md#11-testing).
 
 ## Licença
 

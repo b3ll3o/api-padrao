@@ -1,36 +1,47 @@
 # Módulo de Autenticação (`auth`)
 
-Este módulo é responsável pela segurança da API, gerenciando o acesso dos usuários através de Tokens JWT.
+Responsável pela segurança da API: tokens JWT, validação de acesso e controle por permissões. Detalhes de decorators globais, guards e `@TemPermissao` estão em [AGENTS.md](../../AGENTS.md).
 
 ## Funcionalidades
+
 - Autenticação de usuários via e-mail e senha.
-- Geração de tokens JWT contendo informações de perfil e empresa.
-- Proteção de rotas via `AuthGuard`.
-- Controle de acesso granular via `PermissaoGuard`.
+- Geração de tokens JWT contendo perfis e empresas vinculadas.
+- Proteção de rotas via `AuthGuard` (global).
+- Controle de acesso granular via `PermissaoGuard` + `@TemPermissao(...)`.
 
 ## Endpoints
 
-### 1. Login
+### Login
+
 - **URL**: `POST /auth/login`
-- **Descrição**: Autentica um usuário e retorna um Access Token JWT.
-- **Payload**: `LoginUsuarioDto` (email, senha).
-- **Acesso**: Público.
+- **Descrição**: autentica um usuário e retorna `access_token` + `refresh_token`.
+- **Payload**: `LoginUsuarioDto` (`email`, `senha`).
+- **Acesso**: público (`@Public()`).
 
 ## Mecanismos de Proteção
 
-### `AuthGuard` (Global)
-Todas as rotas da API são protegidas por padrão, exigindo um token JWT válido no header `Authorization: Bearer <token>`.
+### AuthGuard (global)
 
-### Decorador `@Public()`
-Utilizado para abrir exceções na proteção global, permitindo acesso sem token (ex: login, criação de conta).
+Todas as rotas da API são protegidas por padrão, exigindo `Authorization: Bearer <token>`. Veja [src/auth/application/guards/auth.guard.ts](./application/guards/auth.guard.ts).
 
-### Decorador `@TemPermissao(...permissoes)`
-Utilizado para restringir o acesso a usuários que possuem permissões específicas no contexto da empresa informada.
+### `@Public()`
+
+Usado em `auth/login` e em endpoints de health para abrir exceção à proteção global.
+
+### `@TemPermissao(...permissoes)`
+
+Restringe o acesso a usuários que possuem as permissões listadas **no contexto da empresa** informada via `x-empresa-id`. Veja [src/auth/application/decorators/temPermissao.decorator.ts](./application/decorators/temPermissao.decorator.ts).
 
 ## Fluxo de Autenticação
+
 1. O usuário envia credenciais para `/auth/login`.
-2. O sistema valida as credenciais e busca os perfis/permissões do usuário na empresa.
+2. O sistema valida as credenciais e busca os perfis/permissões do usuário em cada empresa onde ele atua.
 3. Um JWT é gerado contendo:
-    - `sub`: ID do usuário.
-    - `email`: E-mail do usuário.
-    - `empresas`: Lista de empresas e perfis vinculados.
+   - `sub`: ID do usuário.
+   - `email`: e-mail do usuário.
+   - `empresas`: lista de empresas e perfis vinculados.
+
+## Documentação relacionada
+
+- [AGENTS.md](../../AGENTS.md) — fonte canônica: arquitetura, comandos, guards, env vars.
+- [src/shared/README.md](../shared/README.md) — `EmpresaContext`, interceptors, decorators.

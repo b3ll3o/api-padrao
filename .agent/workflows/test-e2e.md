@@ -2,6 +2,8 @@
 description: [executar testes E2E da aplicação]
 ---
 
+> **Autoridade geral**: [`/AGENTS.md`](../../AGENTS.md). Para contexto de testing, veja [AGENTS.md → Testing](../../AGENTS.md#11-testing).
+
 Para executar os testes de ponta a ponta (E2E), siga estes passos:
 
 1. Suba o banco de dados de teste (se ainda não estiver rodando):

@@ -2,6 +2,8 @@
 description: [fluxo rápido de validação de alterações e saúde do projeto]
 ---
 
+> **Autoridade geral**: [`/AGENTS.md`](../../AGENTS.md). Este workflow é uma variação "rápida" do ciclo completo em [`alteracao-segura.md`](./alteracao-segura.md).
+
 Este workflow serve para validar rapidamente as alterações realizadas e garantir que o projeto continua estável.
 
 1. **Segurança e Dependências** (NOVO):
