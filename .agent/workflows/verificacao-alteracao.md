@@ -1,62 +1,41 @@
 ---
-description: [fluxo rápido de validação de alterações e saúde do projeto]
+description: [ciclo rápido de validação durante o desenvolvimento — usa validate:quick]
+last_updated: 2026-06-15
+reviewer: claude-code
 ---
 
-> **Autoridade geral**: [`/AGENTS.md`](../../AGENTS.md). Este workflow é uma variação "rápida" do ciclo completo em [`alteracao-segura.md`](./alteracao-segura.md).
+> **Autoridade geral**: [`/AGENTS.md`](../../AGENTS.md).
+>
+> **Quando usar este workflow**: durante o desenvolvimento, em ciclos de iteração curtos (entre uma alteração e a próxima). Para o **ciclo pré-commit completo** (com E2E e commit), use [`alteracao-segura.md`](./alteracao-segura.md).
+>
+> **Diferença-chave**: este workflow **não** roda testes E2E (mais demorados) e **não** faz commit. Use-o para feedback rápido enquanto edita.
 
-Este workflow serve para validar rapidamente as alterações realizadas e garantir que o projeto continua estável.
+1. **Segurança e Dependências**:
+   - Execute `npm run security:check` para verificar vulnerabilidades (bloqueia em high+).
+   - Execute `npm run deps:check` para identificar dependências desatualizadas (somente leitura; não atualiza).
 
-1. **Segurança e Dependências** (NOVO):
-   // turbo
+2. **Validação Rápida**:
+   - Execute `npm run validate:quick` (lint + build + testes unitários) — este é o mesmo script rodado pelo pre-commit do Husky.
+   - Se `validate:quick` falhar, vá direto para o passo 4 (ciclo de correção).
+   - **Não** rode `npm run test:e2e` aqui — use o workflow [`test-e2e.md`](./test-e2e.md) apenas quando precisar validar fluxos integrados específicos.
 
-- Execute `npm run security:check` para verificar vulnerabilidades (bloqueia em high+).
-  // turbo
-- Execute `npm run deps:check` para identificar dependências desatualizadas.
-  // turbo
-- Execute `npm run deps:update` para atualizar dependências (se necessário).
+3. **Verificação de Resíduos**:
+   - Execute `npm run clean` para remover artefatos (`coverage_report*.txt`, `test_output*.log`).
+   - Verifique que não há importações para módulos removidos (ex: Sentry) ou arquivos temporários versionados.
 
-2. **Validação Geral**:
-   // turbo
-
-- Execute `npm run validate` para rodar Lint, Build, Testes Unitários e E2E de uma só vez.
-- Caso o comando acima falhe, prossiga para os passos 3 e 4 para isolar o problema.
-
-3. **Lint e Formatação**:
-   // turbo
-
-- Execute `npm run lint` para verificar regras de estilo e erros estáticos.
-  // turbo
-- Execute `npm run format` para garantir a padronização do código.
-
-4. **Build e Testes**:
-   // turbo
-
-- Execute `npm run build` para validar a transpilação do TypeScript e configurações do NestJS.
-  // turbo
-- Execute `npm run test` para rodar os testes unitários.
-  // turbo
-- Execute `npm run test:e2e` para validar os fluxos integrados (Requer banco de dados de teste ativo).
-
-5. **Verificação de Resíduos**:
-
-- Verifique se não restaram arquivos temporários ou logs (`npm run clean`).
-- Verifique se não há importações para módulos removidos (ex: Sentry).
-
-6. **Ciclo de Correção (Loop de Validação)**:
-
-- Em caso de **QUALQUER** falha nos passos 1, 2, 3 ou 4:
-
-1. Analise o erro e identifique a causa raiz.
-2. Implemente a correção necessária.
-3. **OBRIGATÓRIO**: Reinicie o processo de validação a partir do passo 1.
-4. Repita este ciclo até que todos os comandos (Security, Lint, Build e Testes) passem sem erros.
+4. **Ciclo de Correção (Loop de Validação)**:
+   - Em caso de **QUALQUER** falha nos passos 1, 2 ou 3:
+     1. Analise o erro e identifique a causa raiz.
+     2. Implemente a correção necessária.
+     3. **OBRIGATÓRIO**: Reinicie o processo de validação a partir do passo 1.
+     4. Repita até que `security:check`, `validate:quick` e `clean` passem sem erros.
 
 5. **Conclusão**:
+   - As alterações estão prontas para iteração adicional **ou** para iniciar o ciclo pré-commit completo ([`alteracao-segura.md`](./alteracao-segura.md)).
 
-- As alterações só são consideradas prontas para commit após uma rodada completa de verificação bem-sucedida, sem necessidade de alterações adicionais.
+## Scripts Úteis
 
-## Scripts Disponíveis
-
-- `npm run security:check` - Audit de segurança (npm audit --audit-level=high)
-- `npm run deps:check` - Lista dependências desatualizadas (npm outdated)
-- `npm run deps:update` - Atualiza dependências (npm update)
+- `npm run security:check` — `npm audit --audit-level=high`
+- `npm run deps:check` — `npm outdated`
+- `npm run validate:quick` — `lint && build && test`
+- `npm run clean` — remove `coverage_report*.txt` e `test_output*.log`

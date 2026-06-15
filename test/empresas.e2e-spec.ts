@@ -377,7 +377,7 @@ describe('EmpresasController (e2e)', () => {
           nome: 'Staff',
           codigo: 'STAFF',
           descricao: 'Equipe',
-          empresa: { connect: { id: empresa.id } },
+          empresa: { connect: { id: adminEmpresaId } },
         },
       });
 
@@ -403,10 +403,7 @@ describe('EmpresasController (e2e)', () => {
     });
 
     it('deve listar usuários de uma empresa', async () => {
-      const empresa = await prisma.empresa.create({
-        data: { nome: 'List Users Tech', responsavelId: adminUser.id },
-      });
-
+      // Cria um user adicional no admin's empresa
       const user = await prisma.usuario.create({
         data: { email: 'list-staff@example.com' },
       });
@@ -414,25 +411,24 @@ describe('EmpresasController (e2e)', () => {
       await prisma.usuarioEmpresa.create({
         data: {
           usuarioId: user.id,
-          empresaId: empresa.id,
+          empresaId: adminEmpresaId,
         },
       });
 
       const res = await request(app.getHttpServer())
-        .get(`/empresas/${empresa.id}/usuarios`)
+        .get(`/empresas/${adminEmpresaId}/usuarios`)
         .set('Authorization', `Bearer ${adminToken}`)
         .set('x-empresa-id', adminEmpresaId)
         .expect(200);
 
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0].email).toBe('list-staff@example.com');
+      // 2 users no adminEmpresaId: adminUser (do beforeEach) + o novo user
+      expect(res.body.data).toHaveLength(2);
+      const emails = res.body.data.map((u: any) => u.email);
+      expect(emails).toContain('admin_empresas@example.com');
+      expect(emails).toContain('list-staff@example.com');
     });
 
     it('deve atualizar perfis se o vínculo já existir', async () => {
-      const empresa = await prisma.empresa.create({
-        data: { nome: 'Cloud Tech', responsavelId: adminUser.id },
-      });
-
       const user = await prisma.usuario.create({
         data: { email: 'staff2@example.com' },
       });
@@ -442,7 +438,7 @@ describe('EmpresasController (e2e)', () => {
           nome: 'P1',
           codigo: 'P1',
           descricao: 'D1',
-          empresa: { connect: { id: empresa.id } },
+          empresa: { connect: { id: adminEmpresaId } },
         },
       });
 
@@ -451,22 +447,22 @@ describe('EmpresasController (e2e)', () => {
           nome: 'P2',
           codigo: 'P2',
           descricao: 'D2',
-          empresa: { connect: { id: empresa.id } },
+          empresa: { connect: { id: adminEmpresaId } },
         },
       });
 
-      // Primeiro vínculo
+      // Primeiro vínculo (no admin's empresa por causa do multi-tenant)
       await prisma.usuarioEmpresa.create({
         data: {
           usuarioId: user.id,
-          empresaId: empresa.id,
+          empresaId: adminEmpresaId,
           perfis: { connect: [{ id: profile1.id }] },
         },
       });
 
       // Atualizar para profile2
       await request(app.getHttpServer())
-        .post(`/empresas/${empresa.id}/usuarios`)
+        .post(`/empresas/${adminEmpresaId}/usuarios`)
         .set('Authorization', `Bearer ${adminToken}`)
         .set('x-empresa-id', adminEmpresaId)
         .send({
@@ -476,7 +472,7 @@ describe('EmpresasController (e2e)', () => {
         .expect(201);
 
       const link = await prisma.usuarioEmpresa.findFirst({
-        where: { usuarioId: user.id, empresaId: empresa.id },
+        where: { usuarioId: user.id, empresaId: adminEmpresaId },
         include: { perfis: true },
       });
 

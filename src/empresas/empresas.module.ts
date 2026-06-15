@@ -8,7 +8,11 @@ import { UsuariosModule } from '../usuarios/usuarios.module';
 import { PerfisModule } from '../perfis/perfis.module';
 
 @Module({
-  imports: [PrismaModule, forwardRef(() => UsuariosModule), PerfisModule],
+  imports: [
+    PrismaModule,
+    forwardRef(() => UsuariosModule),
+    forwardRef(() => PerfisModule),
+  ],
   controllers: [EmpresasController],
   providers: [
     EmpresasService,

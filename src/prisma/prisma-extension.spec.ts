@@ -90,28 +90,22 @@ describe('Prisma Extension - Multi-tenant & Soft Delete', () => {
     const args = { where: { id: 1 } };
     const context = { empresaId: 'company-123' };
 
-    // Mock models
-    const mockFindFirst = jest.fn().mockResolvedValue({ id: 1 });
-    const mockThis = {
-      findFirst: mockFindFirst,
-    };
-
+    // Verify query layer: deixa passar com query(args) após injetar deletedAt
     await contextStorage.run(context, async () => {
-      const result = await handleSoftDeleteAndMultiTenant.call(mockThis, {
+      await handleSoftDeleteAndMultiTenant({
         model: 'Perfil',
         operation: 'findUnique',
         args,
         query: mockQuery,
       });
-
-      expect(result).toEqual({ id: 1 });
     });
 
-    expect(mockFindFirst).toHaveBeenCalledWith(
+    // O query extension agora delega para o model extension (que faz o
+    // findUnique→findFirst); o query extension apenas injeta `deletedAt: null`
+    expect(mockQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 1, empresaId: 'company-123' },
+        where: { id: 1, deletedAt: null },
       }),
     );
-    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
