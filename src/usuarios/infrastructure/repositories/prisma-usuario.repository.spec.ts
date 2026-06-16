@@ -136,6 +136,26 @@ describe('PrismaUsuarioRepository', () => {
       }
     });
 
+    it('deve lidar com UsuarioEmpresa sem perfis (perfis undefined → array vazio)', async () => {
+      const userWithRelations = {
+        ...mockPrismaUser,
+        empresas: [
+          {
+            id: 1,
+            empresaId: 'emp-1',
+            // sem `perfis`
+          },
+        ],
+      };
+      mockUsuarioModel.findUnique.mockResolvedValue(userWithRelations);
+
+      const result =
+        await repository.findByEmailWithPerfisAndPermissoes('test@test.com');
+
+      expect(result?.empresas).toHaveLength(1);
+      expect(result?.empresas?.[0].perfis).toEqual([]);
+    });
+
     it('deve retornar null se o usuário não for encontrado', async () => {
       mockUsuarioModel.findUnique.mockResolvedValue(null);
       const result =
@@ -197,6 +217,75 @@ describe('PrismaUsuarioRepository', () => {
       mockUsuarioModel.update.mockRejectedValue(error);
 
       await expect(repository.restore(1)).rejects.toThrow('Generic DB Error');
+    });
+
+    it('remove deve retornar null quando delete resolve com null', async () => {
+      mockUsuarioModel.delete.mockResolvedValue(null);
+
+      const result = await repository.remove(1);
+
+      expect(result).toBeNull();
+    });
+
+    it('restore deve retornar null quando update resolve com null', async () => {
+      mockUsuarioModel.update.mockResolvedValue(null);
+
+      const result = await repository.restore(1);
+
+      expect(result).toBeNull();
+    });
+
+    it('findOne deve usar prisma.usuario (não extended) quando includeDeleted=true', async () => {
+      mockUsuarioModel.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'a@b.c',
+        senha: 'h',
+        deletedAt: new Date(),
+        ativo: false,
+      });
+
+      await repository.findOne(1, true);
+
+      expect(mockUsuarioModel.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 },
+        select: expect.any(Object),
+      });
+    });
+
+    it('findOne deve retornar undefined quando mapToEntity retorna null', async () => {
+      mockUsuarioModel.findUnique.mockResolvedValue(null);
+
+      const result = await repository.findOne(1);
+
+      expect(result).toBeUndefined();
+    });
+
+    it('findAll deve usar page=1 e limit=10 como default', async () => {
+      mockUsuarioModel.findMany.mockResolvedValue([]);
+      mockUsuarioModel.count.mockResolvedValue(0);
+
+      await repository.findAll({} as any);
+
+      expect(mockUsuarioModel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 10 }),
+      );
+    });
+
+    it('mapToEntity deve tratar senha null como undefined (via findOne com senha null)', async () => {
+      mockUsuarioModel.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'a@b.c',
+        senha: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+        ativo: true,
+      });
+
+      const result = await repository.findOne(1);
+
+      expect(result).not.toBeNull();
+      expect(result!.senha).toBeUndefined();
     });
   });
 });
