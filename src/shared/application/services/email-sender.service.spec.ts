@@ -59,8 +59,8 @@ describe('DefaultEmailSenderService (REQ-EM-07, REQ-EM-09, REQ-EM-10)', () => {
     logSpy.mockRestore();
   });
 
-  it('deve ser definido', () => {
-    expect(service).toBeDefined();
+  it('deve ser uma instância de DefaultEmailSenderService', () => {
+    expect(service).toBeInstanceOf(DefaultEmailSenderService);
   });
 
   // REQ-EM-09

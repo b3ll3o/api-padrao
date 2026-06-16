@@ -12,34 +12,40 @@ import { BaseEntity } from '../../../shared/domain/entities/base.entity';
  *
  * ## Aggregate Root
  *
- * Esta entidade é a **raiz do agregado** `Usuario`. O agregado engloba:
+ * Esta entidade é a **raiz do agregado** `Usuario`. O agregado é
+ * **deliberadamente pequeno** — contém apenas o próprio `Usuario`:
  *
- * - **`Usuario`** (esta entidade) — possui identidade global (`id`)
- *   e ciclo de vida independente. É o ponto de entrada para todas
- *   as operações que tocam o usuário e seus vínculos.
- * - **`UsuarioEmpresa`** — entidades-filhas que vinculam o usuário
- *   a uma empresa com um conjunto de perfis. **NÃO** são acessadas
- *   diretamente — toda modificação passa por `Usuario.adicionarEmpresa()`,
- *   `removerEmpresa()` ou `atualizarPerfis()`.
- * - **Perfis** (referenciados, não contidos) — os perfis são agregados
- *   distintos, mas o vínculo `UsuarioEmpresa` carrega o snapshot dos
- *   códigos de permissão no momento da associação (denormalizado em
- *   `UsuarioEmpresa.permissoesCodigos`).
+ * - **`Usuario`** (esta entidade) — identidade global (`id` numérico)
+ *   e ciclo de vida independente.
+ * - Atributos: `email`, `senha` (hash, nunca serializado), `ativo`,
+ *   `deletedAt`, e a coleção de `empresas?: UsuarioEmpresa[]` carregada
+ *   sob demanda pelas queries que pedem `include: { empresas }`.
  *
- * ### Limites transacionais
+ * ## O que NÃO está neste agregado
  *
- * Todas as operações de escrita que afetam o usuário **e** seus
- * vínculos de empresa DEVEM ser executadas dentro de uma transação
- * Prisma única — caso contrário o agregado pode ficar inconsistente
- * (ex: usuário criado sem nenhuma empresa associada).
+ * Para evitar confusão, esclarecemos o que parece estar mas **não está**
+ * sob a alçada de `UsuarioRepository`:
  *
- * ### Regras de consistência
+ * - **`UsuarioEmpresa`** — a tabela pivô entre `Usuario` e `Empresa`
+ *   é de **propriedade do agregado `Empresa`**, não de `Usuario`.
+ *   Toda escrita (`addUserToCompany`) passa por
+ *   `PrismaEmpresaRepository`, e toda leitura agregada
+ *   (`findUsersByCompany` / `findCompaniesByUser`) também. `Usuario`
+ *   apenas referencia os vínculos via `include: { empresas: ... }`
+ *   em queries que cruzam os dois lados.
+ * - **`RefreshToken`** e **`PasswordResetToken`** — pertencem ao
+ *   agregado `Autenticacao` (módulo `auth`). Possuem repositórios
+ *   próprios (`prisma-refresh-token.repository.ts`,
+ *   `prisma-password-reset-token.repository.ts`) e **não** são
+ *   manipulados via `UsuarioRepository`.
  *
- * 1. O usuário só pode existir no sistema se tiver pelo menos uma
- *    `UsuarioEmpresa` (constraint de aplicação, não de DB).
- * 2. A senha **nunca** é exposta em serialização (`@Exclude`).
- * 3. Soft delete do usuário é idempotente e preserva os vínculos
- *    de empresa (eles são soft-deletados em cascata).
+ * ## Limites transacionais
+ *
+ * Operações que tocam **apenas** `Usuario` (criar, atualizar email,
+ * trocar senha, desativar, restaurar) cabem em uma única query
+ * Prisma e usam `UsuarioRepository` diretamente. Operações
+ * multi-agregado (ex: reset de senha + revogação de refresh tokens)
+ * acontecem no módulo `auth` e usam `UnitOfWork.atomic()`.
  *
  * ## Invariantes protegidas
  *
@@ -49,8 +55,8 @@ import { BaseEntity } from '../../../shared/domain/entities/base.entity';
  * - Soft delete: `desativar()` zera `ativo` e seta `deletedAt`.
  * - Restauração: `restaurar()` reativa e zera `deletedAt`.
  *
- * @see UsuarioEmpresa para o vínculo multi-tenant
- * @see Perfil para o agregado de papéis
+ * @see Empresa (aggregate root do tenant — dono do vínculo UsuarioEmpresa)
+ * @see auth/ (módulo dono de RefreshToken / PasswordResetToken)
  */
 // BDD: features/usuarios.feature:Funcionalidade: Usuários
 // SDD: .openspec/changes/usuarios/design.md

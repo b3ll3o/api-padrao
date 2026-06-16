@@ -49,8 +49,8 @@ describe('AllExceptionsFilter', () => {
     getResponse: jest.fn(),
   };
 
-  it('deve ser definido', () => {
-    expect(filter).toBeDefined();
+  it('deve ser uma instância de AllExceptionsFilter', () => {
+    expect(filter).toBeInstanceOf(AllExceptionsFilter);
   });
 
   it('deve tratar HttpException corretamente', () => {
@@ -471,7 +471,20 @@ describe('AllExceptionsFilter', () => {
 
     filter.catch(exception, mockArgumentsHost as any);
 
-    // Fallback usa exception.message do HttpException (que é o body stringified)
-    expect(mockHttpAdapter.reply).toHaveBeenCalled();
+    // Verifica o branch de fato: o `message` retornado deve ser o
+    // exception.message (fallback) — e não a string '42' nem nada
+    // que venha de 'Bad Request'. A representação exata de
+    // HttpException.message para objeto é a stringificação do body.
+    expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ statusCode: 400 }),
+      400,
+    );
+    const body = mockHttpAdapter.reply.mock.calls.at(-1)?.[1];
+    // Fallback usa exception.message — que para HttpException(object) é
+    // a stringificação do body via Object.prototype.toString.
+    // O importante: o caminho do `formatHttpExceptionMessage` foi
+    // exercido e produziu string (não array, não number cru).
+    expect(typeof body.message).toBe('string');
   });
 });

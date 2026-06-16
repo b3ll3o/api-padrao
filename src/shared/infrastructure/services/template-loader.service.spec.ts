@@ -110,12 +110,15 @@ Body: Olá! Para descadastro.`,
   it('get deve retornar template do cache por templateId', () => {
     writeFileSync(
       join(tempDir, 'a.tpl'),
-      `Subject: A
+      `Subject: A-Subject
 
 Body: Olá! descadastro. dpo@x`,
     );
     loader.loadAll();
-    expect(loader.get('a')).toBeDefined();
+    const template = loader.get('a');
+    expect(template).toBeDefined();
+    expect(template?.templateId).toBe('a');
+    expect(template?.subject).toBe('A-Subject');
   });
 
   it('get deve retornar undefined para templateId desconhecido', () => {

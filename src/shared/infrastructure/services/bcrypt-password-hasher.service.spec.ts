@@ -21,7 +21,8 @@ describe('BcryptPasswordHasherService', () => {
   it('deve fazer o hash de uma senha', async () => {
     const password = 'mysecretpassword';
     const hashedPassword = await service.hash(password);
-    expect(hashedPassword).toBeDefined();
+    // bcrypt gera hash no formato $2a$ / $2b$ / $2y$ com 60 chars
+    expect(hashedPassword).toMatch(/^\$2[aby]\$\d{2}\$.{53}$/);
     expect(hashedPassword).not.toEqual(password);
   });
 

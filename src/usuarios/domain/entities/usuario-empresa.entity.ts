@@ -9,15 +9,20 @@ import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
  *
  * ## Aggregate
  *
- * Esta entidade é um **Value Object** dentro do agregado `Usuario`.
- * Ela **não** tem identidade própria fora do contexto do usuário
- * (a chave única `[usuarioId, empresaId]` é composta, não há um
- * `id` de domínio significativo para o agregado).
+ * Esta entidade é um **Value Object** dentro do agregado `Empresa`
+ * (não do agregado `Usuario`). Ela **não** tem identidade própria
+ * fora do contexto da Empresa — a chave única `[usuarioId, empresaId]`
+ * é composta e o `id` numérico é apenas um surrogate de tabela.
  *
- * **Acesso:** nunca persistir, atualizar ou remover `UsuarioEmpresa`
- * diretamente — todas as operações passam pela raiz do agregado
- * `Usuario`. O repositório do `Usuario` (e não o da `UsuarioEmpresa`)
- * é o portão de entrada para escrita.
+ * **Quem é o portão de entrada?** `PrismaEmpresaRepository` —
+ * mais especificamente `addUserToCompany()` (escrita atômica via
+ * `prisma.extended.usuarioEmpresa.upsert()`) e os leitores
+ * `findUsersByCompany()` / `findCompaniesByUser()`. Toda
+ * modificação passa por `EmpresasService.addUser()`.
+ *
+ * `Usuario` apenas referencia esses vínculos via
+ * `prisma.extended.usuario.findUnique({ include: { empresas: ... } })`
+ * para carregar a lista no payload de perfil.
  *
  * ## Multi-tenancy
  *
@@ -33,7 +38,7 @@ import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
  * a união dos códigos de permissão de todos os perfis daquela
  * empresa (resolvidas em runtime pela `UsuarioAuthorizationService`).
  *
- * @see Usuario (raiz do agregado)
+ * @see Empresa (raiz do agregado — dona da tabela)
  * @see features/multi-tenancy.feature para os invariantes do escopo
  */
 export class UsuarioEmpresa {
