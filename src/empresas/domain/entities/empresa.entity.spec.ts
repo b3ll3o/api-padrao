@@ -169,24 +169,42 @@ describe('Empresa', () => {
     });
 
     it('deve ser idempotente (segunda chamada não muda deletedAt)', async () => {
-      // Usa fake timers para avançar o tempo virtualmente sem espera real.
-      // Garante que qualquer `new Date()` na segunda chamada produziria
-      // valor distinto — mas a idempotência do método mantém o primeiro.
+      // Idempotência vem do early-return `if (this.ativo)`. Após a
+      // primeira desativar(), ativo=false e chamadas subsequentes
+      // são no-op. Não há race condition de Date aqui — o segundo
+      // new Date() nem é avaliado.
+      const e = Empresa.criar({ nome: 'X', responsavelId: 1 });
+      e.desativar();
+      const primeiroDeletedAt = e.deletedAt;
+      expect(primeiroDeletedAt).toBeInstanceOf(Date);
+
+      // Segunda chamada é no-op — o deletedAt original é preservado
+      // (mesmo referência de objeto, não apenas valor igual)
+      e.desativar();
+      expect(e.deletedAt).toBe(primeiroDeletedAt);
+    });
+
+    it('atualizarMetadados deve atualizar updatedAt com a hora atual (fake timer)', () => {
+      // Este teste USA fake timers de forma load-bearing: queremos
+      // verificar que updatedAt muda quando o tempo virtual muda.
+      // Cobre o caso onde atualizarMetadados() é chamado em momentos
+      // diferentes — cada chamada deve registrar a hora da sua execução.
       jest.useFakeTimers();
       const t0 = new Date('2026-01-01T00:00:00.000Z');
       jest.setSystemTime(t0);
       try {
         const e = Empresa.criar({ nome: 'X', responsavelId: 1 });
-        e.desativar();
-        const primeiroDeletedAt = e.deletedAt;
-        expect(primeiroDeletedAt).toEqual(t0);
+        // criar() define updatedAt = t0 (via new Date())
+        expect(e.updatedAt).toEqual(t0);
 
-        // Avança o relógio 1 hora — sem isso, qualquer Date.now() no caminho
-        // produziria o mesmo valor (race no Date).
-        jest.setSystemTime(new Date('2026-01-01T01:00:00.000Z'));
-        e.desativar();
+        // Avança 1 hora no relógio virtual
+        const t1 = new Date('2026-01-01T01:00:00.000Z');
+        jest.setSystemTime(t1);
+        e.atualizarMetadados({ nome: 'Y' });
 
-        expect(e.deletedAt).toBe(primeiroDeletedAt);
+        // updatedAt deve refletir a nova hora virtual
+        expect(e.updatedAt).toEqual(t1);
+        expect(e.nome).toBe('Y');
       } finally {
         jest.useRealTimers();
       }
