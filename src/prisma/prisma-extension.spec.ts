@@ -1,5 +1,9 @@
 import { contextStorage } from '../shared/infrastructure/services/context.storage';
-import { handleSoftDeleteAndMultiTenant } from './prisma-extension';
+import {
+  handleSoftDeleteAndMultiTenant,
+  makeSoftDeleteHandlers,
+  makeMultiTenantHandlers,
+} from './prisma-extension';
 
 describe('Prisma Extension - Multi-tenant & Soft Delete', () => {
   let mockQuery: jest.Mock;
@@ -203,5 +207,156 @@ describe('Prisma Extension - Multi-tenant & Soft Delete', () => {
       query: mockQuery,
     });
     expect(mockQuery.mock.calls[0][0].where.deletedAt).toBeUndefined();
+  });
+
+  it('deve injetar deletedAt: null mesmo quando args.where é undefined', async () => {
+    const args = {} as any;
+    await handleSoftDeleteAndMultiTenant({
+      model: 'Usuario',
+      operation: 'findMany',
+      args,
+      query: mockQuery,
+    });
+    expect(mockQuery.mock.calls[0][0].where.deletedAt).toBeNull();
+  });
+});
+
+describe('makeSoftDeleteHandlers (model extension)', () => {
+  it('deve transformar delete em update com deletedAt e ativo=false', async () => {
+    const updateMock = jest.fn().mockResolvedValue({ id: 1 });
+    const ctx: any = { update: updateMock };
+    const handlers = makeSoftDeleteHandlers();
+
+    await handlers.delete.call(ctx, { where: { id: 1 } });
+
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { deletedAt: expect.any(Date), ativo: false },
+    });
+  });
+
+  it('deve transformar deleteMany em updateMany com deletedAt e ativo=false', async () => {
+    const updateManyMock = jest.fn().mockResolvedValue({ count: 3 });
+    const ctx: any = { updateMany: updateManyMock };
+    const handlers = makeSoftDeleteHandlers();
+
+    await handlers.deleteMany.call(ctx, { where: { ativo: true } });
+
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { ativo: true },
+      data: { deletedAt: expect.any(Date), ativo: false },
+    });
+  });
+
+  it('deve preservar data existente do caller em delete', async () => {
+    const updateMock = jest.fn().mockResolvedValue({ id: 1 });
+    const ctx: any = { update: updateMock };
+    const handlers = makeSoftDeleteHandlers();
+
+    await handlers.delete.call(ctx, {
+      where: { id: 1 },
+      data: { custom: 'value' },
+    });
+
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { custom: 'value', deletedAt: expect.any(Date), ativo: false },
+    });
+  });
+});
+
+describe('makeMultiTenantHandlers (model extension)', () => {
+  it('deve transformar findUnique em findFirst com empresaId do contexto', async () => {
+    const findFirstMock = jest.fn().mockResolvedValue({ id: 1 });
+    const ctx: any = { findFirst: findFirstMock };
+    const handlers = makeMultiTenantHandlers();
+
+    await contextStorage.run({ empresaId: 'empresa-123' }, async () => {
+      await handlers.findUnique.call(ctx, { where: { id: 1 } });
+    });
+
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { id: 1, empresaId: 'empresa-123' },
+    });
+  });
+
+  it('deve transformar findUniqueOrThrow em findFirstOrThrow com empresaId', async () => {
+    const findFirstOrThrowMock = jest.fn().mockResolvedValue({ id: 1 });
+    const ctx: any = { findFirstOrThrow: findFirstOrThrowMock };
+    const handlers = makeMultiTenantHandlers();
+
+    await contextStorage.run({ empresaId: 'empresa-123' }, async () => {
+      await handlers.findUniqueOrThrow.call(ctx, { where: { id: 1 } });
+    });
+
+    expect(findFirstOrThrowMock).toHaveBeenCalledWith({
+      where: { id: 1, empresaId: 'empresa-123' },
+    });
+  });
+
+  it('deve desconstruir composite key (usuarioId_empresaId) em where flat', async () => {
+    const findFirstMock = jest.fn().mockResolvedValue({ id: 1 });
+    const ctx: any = { findFirst: findFirstMock };
+    const handlers = makeMultiTenantHandlers();
+
+    await contextStorage.run({ empresaId: 'empresa-override' }, async () => {
+      await handlers.findUnique.call(ctx, {
+        where: {
+          usuarioId_empresaId: {
+            usuarioId: 5,
+            empresaId: 'empresa-original',
+          },
+        },
+      });
+    });
+
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: {
+        usuarioId: 5,
+        empresaId: 'empresa-override',
+      },
+    });
+  });
+
+  it('deve omitir empresaId quando não houver contexto', async () => {
+    const findFirstMock = jest.fn().mockResolvedValue({ id: 1 });
+    const ctx: any = { findFirst: findFirstMock };
+    const handlers = makeMultiTenantHandlers();
+
+    await handlers.findUnique.call(ctx, { where: { id: 1 } });
+
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { id: 1 },
+    });
+    expect(findFirstMock.mock.calls[0][0].where.empresaId).toBeUndefined();
+  });
+
+  it('deve desconstruir composite key mesmo sem contexto (sem injetar empresaId)', async () => {
+    const findFirstMock = jest.fn().mockResolvedValue({ id: 1 });
+    const ctx: any = { findFirst: findFirstMock };
+    const handlers = makeMultiTenantHandlers();
+
+    await handlers.findUnique.call(ctx, {
+      where: {
+        usuarioId_empresaId: { usuarioId: 5, empresaId: 'empresa-original' },
+      },
+    });
+
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { usuarioId: 5, empresaId: 'empresa-original' },
+    });
+  });
+
+  it('deve aceitar args undefined e usar where default', async () => {
+    const findFirstMock = jest.fn().mockResolvedValue({ id: 1 });
+    const ctx: any = { findFirst: findFirstMock };
+    const handlers = makeMultiTenantHandlers();
+
+    await handlers.findUnique.call(ctx, undefined);
+
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { empresaId: undefined },
+    });
+    expect(findFirstMock.mock.calls[0][0].where.empresaId).toBeUndefined();
   });
 });
