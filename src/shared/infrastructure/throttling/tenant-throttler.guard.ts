@@ -71,10 +71,44 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
   }
 
   /**
+   * Extrai o `empresaId` do request, na mesma ordem de prioridade do
+   * `getTracker`. Retorna `undefined` se nenhum for encontrado.
+   * Extraído para permitir testes unitários sem mockar todo o ciclo
+   * do `handleRequest` (que delega ao super e exige storage real).
+   */
+  extractEmpresaId(req: Record<string, any>): string | undefined {
+    const candidate =
+      req?.user?.empresaId ??
+      req?.user?.empresas?.[0]?.id ??
+      req?.headers?.['x-empresa-id'];
+    if (typeof candidate === 'string' && candidate.length > 0) {
+      return candidate;
+    }
+    return undefined;
+  }
+
+  /**
+   * Pré-aquece o cache do plano (best-effort) para que chamadas
+   * subsequentes tenham cache hit no PlanoService. Erros são logados
+   * e não propagam — o throttler continua funcionando.
+   */
+  async preFetchPlano(empresaId: string | undefined): Promise<void> {
+    if (!empresaId || typeof empresaId !== 'string') return;
+    try {
+      await this.planoService.getPlanoByEmpresaId(empresaId);
+    } catch (err) {
+      this.logger.warn({
+        event: 'throttler.plano_resolve_failed',
+        empresaId,
+        error: (err as Error).message,
+      });
+    }
+  }
+
+  /**
    * Override de `handleRequest` para:
    * 1. Resolver o `empresaId` antes da contagem.
-   * 2. Pré-aquecer o cache do plano (best-effort) para que chamadas subsequentes
-   *    tenham cache hit no PlanoService.
+   * 2. Pré-aquecer o cache do plano (best-effort).
    * 3. Delegar a contagem para o `super.handleRequest` (preserva @SkipThrottle,
    *    @Throttle decorator, headers Retry-After / X-RateLimit-*).
    */
@@ -85,24 +119,7 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
       string,
       any
     >;
-    const empresaId =
-      req?.user?.empresaId ??
-      req?.user?.empresas?.[0]?.id ??
-      req?.headers?.['x-empresa-id'];
-
-    if (empresaId && typeof empresaId === 'string') {
-      try {
-        // Resolve plano (best-effort) — não bloqueia a request em caso de erro
-        await this.planoService.getPlanoByEmpresaId(empresaId);
-      } catch (err) {
-        this.logger.warn({
-          event: 'throttler.plano_resolve_failed',
-          empresaId,
-          error: (err as Error).message,
-        });
-      }
-    }
-
+    await this.preFetchPlano(this.extractEmpresaId(req));
     return super.handleRequest(requestProps);
   }
 }

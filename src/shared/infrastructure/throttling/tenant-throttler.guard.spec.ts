@@ -111,3 +111,126 @@ describe('TenantThrottlerGuard (getTracker)', () => {
     // Plano não é parte da chave do tracker (plano vai via PlanoService)
   });
 });
+
+describe('TenantThrottlerGuard (extractEmpresaId)', () => {
+  it('extrai empresaId do JWT (priority 1)', () => {
+    const guard = buildGuard({} as any);
+    const req = { user: { empresaId: 'jwt-empresa' } };
+    expect(guard.extractEmpresaId(req)).toBe('jwt-empresa');
+  });
+
+  it('extrai do array empresas do JWT (priority 2)', () => {
+    const guard = buildGuard({} as any);
+    const req = { user: { empresas: [{ id: 'multi-empresa' }] } };
+    expect(guard.extractEmpresaId(req)).toBe('multi-empresa');
+  });
+
+  it('extrai do header x-empresa-id (priority 3)', () => {
+    const guard = buildGuard({} as any);
+    const req = { headers: { 'x-empresa-id': 'header-empresa' } };
+    expect(guard.extractEmpresaId(req)).toBe('header-empresa');
+  });
+
+  it('retorna undefined quando não há nenhum identificador', () => {
+    const guard = buildGuard({} as any);
+    expect(guard.extractEmpresaId({})).toBeUndefined();
+  });
+
+  it('retorna undefined para empresaId vazio', () => {
+    const guard = buildGuard({} as any);
+    expect(guard.extractEmpresaId({ user: { empresaId: '' } })).toBeUndefined();
+  });
+
+  it('retorna undefined para empresaId não-string (number)', () => {
+    const guard = buildGuard({} as any);
+    expect(
+      guard.extractEmpresaId({ user: { empresaId: 123 } }),
+    ).toBeUndefined();
+  });
+
+  it('prefere JWT sobre header', () => {
+    const guard = buildGuard({} as any);
+    const req = {
+      user: { empresaId: 'jwt' },
+      headers: { 'x-empresa-id': 'header' },
+    };
+    expect(guard.extractEmpresaId(req)).toBe('jwt');
+  });
+});
+
+describe('TenantThrottlerGuard (preFetchPlano)', () => {
+  it('não chama PlanoService para empresaId undefined', async () => {
+    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
+    const guard = buildGuard(planoService);
+    await guard.preFetchPlano(undefined);
+    expect(planoService.getPlanoByEmpresaId).not.toHaveBeenCalled();
+  });
+
+  it('não chama PlanoService para empresaId vazio', async () => {
+    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
+    const guard = buildGuard(planoService);
+    await guard.preFetchPlano('');
+    expect(planoService.getPlanoByEmpresaId).not.toHaveBeenCalled();
+  });
+
+  it('não chama PlanoService para empresaId não-string', async () => {
+    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
+    const guard = buildGuard(planoService);
+    await guard.preFetchPlano(null as any);
+    expect(planoService.getPlanoByEmpresaId).not.toHaveBeenCalled();
+  });
+
+  it('chama PlanoService para empresaId válido', async () => {
+    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
+    (planoService.getPlanoByEmpresaId as jest.Mock).mockResolvedValue('PRO');
+    const guard = buildGuard(planoService);
+    await guard.preFetchPlano('valid-empresa');
+    expect(planoService.getPlanoByEmpresaId).toHaveBeenCalledWith(
+      'valid-empresa',
+    );
+  });
+});
+
+describe('TenantThrottlerGuard (handleRequest)', () => {
+  let planoService: PlanoService;
+
+  beforeEach(() => {
+    planoService = { getPlanoByEmpresaId: jest.fn() } as any;
+  });
+
+  it('pré-aquece o cache do plano via PlanoService quando há empresaId no JWT', async () => {
+    const guard = buildGuard(planoService);
+    (planoService.getPlanoByEmpresaId as jest.Mock).mockResolvedValue('PRO');
+    const req = { user: { empresaId: 'empresa-x' } };
+    await guard.preFetchPlano(guard.extractEmpresaId(req));
+    expect(planoService.getPlanoByEmpresaId).toHaveBeenCalledWith('empresa-x');
+  });
+
+  it('NÃO chama PlanoService quando não há empresaId', async () => {
+    const guard = buildGuard(planoService);
+    const req = { ip: '127.0.0.1' };
+    await guard.preFetchPlano(guard.extractEmpresaId(req));
+    expect(planoService.getPlanoByEmpresaId).not.toHaveBeenCalled();
+  });
+
+  it('NÃO propaga erro do PlanoService (best-effort, fail-open)', async () => {
+    const guard = buildGuard(planoService);
+    (planoService.getPlanoByEmpresaId as jest.Mock).mockRejectedValue(
+      new Error('redis offline'),
+    );
+    const req = { user: { empresas: [{ id: 'empresa-y' }] } };
+
+    // Não deve lançar — o pre-fetch é best-effort
+    await expect(
+      guard.preFetchPlano(guard.extractEmpresaId(req)),
+    ).resolves.toBeUndefined();
+  });
+
+  it('usa header x-empresa-id quando não há JWT', async () => {
+    const guard = buildGuard(planoService);
+    (planoService.getPlanoByEmpresaId as jest.Mock).mockResolvedValue('FREE');
+    const req = { headers: { 'x-empresa-id': 'emp-z' } };
+    await guard.preFetchPlano(guard.extractEmpresaId(req));
+    expect(planoService.getPlanoByEmpresaId).toHaveBeenCalledWith('emp-z');
+  });
+});

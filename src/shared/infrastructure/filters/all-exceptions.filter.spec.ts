@@ -80,4 +80,160 @@ describe('AllExceptionsFilter', () => {
       500,
     );
   });
+
+  it('deve mapear Prisma P2002 (unique constraint) para 409', () => {
+    const exception = Object.assign(new Error('Unique constraint'), {
+      code: 'P2002',
+      meta: { target: ['email'] },
+    });
+
+    filter.catch(exception, mockArgumentsHost as any);
+
+    expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({
+        statusCode: 409,
+        message: "Conflito de dados: campo 'email' já existe.",
+      }),
+      409,
+    );
+  });
+
+  it('deve mapear Prisma P2025 (not found) para 404', () => {
+    const exception = Object.assign(new Error('Record not found'), {
+      code: 'P2025',
+    });
+
+    filter.catch(exception, mockArgumentsHost as any);
+
+    expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({
+        statusCode: 404,
+        message: 'Registro não encontrado.',
+      }),
+      404,
+    );
+  });
+
+  it('deve escrever stack em stderr quando NODE_ENV=test e status>=500', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'test';
+    const exception = new Error('boom');
+
+    try {
+      filter.catch(exception, mockArgumentsHost as any);
+      expect(stderrWriteSpy).toHaveBeenCalledWith(
+        expect.stringContaining('CRITICAL E2E ERROR'),
+      );
+      expect(stderrWriteSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Path:'),
+      );
+      expect(stderrWriteSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Message: boom'),
+      );
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+    }
+  });
+
+  it('NÃO escreve em stderr quando NODE_ENV != test (mesmo em 500)', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    stderrWriteSpy.mockClear();
+    const exception = new Error('boom');
+
+    try {
+      filter.catch(exception, mockArgumentsHost as any);
+      // Filtra apenas o bloco "CRITICAL E2E ERROR" — logger.error do Nest
+      // também escreve em stderr e isso é independente do NODE_ENV.
+      const criticalWrites = stderrWriteSpy.mock.calls.filter((call) =>
+        String(call[0]).includes('CRITICAL E2E ERROR'),
+      );
+      expect(criticalWrites).toHaveLength(0);
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+    }
+  });
+
+  it('extrai message do response de HttpException quando getResponse().message existe', () => {
+    const exception = new HttpException(
+      { message: 'Mensagem estruturada', statusCode: 400 },
+      HttpStatus.BAD_REQUEST,
+    );
+    filter.catch(exception, mockArgumentsHost as any);
+    expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ message: 'Mensagem estruturada' }),
+      400,
+    );
+  });
+
+  it('cai no fallback "filter crashed" se o httpAdapter.reply lança', () => {
+    mockHttpAdapter.reply.mockImplementation(() => {
+      throw new Error('reply failed');
+    });
+    const response = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+    };
+    const host = {
+      switchToHttp: () => ({
+        getResponse: () => response,
+        getRequest: () => ({}),
+      }),
+    };
+    const exception = new HttpException('x', 400);
+
+    // Não deve lançar
+    expect(() => filter.catch(exception, host as any)).not.toThrow();
+    expect(response.status).toHaveBeenCalledWith(500);
+    expect(response.send).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Filter crashed' }),
+    );
+  });
+
+  it('usa response.code quando é Fastify (somente code, sem status/send)', () => {
+    mockHttpAdapter.reply.mockImplementation(() => {
+      throw new Error('reply failed');
+    });
+    // Fastify puro: só expõe `code` e `send` (sem `status`).
+    // O filter prioriza `send` (presente) sobre `code` por isso o send é chamado.
+    const response = {
+      code: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+    };
+    const host = {
+      switchToHttp: () => ({
+        getResponse: () => response,
+        getRequest: () => ({}),
+      }),
+    };
+    const exception = new HttpException('x', 400);
+
+    expect(() => filter.catch(exception, host as any)).not.toThrow();
+    // Como `send` está presente, é o caminho usado (filter.send). Garante
+    // que o response NÃO cai sem fallback (ou seja, o filter não lança).
+    expect(response.send).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Filter crashed' }),
+      500,
+    );
+  });
+
+  it('cai em "filter crashed" sem lançar quando response não tem status/send/code', () => {
+    mockHttpAdapter.reply.mockImplementation(() => {
+      throw new Error('reply failed');
+    });
+    const response = {}; // sem nenhum método
+    const host = {
+      switchToHttp: () => ({
+        getResponse: () => response,
+        getRequest: () => ({}),
+      }),
+    };
+    const exception = new HttpException('x', 400);
+
+    // Não deve lançar — apenas loga
+    expect(() => filter.catch(exception, host as any)).not.toThrow();
+  });
 });

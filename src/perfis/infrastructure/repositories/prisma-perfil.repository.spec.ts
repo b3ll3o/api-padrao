@@ -188,5 +188,171 @@ describe('PrismaPerfilRepository', () => {
         }),
       );
     });
+
+    it('filtra por empresaId quando fornecido', async () => {
+      mockPerfilModel.findMany.mockResolvedValue([mockPerfil]);
+      mockPerfilModel.count.mockResolvedValue(1);
+
+      await repository.findByNomeContaining('Adm', 0, 10, false, 'empresa-1');
+      expect(mockPerfilModel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ empresaId: 'empresa-1' }),
+        }),
+      );
+    });
+
+    it('usa prisma direto (não extended) quando includeDeleted=true', async () => {
+      mockPerfilModel.findMany.mockResolvedValue([mockPerfil]);
+      mockPerfilModel.count.mockResolvedValue(1);
+      await repository.findByNomeContaining('Adm', 0, 10, true);
+      // Não podemos distinguir o client do mock, mas o caminho executa
+      expect(mockPerfilModel.findMany).toHaveBeenCalled();
+    });
+  });
+
+  describe('findOne', () => {
+    it('retorna o perfil mapeado para domínio', async () => {
+      mockPerfilModel.findFirst.mockResolvedValue(mockPerfil);
+      const result = await repository.findOne(1, false, 'empresa-1');
+      expect(result?.id).toBe(1);
+      expect(result?.permissoes).toEqual([]);
+    });
+
+    it('retorna undefined quando não encontrado', async () => {
+      mockPerfilModel.findFirst.mockResolvedValue(null);
+      const result = await repository.findOne(99);
+      expect(result).toBeUndefined();
+    });
+
+    it('filtra por empresaId quando fornecido', async () => {
+      mockPerfilModel.findFirst.mockResolvedValue(mockPerfil);
+      await repository.findOne(1, false, 'empresa-1');
+      expect(mockPerfilModel.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 1, empresaId: 'empresa-1' }),
+        }),
+      );
+    });
+  });
+
+  describe('update (error paths)', () => {
+    it('retorna undefined quando Prisma lança P2025 (registro não existe)', async () => {
+      mockPerfilModel.findFirst.mockResolvedValue(mockPerfil);
+      const p2025 = Object.assign(new Error('Not found'), { code: 'P2025' });
+      mockPerfilModel.update.mockRejectedValue(p2025);
+
+      const result = await repository.update(1, { nome: 'x' });
+      expect(result).toBeUndefined();
+    });
+
+    it('relança outros erros (não-P2025)', async () => {
+      mockPerfilModel.findFirst.mockResolvedValue(mockPerfil);
+      const generic = new Error('boom');
+      mockPerfilModel.update.mockRejectedValue(generic);
+
+      await expect(repository.update(1, { nome: 'x' })).rejects.toThrow('boom');
+    });
+  });
+
+  describe('remove (error paths)', () => {
+    it('lança NotFoundException quando Prisma lança P2025', async () => {
+      const p2025 = Object.assign(new Error('Not found'), { code: 'P2025' });
+      mockPerfilModel.delete.mockRejectedValue(p2025);
+      await expect(repository.remove(99)).rejects.toThrow(
+        'Perfil com ID 99 não encontrado.',
+      );
+    });
+
+    it('relança outros erros (não-P2025)', async () => {
+      const generic = new Error('connection lost');
+      mockPerfilModel.delete.mockRejectedValue(generic);
+      await expect(repository.remove(1)).rejects.toThrow('connection lost');
+    });
+  });
+
+  describe('restore (error paths)', () => {
+    it('lança NotFoundException quando Prisma lança P2025', async () => {
+      const p2025 = Object.assign(new Error('Not found'), { code: 'P2025' });
+      mockPerfilModel.update.mockRejectedValue(p2025);
+      await expect(repository.restore(99)).rejects.toThrow(
+        'Perfil com ID 99 não encontrado.',
+      );
+    });
+
+    it('filtra por empresaId no restore quando fornecido', async () => {
+      mockPerfilModel.update.mockResolvedValue(mockPerfil);
+      await repository.restore(1, 'empresa-1');
+      expect(mockPerfilModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 1, empresaId: 'empresa-1' }),
+        }),
+      );
+    });
+  });
+
+  describe('findByNome (branches)', () => {
+    it('busca sem filtro de empresa', async () => {
+      mockPerfilModel.findFirst.mockResolvedValue(mockPerfil);
+      const result = await repository.findByNome('Admin', false);
+      expect(result?.codigo).toBe('ADMIN');
+    });
+
+    it('retorna null quando não encontra', async () => {
+      mockPerfilModel.findFirst.mockResolvedValue(null);
+      const result = await repository.findByNome(
+        'Inexistente',
+        false,
+        'empresa-1',
+      );
+      expect(result).toBeNull();
+    });
+
+    it('usa prisma direto quando includeDeleted=true', async () => {
+      mockPerfilModel.findFirst.mockResolvedValue(mockPerfil);
+      await repository.findByNome('Admin', true, 'empresa-1');
+      expect(mockPerfilModel.findFirst).toHaveBeenCalled();
+    });
+  });
+
+  describe('findAll (branches)', () => {
+    it('usa prisma direto quando includeDeleted=true', async () => {
+      mockPerfilModel.findMany.mockResolvedValue([mockPerfil]);
+      mockPerfilModel.count.mockResolvedValue(1);
+      const [result, total] = await repository.findAll(0, 10, true);
+      expect(result).toHaveLength(1);
+      expect(total).toBe(1);
+    });
+
+    it('filtra por empresaId quando fornecido', async () => {
+      mockPerfilModel.findMany.mockResolvedValue([mockPerfil]);
+      mockPerfilModel.count.mockResolvedValue(1);
+      await repository.findAll(0, 10, false, 'empresa-1');
+      expect(mockPerfilModel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ empresaId: 'empresa-1' }),
+        }),
+      );
+    });
+  });
+
+  describe('create (branches)', () => {
+    it('cria sem permissoesIds quando não fornecido', async () => {
+      mockPerfilModel.create.mockResolvedValue(mockPerfil);
+      const dto: CreatePerfilDto = {
+        nome: 'Simples',
+        codigo: 'SIMPLES',
+        descricao: 'Sem permissões',
+        empresaId: 'empresa-1',
+      };
+      await repository.create(dto);
+      // Quando permissoesIds é undefined, o connect fica undefined
+      expect(mockPerfilModel.create).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            permissoes: { connect: undefined },
+          }),
+        }),
+      );
+    });
   });
 });
