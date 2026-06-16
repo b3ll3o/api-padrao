@@ -27,6 +27,11 @@ export const envValidationSchema = Joi.object({
   THROTTLER_SENSITIVE_LIMIT_FORGOT: Joi.number().default(5),
   THROTTLER_SENSITIVE_LIMIT_REFRESH: Joi.number().default(10),
   THROTTLER_SENSITIVE_LIMIT_RESET: Joi.number().default(10),
+  // [Sprint1-HTTP] Trust proxy — usado pelo Fastify para confiar no
+  // header X-Forwarded-For. Default 'loopback' (apenas o primeiro hop).
+  // BDD: features/devsecops-sprint1-quick-wins.feature:Funcionalidade: HTTP Hardening
+  // SDD: .openspec/changes/devsecops-sprint1-quick-wins/design.md#fase-1
+  TRUST_PROXY: Joi.string().default('loopback'),
   FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
   PASSWORD_RESET_EXPIRES_MINUTES: Joi.number().default(60).min(1),
   ALLOWED_ORIGINS: Joi.string().optional(),
