@@ -64,9 +64,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       httpAdapter.reply(response, responseBody, httpStatus);
     } catch (err) {
       this.logger.error(`Exception filter crashed: ${err}`);
-      // Fallback for emergency
+      // Fallback para Fastify (response.code) e Express-like adapters (response.status/send).
       const ctx = host.switchToHttp();
-      const response = ctx.getResponse() as any;
+      const response = ctx.getResponse() as {
+        status?: (code: number) => { send: (body: unknown) => void };
+        send?: (body: unknown, code?: number) => void;
+        code?: (code: number) => { send: (body: unknown) => void };
+      };
       if (typeof response.status === 'function') {
         response
           .status(500)
@@ -82,22 +86,49 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
   }
 
-  private mapPrismaErrorToStatus(exception: any): number {
-    if (exception.code === 'P2002') return HttpStatus.CONFLICT;
-    if (exception.code === 'P2025') return HttpStatus.NOT_FOUND;
+  private mapPrismaErrorToStatus(exception: unknown): number {
+    if (this.hasPrismaCode(exception, 'P2002')) return HttpStatus.CONFLICT;
+    if (this.hasPrismaCode(exception, 'P2025')) return HttpStatus.NOT_FOUND;
     return HttpStatus.INTERNAL_SERVER_ERROR;
   }
 
-  private extractErrorMessage(exception: any, status: number): string {
+  private extractErrorMessage(exception: unknown, status: number): string {
     if (exception instanceof HttpException) {
-      return (exception.getResponse() as any).message || exception.message;
+      const response = exception.getResponse();
+      const responseMessage =
+        typeof response === 'object' &&
+        response !== null &&
+        'message' in response
+          ? (response as { message?: unknown }).message
+          : undefined;
+      return typeof responseMessage === 'string'
+        ? responseMessage
+        : exception.message;
     }
-    if (exception.code === 'P2002') {
-      return `Conflito de dados: campo '${exception.meta?.target}' já existe.`;
+    if (this.hasPrismaCode(exception, 'P2002')) {
+      const target = (exception.meta as Record<string, unknown> | undefined)
+        ?.target;
+      return `Conflito de dados: campo '${String(target)}' já existe.`;
     }
-    if (exception.code === 'P2025') {
+    if (this.hasPrismaCode(exception, 'P2025')) {
       return 'Registro não encontrado.';
     }
-    return status >= 500 ? 'Erro interno no servidor' : exception.message;
+    return status >= 500
+      ? 'Erro interno no servidor'
+      : exception instanceof Error
+        ? exception.message
+        : String(exception);
+  }
+
+  private hasPrismaCode(
+    exception: unknown,
+    code: string,
+  ): exception is { code: string; meta?: Record<string, unknown> } {
+    return (
+      typeof exception === 'object' &&
+      exception !== null &&
+      'code' in exception &&
+      (exception as { code: unknown }).code === code
+    );
   }
 }

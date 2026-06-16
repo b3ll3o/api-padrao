@@ -9,7 +9,7 @@
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
-    "clean": "rm -f coverage_report*.txt test_output*.log",
+    "clean": "rm -rf dist coverage && rm -f coverage_report*.txt test_output*.log *.log",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",

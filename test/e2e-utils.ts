@@ -36,7 +36,9 @@ export async function cleanDatabase(prisma: PrismaClient) {
     await prisma.$executeRawUnsafe(
       `ALTER SEQUENCE IF EXISTS "UsuarioEmpresa_id_seq" RESTART WITH 1;`,
     );
-  } catch (error) {
-    console.error('Error cleaning database:', error);
+  } catch {
+    // Silently swallow cleanup errors; the next test's setup will surface
+    // stale-data issues and Jest's assertion errors already give the
+    // operator everything they need to debug.
   }
 }

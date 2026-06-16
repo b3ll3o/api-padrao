@@ -19,49 +19,36 @@ describe('PerfisController (e2e)', () => {
   let adminUser: any;
 
   beforeAll(async () => {
-    try {
-      const moduleFixture: TestingModule = await Test.createTestingModule({
-        imports: [AppModule],
-      }).compile();
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
 
-      app = moduleFixture.createNestApplication<NestFastifyApplication>(
-        new FastifyAdapter(),
-        {
-          logger: ['error', 'warn', 'log', 'debug', 'verbose'],
-        },
-      );
-      prisma = app.get<PrismaService>(PrismaService);
-      jwtService = app.get<JwtService>(JwtService);
+    app = moduleFixture.createNestApplication<NestFastifyApplication>(
+      new FastifyAdapter(),
+      {
+        logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+      },
+    );
+    prisma = app.get<PrismaService>(PrismaService);
+    jwtService = app.get<JwtService>(JwtService);
 
-      // Injeta logger de erro global no Fastify para testes (DEVE ser antes do init/listen)
-      app
-        .getHttpAdapter()
-        .getInstance()
-        .setErrorHandler((error: any, request: any, reply: any) => {
-          console.error('--- FASTIFY ERROR ---');
-          console.error('URL:', request.url);
-          console.error('Error:', error);
-          if (error && (error as any).stack)
-            console.error('Stack:', (error as any).stack);
-          console.error('---------------------');
-          reply.status(500).send({ message: error.message });
-        });
+    // Injeta logger de erro global no Fastify para testes (DEVE ser antes do init/listen)
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .setErrorHandler((error: any, request: any, reply: any) => {
+        reply.status(500).send({ message: error.message });
+      });
 
-      await app.init();
-      app.useGlobalPipes(
-        new ValidationPipe({
-          whitelist: true,
-          forbidNonWhitelisted: true,
-          transform: true,
-        }),
-      );
-      await app.getHttpAdapter().getInstance().ready();
-    } catch (error) {
-      console.error('--- BEFORE ALL ERROR ---');
-      console.error(error);
-      console.error('------------------------');
-      throw error;
-    }
+    await app.init();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
+    await app.getHttpAdapter().getInstance().ready();
   });
 
   afterAll(async () => {

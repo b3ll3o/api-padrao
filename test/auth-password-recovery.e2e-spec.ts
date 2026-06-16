@@ -44,9 +44,6 @@ describe('AuthController (e2e) - Password Recovery', () => {
 
     const fastifyInstance = app.getHttpAdapter().getInstance();
     fastifyInstance.setErrorHandler((error, request, reply) => {
-      console.error('--- FASTIFY ERROR ---');
-      console.error('URL:', request.url);
-      console.error('Error:', error);
       reply.send(error);
     });
 

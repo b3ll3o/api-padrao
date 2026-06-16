@@ -19,6 +19,13 @@ export interface JwtPayload {
   }[];
 }
 
+// `ExtractJwt` é declarado como `namespace` em `@types/passport-jwt`
+// (type-only), mas em runtime é um objeto com funções. O cast abaixo
+// tipa a superfície que usamos, evitando `as any`.
+type ExtractJwtRuntime = {
+  fromAuthHeaderAsBearerToken: () => (req: unknown) => string | null;
+};
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -26,7 +33,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
   ) {
     super({
-      jwtFromRequest: (ExtractJwt as any).fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: (
+        ExtractJwt as unknown as ExtractJwtRuntime
+      ).fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
       algorithms: ['HS256'],
