@@ -418,12 +418,13 @@ describe('AllExceptionsFilter', () => {
   it('loga emergency reply failed com String(err) quando httpAdapter.reply lança não-Error', () => {
     // reply() lança STRING → no catch, `err` é string → String(err) é usado
     mockHttpAdapter.reply.mockImplementation(() => {
-      // eslint-disable-next-line no-throw-literal
       throw 'string-throw-from-reply';
     });
     const exception = new Error('original');
 
-    expect(() => filter.catch(exception, mockArgumentsHost as any)).not.toThrow();
+    expect(() =>
+      filter.catch(exception, mockArgumentsHost as any),
+    ).not.toThrow();
   });
 
   // IMP-05: branch linha 152 — extractErrorMessage usa exception.message
