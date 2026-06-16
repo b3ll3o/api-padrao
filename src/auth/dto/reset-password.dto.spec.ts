@@ -63,4 +63,75 @@ describe('ResetPasswordDto', () => {
     });
     expect(errors[0].property).toBe('novaSenha');
   });
+
+  it('deve rejeitar token com mais de 128 caracteres', async () => {
+    const errors = await validateDto({
+      token: 'a'.repeat(129),
+      novaSenha: 'NovaSenha123!',
+    });
+    expect(errors[0].property).toBe('token');
+    expect(errors[0].constraints).toHaveProperty('maxLength');
+  });
+
+  it('deve aceitar token com exatamente 128 caracteres (boundary)', async () => {
+    const errors = await validateDto({
+      token: 'a'.repeat(128),
+      novaSenha: 'NovaSenha123!',
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('deve aceitar novaSenha com exatamente 8 caracteres válidos (boundary)', async () => {
+    // 8 chars: "Abc12345" → 1 maiúscula, 1 minúscula, 1 número
+    const errors = await validateDto({
+      token: 'a'.repeat(64),
+      novaSenha: 'Abc12345',
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('deve rejeitar novaSenha que não seja string (ex.: número)', async () => {
+    const errors = await validateDto({
+      token: 'a'.repeat(64),
+      novaSenha: 12345678 as unknown as string,
+    });
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].property).toBe('novaSenha');
+  });
+
+  it('deve produzir constraint matches específica para cada requisito faltante (uppercase, lowercase, number)', async () => {
+    // Senha sem uppercase
+    const noUpper = await validateDto({
+      token: 'a'.repeat(64),
+      novaSenha: 'novasenha1',
+    });
+    expect(noUpper[0].property).toBe('novaSenha');
+    expect(noUpper[0].constraints).toHaveProperty('matches');
+
+    // Senha sem lowercase
+    const noLower = await validateDto({
+      token: 'a'.repeat(64),
+      novaSenha: 'NOVASENHA1',
+    });
+    expect(noLower[0].property).toBe('novaSenha');
+    expect(noLower[0].constraints).toHaveProperty('matches');
+
+    // Senha sem número
+    const noNumber = await validateDto({
+      token: 'a'.repeat(64),
+      novaSenha: 'NovaSenhaX',
+    });
+    expect(noNumber[0].property).toBe('novaSenha');
+    expect(noNumber[0].constraints).toHaveProperty('matches');
+  });
+
+  it('deve rejeitar novaSenha com mais de 128 caracteres', async () => {
+    const errors = await validateDto({
+      token: 'a'.repeat(64),
+      novaSenha: 'A1' + 'a'.repeat(127), // 129 chars total
+    });
+    expect(errors.some((e) => e.property === 'novaSenha')).toBe(true);
+    const novaSenhaError = errors.find((e) => e.property === 'novaSenha');
+    expect(novaSenhaError?.constraints).toHaveProperty('maxLength');
+  });
 });

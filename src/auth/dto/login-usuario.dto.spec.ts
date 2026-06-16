@@ -69,4 +69,31 @@ describe('LoginUsuarioDto', () => {
     const errors = await validateDto({ email: 'user@empresa.com' });
     expect(errors[0].property).toBe('senha');
   });
+
+  it('deve rejeitar email que não seja string (ex.: número)', async () => {
+    const errors = await validateDto({
+      email: 12345 as unknown as string,
+      senha: 'Password123!',
+    });
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].property).toBe('email');
+  });
+
+  it('deve rejeitar senha que não seja string (ex.: número)', async () => {
+    const errors = await validateDto({
+      email: 'user@empresa.com',
+      senha: 12345678 as unknown as string,
+    });
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].property).toBe('senha');
+  });
+
+  it('deve aceitar email com subdomínios longos e TLDs compostos', async () => {
+    // class-validator aceita emails com múltiplos subdomínios
+    const errors = await validateDto({
+      email: 'user@mail.corp.empresa.com.br',
+      senha: 'Password123!',
+    });
+    expect(errors).toHaveLength(0);
+  });
 });
