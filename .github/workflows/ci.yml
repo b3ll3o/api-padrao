@@ -4,6 +4,11 @@
 # Sprint 1 — SDLC Scanning (Semgrep SAST + Gitleaks secret scan)
 name: CI
 
+# Triggers:
+#   pull_request — runs on every PR (any base branch)
+#   push to main — runs on every direct push to main (post-merge verification)
+# Both Semgrep and Gitleaks run in parallel with `build`; the workflow-level
+# `concurrency.cancel-in-progress: true` (below) drops redundant runs.
 on:
   pull_request:
   push:
