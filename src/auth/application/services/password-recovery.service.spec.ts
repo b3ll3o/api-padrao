@@ -33,7 +33,7 @@ describe('PasswordRecoveryService', () => {
   };
 
   const mockConfigService = {
-    get: jest.fn((key: string) => {
+    get: jest.fn((key: string): string | null => {
       if (key === 'FRONTEND_URL') return 'http://localhost:3000';
       if (key === 'APP_NAME') return 'API Padrão';
       if (key === 'APP_LOGIN_URL') return 'http://localhost:3000';
@@ -179,6 +179,74 @@ describe('PasswordRecoveryService', () => {
         mockResetTokenRepository.create.mock.invocationCallOrder[0];
       expect(invalidateOrder).toBeLessThan(createOrder);
     });
+
+    it('deve montar o link de reset com FRONTEND_URL do config e token plain', async () => {
+      const user = { id: 1, email: 'usuario@empresa.com', ativo: true };
+      mockUsuarioRepository.findByEmail.mockResolvedValue(user);
+      mockResetTokenRepository.invalidateAllForUser.mockResolvedValue(
+        undefined,
+      );
+      mockResetTokenRepository.create.mockResolvedValue({});
+      mockEmailSender.send.mockResolvedValue();
+
+      await service.forgotPassword({ email: 'usuario@empresa.com' });
+
+      const sentArgs = mockEmailSender.send.mock.calls[0] as any[];
+      const link = sentArgs[2].link as string;
+      // O link deve apontar para o FRONTEND_URL configurado
+      expect(link).toMatch(/^http:\/\/localhost:3000\/reset-password\?token=/);
+      // O token no link NÃO deve ser o hash (deve ser o rawToken)
+      const urlToken = link.split('token=')[1];
+      const tokenHashFromRepo = mockResetTokenRepository.create.mock.calls[0][0]
+        .tokenHash as string;
+      expect(urlToken).not.toBe(tokenHashFromRepo);
+      expect(urlToken).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it('deve usar fallback http://localhost:3000 quando FRONTEND_URL não está configurado', async () => {
+      mockConfigService.get.mockImplementation((key: string): string | null => {
+        if (key === 'FRONTEND_URL') return undefined as unknown as string;
+        if (key === 'APP_NAME') return 'API Padrão';
+        if (key === 'APP_LOGIN_URL') return 'http://localhost:3000';
+        return null;
+      });
+
+      const user = { id: 1, email: 'usuario@empresa.com', ativo: true };
+      mockUsuarioRepository.findByEmail.mockResolvedValue(user);
+      mockResetTokenRepository.invalidateAllForUser.mockResolvedValue(
+        undefined,
+      );
+      mockResetTokenRepository.create.mockResolvedValue({});
+      mockEmailSender.send.mockResolvedValue();
+
+      await service.forgotPassword({ email: 'usuario@empresa.com' });
+
+      const sentArgs = mockEmailSender.send.mock.calls[0] as any[];
+      const link = sentArgs[2].link as string;
+      expect(link).toMatch(/^http:\/\/localhost:3000\/reset-password/);
+    });
+
+    it('deve aplicar TTL de 1 hora no expiresAt do token', async () => {
+      const user = { id: 1, email: 'usuario@empresa.com', ativo: true };
+      mockUsuarioRepository.findByEmail.mockResolvedValue(user);
+      mockResetTokenRepository.invalidateAllForUser.mockResolvedValue(
+        undefined,
+      );
+      mockResetTokenRepository.create.mockResolvedValue({});
+      mockEmailSender.send.mockResolvedValue();
+
+      const before = Date.now();
+      await service.forgotPassword({ email: 'usuario@empresa.com' });
+      const after = Date.now();
+
+      const createdArg = mockResetTokenRepository.create.mock.calls[0][0];
+      const expiresAt: Date = createdArg.expiresAt;
+      const expectedMs = 60 * 60 * 1000; // 1 hora
+      const lower = before + expectedMs - 1000;
+      const upper = after + expectedMs + 1000;
+      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(lower);
+      expect(expiresAt.getTime()).toBeLessThanOrEqual(upper);
+    });
   });
 
   describe('resetPassword', () => {
@@ -264,6 +332,70 @@ describe('PasswordRecoveryService', () => {
         'usuario@empresa.com',
         expect.objectContaining({ nome: expect.any(String) }),
       );
+    });
+
+    it('deve usar o HASH (sha256) do token plain para consultar o repositório', async () => {
+      const plainToken = 'meu-token-plano-com-32-chars-1234567890';
+      const expectedHash = createHash('sha256')
+        .update(plainToken)
+        .digest('hex');
+
+      mockResetTokenRepository.findValidByHash.mockResolvedValue({
+        id: 'token-id',
+        userId: 1,
+        tokenHash: expectedHash,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+        usedAt: null,
+        createdAt: new Date(),
+      });
+      mockPasswordHasher.hash.mockResolvedValue('new-hash');
+      mockUsuarioRepository.findOne.mockResolvedValue({
+        id: 1,
+        email: 'usuario@empresa.com',
+        nome: 'João',
+        deletedAt: null,
+        ativo: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.resetPassword({
+        token: plainToken,
+        novaSenha: 'NovaSenha123!',
+      });
+
+      const calledWith =
+        mockResetTokenRepository.findValidByHash.mock.calls[0][0];
+      expect(calledWith).toBe(expectedHash);
+      // Garantia adicional: hash tem 64 chars hex (sha256)
+      expect(calledWith).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it('NÃO deve disparar e-mail password_changed se usuário não existe mais (deletado)', async () => {
+      const tokenRecord = {
+        id: 'token-id',
+        userId: 999,
+        tokenHash: createHash('sha256').update('plain-token').digest('hex'),
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+        usedAt: null,
+        createdAt: new Date(),
+      };
+      mockResetTokenRepository.findValidByHash.mockResolvedValue(tokenRecord);
+      mockPasswordHasher.hash.mockResolvedValue('new-hash');
+      // Usuário foi deletado entre a emissão do token e o reset
+      mockUsuarioRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.resetPassword({
+          token: 'plain-token',
+          novaSenha: 'NovaSenha123!',
+        }),
+      ).resolves.toBeUndefined();
+
+      // Senha e tokens foram atualizados normalmente
+      expect(mockUnitOfWork.execute).toHaveBeenCalledTimes(1);
+      // Mas o e-mail de notificação NÃO é enviado (não há destinatário)
+      expect(mockEmailSender.send).not.toHaveBeenCalled();
     });
   });
 });
