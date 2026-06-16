@@ -105,7 +105,7 @@ export const handleSoftDeleteAndMultiTenant = async function (
  * `this.update` etc.) e os args chegam diretamente, não wrapped em
  * `{ args, query }` como no query extension.
  */
-function makeSoftDeleteHandlers() {
+export function makeSoftDeleteHandlers() {
   return {
     async delete(args: any) {
       return (this as any).update({
@@ -133,7 +133,7 @@ function makeSoftDeleteHandlers() {
  * desconstruir para os campos individuais antes de chamar `findFirst`,
  * já que `findFirst` aceita filtros simples (não unique key composta).
  */
-function makeMultiTenantHandlers() {
+export function makeMultiTenantHandlers() {
   const transformWhere = (args: any, extraEmpresaId?: string) => {
     const where = args?.where || {};
     // Se for um composite key (ex: { usuarioId_empresaId: { ... } }),
