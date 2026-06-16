@@ -7,6 +7,24 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
+import { Prisma } from '@prisma/client';
+
+// BDD: features/autenticacao.feature:Cenário: Login com credenciais inválidas (mapeia 401)
+// SDD: .openspec/changes/auth/design.md:REQ-AUTH-N03 (mapeamento centralizado de erros HTTP/Prisma)
+// ATDD: test/all-exceptions.filter.spec.ts:cobre HttpException, P2002, P2025, fallback Fastify/Express
+// TDD: src/shared/infrastructure/filters/all-exceptions.filter.spec.ts
+
+/**
+ * Resposta mínima aceita pelo filter em todos os adapters suportados.
+ * - Express-like: `response.status(code).send(body)`
+ * - Fastify: `response.code(code).send(body)` (não expõe `status`)
+ * - Legado: `response.send(body, code)` (alguns testes/mocks)
+ */
+interface AdapterResponse {
+  status?: (code: number) => { send: (body: unknown) => void };
+  code?: (code: number) => { send: (body: unknown) => void };
+  send?: (body: unknown, code?: number) => void;
+}
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -63,54 +81,70 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
       httpAdapter.reply(response, responseBody, httpStatus);
     } catch (err) {
+      // Se httpAdapter falhar (request já enviada, adapter desconhecido etc.)
+      // tenta uma resposta de emergência que funcione em ambos os adapters.
       this.logger.error(`Exception filter crashed: ${err}`);
-      // Fallback para Fastify (response.code) e Express-like adapters (response.status/send).
-      const ctx = host.switchToHttp();
-      const response = ctx.getResponse() as {
-        status?: (code: number) => { send: (body: unknown) => void };
-        send?: (body: unknown, code?: number) => void;
-        code?: (code: number) => { send: (body: unknown) => void };
-      };
-      if (typeof response.status === 'function') {
-        response
-          .status(500)
-          .send({ message: 'Filter crashed', error: String(err) });
-      } else if (typeof response.send === 'function') {
-        response.send({ message: 'Filter crashed', error: String(err) }, 500);
-      } else if (typeof response.code === 'function') {
-        // Fastify
-        response
-          .code(500)
-          .send({ message: 'Filter crashed', error: String(err) });
+      try {
+        this.tryEmergencyReply(host, {
+          message: 'Filter crashed',
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } catch (fallbackErr) {
+        this.logger.error(
+          `Emergency reply also failed: ${String(fallbackErr)}`,
+        );
       }
     }
   }
 
+  /**
+   * Tenta enviar uma resposta de emergência.
+   *
+   * Ordem dos caminhos (verificada contra Fastify e Express):
+   * 1. `code()` (Fastify — NÃO tem `status` mas tem `code`)
+   * 2. `status()` (Express-like)
+   * 3. `send(body, code)` (legado)
+   *
+   * Nota: testes anteriores caíam no caminho `send(body, code)` em vez do
+   * `code()` do Fastify porque a ordem estava invertida. Veja
+   * `all-exceptions.filter.spec.ts` › "usa code() no Fastify".
+   */
+  private tryEmergencyReply(
+    host: ArgumentsHost,
+    body: Record<string, unknown>,
+  ): void {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse() as AdapterResponse;
+
+    if (typeof response.code === 'function') {
+      // Fastify
+      response.code(500).send(body);
+      return;
+    }
+    if (typeof response.status === 'function') {
+      response.status(500).send(body);
+      return;
+    }
+    if (typeof response.send === 'function') {
+      response.send(body, 500);
+    }
+  }
+
   private mapPrismaErrorToStatus(exception: unknown): number {
-    if (this.hasPrismaCode(exception, 'P2002')) return HttpStatus.CONFLICT;
-    if (this.hasPrismaCode(exception, 'P2025')) return HttpStatus.NOT_FOUND;
+    if (this.isPrismaError(exception, 'P2002')) return HttpStatus.CONFLICT;
+    if (this.isPrismaError(exception, 'P2025')) return HttpStatus.NOT_FOUND;
     return HttpStatus.INTERNAL_SERVER_ERROR;
   }
 
   private extractErrorMessage(exception: unknown, status: number): string {
     if (exception instanceof HttpException) {
-      const response = exception.getResponse();
-      const responseMessage =
-        typeof response === 'object' &&
-        response !== null &&
-        'message' in response
-          ? (response as { message?: unknown }).message
-          : undefined;
-      return typeof responseMessage === 'string'
-        ? responseMessage
-        : exception.message;
+      return this.formatHttpExceptionMessage(exception);
     }
-    if (this.hasPrismaCode(exception, 'P2002')) {
-      const target = (exception.meta as Record<string, unknown> | undefined)
-        ?.target;
-      return `Conflito de dados: campo '${String(target)}' já existe.`;
+    if (this.isPrismaError(exception, 'P2002')) {
+      const target = this.formatPrismaTarget(exception.meta?.target);
+      return `Conflito de dados: campo '${target}' já existe.`;
     }
-    if (this.hasPrismaCode(exception, 'P2025')) {
+    if (this.isPrismaError(exception, 'P2025')) {
       return 'Registro não encontrado.';
     }
     return status >= 500
@@ -120,15 +154,58 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : String(exception);
   }
 
-  private hasPrismaCode(
+  /**
+   * Extrai a mensagem de uma `HttpException` tratando todas as formas que o
+   * NestJS pode retornar: `string`, `{ message: string | string[] }`, ou um
+   * `response` arbitrário. Quando `message` é um array (caso típico de
+   * `ValidationPipe`), junta com vírgula para preservar a info sem quebrar
+   * consumidores que esperam `string`.
+   */
+  private formatHttpExceptionMessage(exception: HttpException): string {
+    const response = exception.getResponse();
+
+    if (typeof response === 'string') {
+      return response;
+    }
+
+    if (
+      typeof response === 'object' &&
+      response !== null &&
+      'message' in response
+    ) {
+      const message = (response as { message: unknown }).message;
+      if (Array.isArray(message)) {
+        return message.map((m) => String(m)).join(', ');
+      }
+      if (typeof message === 'string') {
+        return message;
+      }
+    }
+
+    return exception.message;
+  }
+
+  /**
+   * Formata o campo `target` de um erro Prisma `P2002` (unique constraint).
+   * Pode vir como `string`, `string[]` (unique composta), `undefined` (sem
+   * metadata) ou `null`. Evita o loss silencioso de `String(target)` quando
+   * target é um array, que produziria `"email,nome"` em vez de `"email, nome"`.
+   */
+  private formatPrismaTarget(target: unknown): string {
+    if (typeof target === 'string') return target;
+    if (Array.isArray(target)) {
+      return target.map((t) => String(t)).join(', ');
+    }
+    return 'campo';
+  }
+
+  private isPrismaError(
     exception: unknown,
-    code: string,
-  ): exception is { code: string; meta?: Record<string, unknown> } {
+    code: 'P2002' | 'P2025',
+  ): exception is Prisma.PrismaClientKnownRequestError {
     return (
-      typeof exception === 'object' &&
-      exception !== null &&
-      'code' in exception &&
-      (exception as { code: unknown }).code === code
+      exception instanceof Prisma.PrismaClientKnownRequestError &&
+      exception.code === code
     );
   }
 }

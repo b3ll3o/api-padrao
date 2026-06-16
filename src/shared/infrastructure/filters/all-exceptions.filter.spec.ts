@@ -2,6 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import { HttpAdapterHost } from '@nestjs/core';
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+
+// BDD: features/autenticacao.feature:Cenário: Login com credenciais inválidas (mapeia 401)
+// SDD: .openspec/changes/auth/design.md:REQ-AUTH-N03 (mapeamento centralizado de erros HTTP/Prisma)
+// ATDD: test/all-exceptions.filter.spec.ts:cobre HttpException, P2002, P2025, fallback Fastify/Express
+// TDD: src/shared/infrastructure/filters/all-exceptions.filter.spec.ts
 
 describe('AllExceptionsFilter', () => {
   let filter: AllExceptionsFilter;
@@ -82,10 +88,10 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('deve mapear Prisma P2002 (unique constraint) para 409', () => {
-    const exception = Object.assign(new Error('Unique constraint'), {
-      code: 'P2002',
-      meta: { target: ['email'] },
-    });
+    const exception = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: 'test', meta: { target: ['email'] } },
+    );
 
     filter.catch(exception, mockArgumentsHost as any);
 
@@ -99,10 +105,51 @@ describe('AllExceptionsFilter', () => {
     );
   });
 
+  it('deve mapear Prisma P2002 com target composto (array) para 409', () => {
+    const exception = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['email', 'tenantId'] },
+      },
+    );
+
+    filter.catch(exception, mockArgumentsHost as any);
+
+    expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({
+        statusCode: 409,
+        message: "Conflito de dados: campo 'email, tenantId' já existe.",
+      }),
+      409,
+    );
+  });
+
+  it('deve mapear Prisma P2002 sem meta.target para 409 com placeholder', () => {
+    const exception = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: 'test' },
+    );
+
+    filter.catch(exception, mockArgumentsHost as any);
+
+    expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({
+        statusCode: 409,
+        message: "Conflito de dados: campo 'campo' já existe.",
+      }),
+      409,
+    );
+  });
+
   it('deve mapear Prisma P2025 (not found) para 404', () => {
-    const exception = Object.assign(new Error('Record not found'), {
-      code: 'P2025',
-    });
+    const exception = new Prisma.PrismaClientKnownRequestError(
+      'Record not found',
+      { code: 'P2025', clientVersion: 'test' },
+    );
 
     filter.catch(exception, mockArgumentsHost as any);
 
@@ -169,6 +216,49 @@ describe('AllExceptionsFilter', () => {
     );
   });
 
+  it('junta message[] de HttpException (ValidationPipe) em string única', () => {
+    const exception = new HttpException(
+      {
+        message: ['email deve ser um e-mail válido', 'senha é obrigatória'],
+        error: 'Bad Request',
+        statusCode: 400,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+    filter.catch(exception, mockArgumentsHost as any);
+    expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({
+        message: 'email deve ser um e-mail válido, senha é obrigatória',
+        statusCode: 400,
+      }),
+      400,
+    );
+  });
+
+  it('cai no fallback "Filter crashed" usando Fastify code() (sem status/send)', () => {
+    mockHttpAdapter.reply.mockImplementation(() => {
+      throw new Error('reply failed');
+    });
+    const code = jest.fn().mockReturnThis();
+    const send = jest.fn();
+    const response = { code, send };
+    const host = {
+      switchToHttp: () => ({
+        getResponse: () => response,
+        getRequest: () => ({}),
+      }),
+    };
+    const exception = new HttpException('x', 400);
+
+    expect(() => filter.catch(exception, host as any)).not.toThrow();
+    // Fastify puro: usa code() antes de send (caminho prioritário)
+    expect(code).toHaveBeenCalledWith(500);
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Filter crashed' }),
+    );
+  });
+
   it('cai no fallback "filter crashed" se o httpAdapter.reply lança', () => {
     mockHttpAdapter.reply.mockImplementation(() => {
       throw new Error('reply failed');
@@ -190,33 +280,6 @@ describe('AllExceptionsFilter', () => {
     expect(response.status).toHaveBeenCalledWith(500);
     expect(response.send).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Filter crashed' }),
-    );
-  });
-
-  it('usa response.code quando é Fastify (somente code, sem status/send)', () => {
-    mockHttpAdapter.reply.mockImplementation(() => {
-      throw new Error('reply failed');
-    });
-    // Fastify puro: só expõe `code` e `send` (sem `status`).
-    // O filter prioriza `send` (presente) sobre `code` por isso o send é chamado.
-    const response = {
-      code: jest.fn().mockReturnThis(),
-      send: jest.fn(),
-    };
-    const host = {
-      switchToHttp: () => ({
-        getResponse: () => response,
-        getRequest: () => ({}),
-      }),
-    };
-    const exception = new HttpException('x', 400);
-
-    expect(() => filter.catch(exception, host as any)).not.toThrow();
-    // Como `send` está presente, é o caminho usado (filter.send). Garante
-    // que o response NÃO cai sem fallback (ou seja, o filter não lança).
-    expect(response.send).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Filter crashed' }),
-      500,
     );
   });
 
