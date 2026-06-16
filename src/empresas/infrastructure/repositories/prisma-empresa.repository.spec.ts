@@ -188,8 +188,43 @@ describe('PrismaEmpresaRepository', () => {
         limit: 10,
       });
 
-      expect(result.data).toBeDefined();
+      expect(result.data).toEqual([]);
       expect(mockUsuarioEmpresaModel.findMany).toHaveBeenCalled();
+    });
+
+    it('deve mapear item.usuario e item.perfis para o data', async () => {
+      mockUsuarioEmpresaModel.findMany.mockResolvedValue([
+        {
+          usuario: { id: 1, email: 'a@b.c', ativo: true },
+          perfis: [{ id: 10, nome: 'Admin' }],
+        },
+      ]);
+      mockUsuarioEmpresaModel.count.mockResolvedValue(1);
+
+      const result = await repository.findUsersByCompany('uuid', {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result.data).toEqual([
+        {
+          id: 1,
+          email: 'a@b.c',
+          ativo: true,
+          perfis: [{ id: 10, nome: 'Admin' }],
+        },
+      ]);
+    });
+
+    it('deve usar defaults de paginação (page=1, limit=10) quando ausentes', async () => {
+      mockUsuarioEmpresaModel.findMany.mockResolvedValue([]);
+      mockUsuarioEmpresaModel.count.mockResolvedValue(0);
+
+      await repository.findUsersByCompany('uuid', {} as any);
+
+      expect(mockUsuarioEmpresaModel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 10 }),
+      );
     });
   });
 
@@ -203,8 +238,65 @@ describe('PrismaEmpresaRepository', () => {
         limit: 10,
       });
 
-      expect(result.data).toBeDefined();
+      expect(result.data).toEqual([]);
       expect(mockUsuarioEmpresaModel.findMany).toHaveBeenCalled();
+    });
+
+    it('deve mapear item.empresa e item.perfis para o data', async () => {
+      mockUsuarioEmpresaModel.findMany.mockResolvedValue([
+        {
+          empresa: { id: 'uuid', nome: 'Acme', plano: 'PRO' },
+          perfis: [{ id: 10, nome: 'Admin' }],
+        },
+      ]);
+      mockUsuarioEmpresaModel.count.mockResolvedValue(1);
+
+      const result = await repository.findCompaniesByUser(1, {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result.data).toEqual([
+        {
+          id: 'uuid',
+          nome: 'Acme',
+          plano: 'PRO',
+          perfis: [{ id: 10, nome: 'Admin' }],
+        },
+      ]);
+    });
+
+    it('deve usar defaults de paginação (page=1, limit=10) quando ausentes', async () => {
+      mockUsuarioEmpresaModel.findMany.mockResolvedValue([]);
+      mockUsuarioEmpresaModel.count.mockResolvedValue(0);
+
+      await repository.findCompaniesByUser(1, {} as any);
+
+      expect(mockUsuarioEmpresaModel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 10 }),
+      );
+    });
+  });
+
+  describe('findAll - defaults', () => {
+    it('deve usar page=1 e limit=10 quando não fornecidos', async () => {
+      mockEmpresaModel.findMany.mockResolvedValue([]);
+      mockEmpresaModel.count.mockResolvedValue(0);
+
+      await repository.findAll({} as any);
+
+      expect(mockEmpresaModel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 10 }),
+      );
+    });
+
+    it('deve calcular totalPages com ceil quando total não é múltiplo de limit', async () => {
+      mockEmpresaModel.findMany.mockResolvedValue([]);
+      mockEmpresaModel.count.mockResolvedValue(25);
+
+      const result = await repository.findAll({ page: 1, limit: 10 });
+
+      expect(result.totalPages).toBe(3);
     });
   });
 });
