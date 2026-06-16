@@ -13,10 +13,24 @@ import { ConfigService } from '@nestjs/config';
 import helmet from '@fastify/helmet';
 import compress from '@fastify/compress';
 
+// [Sprint1-HTTP] Trust proxy — MUST be set on the FastifyAdapter constructor
+// (read at instance construction; cannot be changed via register()).
+// Reading process.env directly because ConfigService isn't available yet.
+const rawTrustProxy = process.env['TRUST_PROXY'] ?? 'loopback';
+const trustProxy: true | 'loopback' | number =
+  rawTrustProxy === 'true'
+    ? true
+    : rawTrustProxy === 'loopback'
+      ? 'loopback'
+      : (() => {
+          const n = parseInt(rawTrustProxy, 10);
+          return Number.isFinite(n) && n >= 0 ? n : 'loopback';
+        })();
+
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    new FastifyAdapter({ trustProxy }),
     { bufferLogs: true }, // Buffer logs until the logger is attached
   );
 
