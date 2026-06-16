@@ -122,6 +122,24 @@ describe('DefaultEmailSenderService (REQ-EM-07, REQ-EM-09, REQ-EM-10)', () => {
     expect(events).toContain('email.failed');
   });
 
+  // REQ-EM-07 (Edge case - non-Error rejection)
+  it('deve capturar rejection não-Error e logar como String(err)', async () => {
+    emailService.send.mockRejectedValue('erro string' as any);
+    await expect(
+      service.send('auth.password_reset', 'a@b.c', {
+        nome: 'X',
+        link: 'L',
+        validade: 'V',
+      }),
+    ).resolves.toBeUndefined();
+    const events = warnSpy.mock.calls
+      .flat()
+      .filter((c) => typeof c === 'object' && c !== null);
+    const failedEvent = events.find((e: any) => e.event === 'email.failed');
+    expect(failedEvent).toBeDefined();
+    expect(failedEvent.error).toBe('erro string');
+  });
+
   // REQ-EM-10
   it('deve fazer no-op + warn para templateId com caracteres inválidos (path-traversal)', async () => {
     await service.send('../../etc/passwd', 'a@b.c', {});
@@ -142,6 +160,65 @@ describe('DefaultEmailSenderService (REQ-EM-07, REQ-EM-09, REQ-EM-10)', () => {
       .filter((c) => typeof c === 'object' && c !== null)
       .map((c: any) => c.event);
     expect(events).toContain('email.invalid_template');
+  });
+
+  it('deve fazer no-op + warn quando template não está no cache do templateLoader', async () => {
+    (templateLoader.get as jest.Mock).mockReturnValue(undefined);
+
+    await service.send('auth.password_reset', 'a@b.c', {
+      nome: 'X',
+      link: 'L',
+      validade: 'V',
+    });
+
+    expect(emailService.send).not.toHaveBeenCalled();
+    const events = warnSpy.mock.calls
+      .flat()
+      .filter((c) => typeof c === 'object' && c !== null)
+      .map((c: any) => c.event);
+    expect(events).toContain('email.template_missing');
+  });
+
+  it('deve usar defaults quando APP_NAME e APP_LOGIN_URL não estão no config', async () => {
+    (configService.get as jest.Mock).mockImplementation((key: string) => {
+      if (key === 'EMAIL_NOTIFICATIONS_ENABLED') return 'true';
+      // APP_NAME e APP_LOGIN_URL retornam undefined → cai nos defaults
+      return undefined;
+    });
+
+    await service.send('auth.password_reset', 'a@b.c', {
+      nome: 'X',
+      link: 'L',
+      validade: 'V',
+    });
+
+    const [message] = emailService.send.mock.calls[0];
+    expect(message.body).toContain('API Padrão');
+    expect(message.body).toContain('http://localhost:3000');
+  });
+
+  it('deve aceitar chamada sem variables (default {} via parâmetro opcional)', async () => {
+    // Sem variables, default {} deve ser aplicado
+    (configService.get as jest.Mock).mockImplementation((key: string) => {
+      const map: Record<string, string> = {
+        APP_NAME: 'API Padrão',
+        APP_LOGIN_URL: 'http://localhost:3000',
+        EMAIL_NOTIFICATIONS_ENABLED: 'true',
+      };
+      return map[key];
+    });
+
+    // Template simples que não exige variáveis além das automáticas
+    const simpleTemplate: EmailTemplate = {
+      templateId: 'auth.password_reset',
+      subject: 'Bem-vindo ao {{APP_NAME}}',
+      body: '© {{ano_atual}}',
+    };
+    (templateLoader.get as jest.Mock).mockReturnValue(simpleTemplate);
+
+    await service.send('auth.password_reset', 'a@b.c');
+
+    expect(emailService.send).toHaveBeenCalledTimes(1);
   });
 
   it('deve fazer no-op quando EMAIL_NOTIFICATIONS_ENABLED=false', async () => {
@@ -210,5 +287,18 @@ describe('DefaultEmailSenderService (REQ-EM-07, REQ-EM-09, REQ-EM-10)', () => {
       c: '3',
     });
     expect(result).toBe('1--3');
+  });
+
+  // REQ-EM-09 (Edge case - null)
+  it('render deve tratar null como string vazia', () => {
+    const result = (service as any).render('{{x}}', { x: null });
+    expect(result).toBe('');
+  });
+
+  // REQ-EM-09 (Edge case - placeholder faltando)
+  it('render deve lançar erro quando placeholder não está em vars', () => {
+    expect(() => (service as any).render('{{a}}-{{b}}', { a: '1' })).toThrow(
+      /Placeholder \{\{b\}\} não encontrado/,
+    );
   });
 });
