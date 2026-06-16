@@ -257,6 +257,97 @@ describe('AuthService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    // BDD: features/autenticacao.feature:Cenário: Login com senha nula no usuário
+    it('deve lançar UnauthorizedException se user.senha for null', async () => {
+      const mockUser = makeUsuario({ id: 1, empresas: [] });
+      // Sobrescreve senha para null
+      Object.assign(mockUser, { senha: null });
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
+        mockUser,
+      );
+      mockPasswordHasher.compare.mockResolvedValue(false);
+
+      const loginDto = { email: 'test@example.com', senha: 'qualquer' };
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockPasswordHasher.compare).not.toHaveBeenCalled();
+    });
+
+    // BDD: features/autenticacao.feature:Cenário: Login com senha undefined no usuário
+    it('deve lançar UnauthorizedException se user.senha for undefined', async () => {
+      const mockUser = makeUsuario({ id: 1, empresas: [] });
+      Object.assign(mockUser, { senha: undefined });
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
+        mockUser,
+      );
+
+      const loginDto = { email: 'test@example.com', senha: 'qualquer' };
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    // BDD: features/autenticacao.feature:Cenário: Login com DTO de senha vazio
+    it('deve lançar UnauthorizedException se dto.senha for vazio', async () => {
+      const mockUser = makeUsuario({ id: 1, empresas: [] });
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
+        mockUser,
+      );
+
+      // Forçamos bypass do DTO para testar a guarda do service
+      const loginDto = {
+        email: 'test@example.com',
+        senha: '' as unknown as string,
+      };
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockPasswordHasher.compare).not.toHaveBeenCalled();
+    });
+
+    // BDD: features/autenticacao.feature:Cenário: Ordem de chamadas em falha de login
+    it('deve chamar findByEmailWithPerfisAndPermissoes antes de recordFailure em falha', async () => {
+      const mockUser = makeUsuario({ id: 1, empresas: [] });
+      Object.assign(mockUser, { senha: null });
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
+        mockUser,
+      );
+
+      await expect(
+        service.login({ email: 'test@example.com', senha: 'qualquer' }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      const findOrder =
+        mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mock
+          .invocationCallOrder[0];
+      const recordOrder =
+        mockLoginAttemptTracker.recordFailure.mock.invocationCallOrder[0];
+      expect(findOrder).toBeLessThan(recordOrder);
+    });
+
+    // BDD: features/autenticacao.feature:Cenário: Login bem-sucedido sem ip/userAgent
+    it('deve chamar LoginHistory.record com undefined quando ip e userAgent não são fornecidos', async () => {
+      const mockUser = makeUsuario({ id: 1, empresas: [] });
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
+        mockUser,
+      );
+      mockPasswordHasher.compare.mockResolvedValue(true);
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+      mockLoginHistoryRepository.record.mockResolvedValue(undefined);
+
+      await service.login({ email: 'test@example.com', senha: 'senha' });
+
+      expect(mockLoginHistoryRepository.record).toHaveBeenCalledWith({
+        userId: 1,
+        ip: undefined,
+        userAgent: undefined,
+      });
+    });
+
     // [ALT-003] Login bem-sucedido reseta o tracker
     it('deve limpar o contador de falhas no tracker após login bem-sucedido', async () => {
       const mockUser = makeUsuario({ id: 1, empresas: [] });
@@ -346,6 +437,156 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
       expect(mockRefreshTokenRepository.revoke).not.toHaveBeenCalled();
+    });
+
+    it('deve gerar tokens sem perfis quando user.empresas é undefined', async () => {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 1);
+
+      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
+        id: '1',
+        token: 'old-token',
+        userId: 1,
+        expiresAt,
+        revokedAt: null,
+        user: {
+          id: 1,
+          email: 'test@test.com',
+          // empresas propositalmente undefined
+        },
+      });
+      mockRefreshTokenRepository.revoke.mockResolvedValue(undefined);
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+
+      const result = await service.refreshTokens('old-token');
+
+      expect(result.access_token).toBeDefined();
+      const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
+      expect(signCall.empresas).toEqual([]);
+    });
+
+    it('deve gerar tokens com empresas vazias quando user.empresas é []', async () => {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 1);
+
+      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
+        id: '1',
+        token: 'old-token',
+        userId: 1,
+        expiresAt,
+        revokedAt: null,
+        user: {
+          id: 1,
+          email: 'test@test.com',
+          empresas: [],
+        },
+      });
+      mockRefreshTokenRepository.revoke.mockResolvedValue(undefined);
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+
+      const result = await service.refreshTokens('old-token');
+
+      expect(result.access_token).toBeDefined();
+      const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
+      expect(signCall.empresas).toEqual([]);
+    });
+  });
+
+  describe('generateTokens', () => {
+    it('deve gerar tokens com empresas como array vazio quando undefined', async () => {
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+
+      const result = await service.generateTokens(1, 'user@e.com', undefined);
+
+      expect(result.access_token).toBe('mockAccessToken');
+      expect(result.refresh_token).toBeDefined();
+
+      // Verifica que o JWT foi assinado com payload { sub, email, empresas: [] }
+      const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
+      expect(signCall).toEqual({
+        sub: 1,
+        email: 'user@e.com',
+        empresas: [],
+      });
+    });
+
+    it('deve gerar tokens com empresas como array vazio quando vazio', async () => {
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+
+      await service.generateTokens(1, 'user@e.com', []);
+
+      const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
+      expect(signCall.empresas).toEqual([]);
+    });
+
+    it('deve mapear empresas com perfis e permissoes para o shape do JWT', async () => {
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+
+      const empresas = [
+        {
+          empresaId: 'emp-1',
+          perfis: [
+            {
+              codigo: 'ADMIN',
+              permissoes: [{ codigo: 'READ_X' }, { codigo: 'WRITE_X' }],
+            },
+          ],
+        },
+      ] as any;
+
+      await service.generateTokens(42, 'user@e.com', empresas);
+
+      const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
+      expect(signCall.empresas).toEqual([
+        {
+          id: 'emp-1',
+          perfis: [
+            {
+              codigo: 'ADMIN',
+              permissoes: [{ codigo: 'READ_X' }, { codigo: 'WRITE_X' }],
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('deve usar fallback de 7 dias quando JWT_REFRESH_EXPIRES_DAYS nao esta configurado', async () => {
+      // Reconfigura o mock para nao retornar JWT_REFRESH_EXPIRES_DAYS
+      mockConfigService.get.mockImplementation((key: string) => {
+        if (key === 'JWT_ACCESS_EXPIRES_IN') return '60s';
+        if (key === 'JWT_REFRESH_EXPIRES_DAYS') return undefined;
+        return null as any;
+      });
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+
+      const before = Date.now();
+      await service.generateTokens(1, 'user@e.com', []);
+      const after = Date.now();
+
+      const createCall = (
+        mockRefreshTokenRepository.create.mock.calls[0] as any[]
+      )[0];
+      const expiresAt: Date = createCall.expiresAt;
+      // 7 dias = 7 * 24 * 60 * 60 * 1000 ms
+      const expectedMs = 7 * 24 * 60 * 60 * 1000;
+      const lower = before + expectedMs - 1000;
+      const upper = after + expectedMs + 1000;
+      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(lower);
+      expect(expiresAt.getTime()).toBeLessThanOrEqual(upper);
+    });
+
+    it('deve passar expiresIn undefined ao jwtService.sign quando JWT_ACCESS_EXPIRES_IN nao esta configurado', async () => {
+      mockConfigService.get.mockImplementation((key: string) => {
+        if (key === 'JWT_ACCESS_EXPIRES_IN') return undefined;
+        if (key === 'JWT_REFRESH_EXPIRES_DAYS') return 7;
+        return null as any;
+      });
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+
+      await service.generateTokens(1, 'user@e.com', []);
+
+      const signOptions = (mockJwtService.sign.mock.calls[0] as any[])[1];
+      expect(signOptions.expiresIn).toBeUndefined();
     });
   });
 });
