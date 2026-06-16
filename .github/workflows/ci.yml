@@ -1,3 +1,7 @@
+# BDD: features/devsecops-sprint1-quick-wins.feature:Funcionalidade: SDLC Scanning
+# SDD: .openspec/changes/devsecops-sprint1-quick-wins/design.md#fase-2
+# ATDD: .openspec/changes/devsecops-sprint1-quick-wins/tasks.md#task-2-3
+# Sprint 1 — SDLC Scanning (Semgrep SAST + Gitleaks secret scan)
 name: CI
 
 on:
@@ -5,11 +9,52 @@ on:
   push:
     branches: [main]
 
+# cancel-in-progress on the workflow group covers all jobs (build, semgrep,
+# gitleaks) — older PR runs are dropped when a new commit arrives, saving CI
+# minutes when developers push follow-ups.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # [Sprint1-SDLC] SAST — runs Semgrep against src/ using the project-local
+  # .semgrep.yml (created in Task 2.2). Fails the build on any F+ finding.
+  # @v1 is the stable major; pin to a digest or move to @v2 once verified.
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: .semgrep.yml
+
+  # [Sprint1-SDLC] Secret scanning — uses the project-local .gitleaks.toml
+  # (created in Task 2.2). fetch-depth: 0 ensures the full git history is
+  # scanned, not just the latest commit (catches leaked secrets removed
+  # from working tree but still in history).
+  gitleaks:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   build:
     runs-on: ubuntu-latest
 
