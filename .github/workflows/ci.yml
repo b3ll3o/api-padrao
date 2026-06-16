@@ -31,6 +31,22 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      # [FIX] Run #27592111496 travou 6h e foi cancelado porque AppModule
+      # inicializa CacheModule (cache-manager-redis-yet), BullModule
+      # e ThrottlerStorageRedisService — todos conectam em localhost:6379
+      # no .env.test. Sem Redis no CI, os clientes entram em retry infinito
+      # e o `npm run test:e2e` nunca termina. Mesma versão 7-alpine
+      # usada em docker-compose.prod.yml.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
