@@ -1,0 +1,64 @@
+# =============================================================================
+# Gitleaks secret-scanning configuration for api-padrao
+# -----------------------------------------------------------------------------
+# Traceability:
+#   BDD:   features/devsecops-sprint1-quick-wins.feature
+#          -> "Funcionalidade: SDLC Scanning"
+#          -> "Cenário: Gitleaks detecta JWT_SECRET hardcoded"
+#          -> "Cenário: Allowlist evita F+ em .env.example"
+#          -> "Cenário: Allowlist evita F+ em *.spec.ts"
+#   SDD:   .openspec/changes/devsecops-sprint1-quick-wins/design.md#fase-2
+#          -> "Fase 2: SDLC Scanning — Semgrep (SAST) + Gitleaks (secret scan)"
+#   ATDD:  .openspec/changes/devsecops-sprint1-quick-wins/tasks.md
+#          -> Task 2.2 — Allowlist for placeholders & test mocks
+#   TDD:   N/A (config file; behavior is exercised by CI integration tests)
+#
+# Approach:
+#   We rely on the Gitleaks built-in default ruleset (no custom rules) and
+#   use the [allowlist] block to suppress known-F+ cases:
+#     - .env.example / .env.test.example — placeholders for local dev
+#       (e.g. POSTGRES_PASSWORD=postgres, JWT_SECRET=test-secret).
+#     - *.spec.ts                       — Jest test files that use mock JWTs
+#       like "eyJhbGciOiJIUzI1NiJ9.test.signature".
+#     - .openspec/**, docs/**, *.md     — spec & documentation; never ships.
+# =============================================================================
+
+# Built-in Gitleaks ruleset (current = latest at install time).
+# No `[[rules]]` block on purpose — we inherit the upstream defaults.
+
+# -----------------------------------------------------------------------------
+# Allowlist — paths and regexes that must NOT trigger a finding.
+# -----------------------------------------------------------------------------
+[allowlist]
+description = "Allowlist for placeholders, test mocks, specs, and docs"
+
+  # File-path globs that are exempt from scanning.
+  paths = [
+    # Placeholder env files (committed on purpose; documented in README).
+    '''.env\.example$''',
+    '''\.env\.test\.example$''',
+
+    # Jest spec files — contain mock tokens / fake credentials.
+    '''.*\.spec\.ts$''',
+
+    # Spec & documentation — never ships, never secrets.
+    '''^\.openspec/''',
+    '''^docs/''',
+
+    # Gitleaks' own report artifacts (when scanning history locally).
+    '''gitleaks\.report\.json$''',
+  ]
+
+  # Regexes matched against the secret itself (in addition to path allowlist).
+  # Conservative — only the well-known placeholder values, not whole classes.
+  regexes = [
+    # The default dev password that ships in .env.example.
+    '''POSTGRES_PASSWORD=postgres$''',
+    # The default dev/test JWT secret in .env.test.example.
+    '''JWT_SECRET=test-secret''',
+    # The well-known test JWT triple used in *.spec.ts mocks.
+    '''eyJhbGciOiJIUzI1NiJ9\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*''',
+  ]
+
+  # When true, ANY allowlist match suppresses the finding.
+  stopwords = []
