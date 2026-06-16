@@ -93,3 +93,49 @@ Cenário: Resetar senha com token já utilizado
     | token | TOKEN_USADO |
     | novaSenha | NovaSenha123! |
   Então o status da resposta deve ser 401
+
+Cenário: Login com senha nula no usuário
+  Dado que o usuário está cadastrado com senha armazenada como null
+  Quando eu enviar uma requisição POST para "/auth/login" com:
+    | email | usuario@empresa.com |
+    | senha | Password123! |
+  Então o status da resposta deve ser 401
+  E o passwordHasher NÃO deve ser chamado
+
+Cenário: Login com senha undefined no usuário
+  Dado que o usuário está cadastrado com senha armazenada como undefined
+  Quando eu enviar uma requisição POST para "/auth/login" com:
+    | email | usuario@empresa.com |
+    | senha | Password123! |
+  Então o status da resposta deve ser 401
+
+Cenário: Login com DTO de senha vazio
+  Dado que o usuário está cadastrado com e-mail "usuario@empresa.com" e senha "Password123!"
+  Quando eu enviar uma requisição POST para "/auth/login" com:
+    | email | usuario@empresa.com |
+    | senha |  |
+  Então o status da resposta deve ser 401
+  E o passwordHasher NÃO deve ser chamado
+
+Cenário: Ordem de chamadas em falha de login
+  Dado que o usuário está cadastrado com senha armazenada como null
+  Quando eu enviar uma requisição POST para "/auth/login" com credenciais que falham
+  Então a consulta ao usuário deve ocorrer ANTES do registro da falha
+
+Cenário: Login bem-sucedido sem ip/userAgent
+  Dado que o usuário está cadastrado com e-mail "usuario@empresa.com" e senha "Password123!"
+  Quando eu enviar uma requisição POST para "/auth/login" sem headers ip e user-agent
+  Então o status da resposta deve ser 201
+  E o LoginHistory deve ser gravado com ip e userAgent como undefined
+
+Cenário: Login com múltiplas empresas
+  Dado que o usuário pertence a 2 empresas com perfis diferentes
+  Quando eu enviar uma requisição POST para "/auth/login" com credenciais válidas
+  Então o JWT deve conter as 2 empresas com seus respectivos perfis
+
+Cenário: Bloqueio após N tentativas inválidas
+  Dado que o usuário está cadastrado com e-mail "lockout@empresa.com" e senha "Password123!"
+  Quando eu fizer 5 requisições POST para "/auth/login" com senha incorreta
+  E fizer uma 6ª requisição com a senha correta
+  Então o status da resposta deve ser 429
+  E o corpo da resposta deve conter "bloqueada"
