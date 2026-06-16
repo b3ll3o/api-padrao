@@ -9,10 +9,50 @@ import { Permissao } from '../../../permissoes/domain/entities/permissao.entity'
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 import { UsuarioEmpresa } from '../../../usuarios/domain/entities/usuario-empresa.entity';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { RefreshTokenRepository } from '../../domain/repositories/refresh-token.repository';
+import { LoginHistoryRepository } from '../../domain/repositories/login-history.repository';
+import { LoginAttemptTracker } from '../../domain/services/login-attempt-tracker.service';
 
+/**
+ * Testes do AuthService.
+ *
+ * Após ALT-001, este spec mocka apenas as **portas** (interfaces),
+ * não o `PrismaService`. O service não depende mais do ORM.
+ */
 describe('AuthService', () => {
   let service: AuthService;
+
+  // Helpers de mock que usam as factories de domínio (MED-003)
+  // para evitar acoplar o spec a campos/métodos privados.
+  const makePermissao = (overrides: Partial<Permissao> = {}): Permissao => {
+    const p = Permissao.criar({
+      nome: 'read:users',
+      codigo: 'READ_USERS',
+      descricao: 'Read users',
+    });
+    Object.assign(p, overrides);
+    return p;
+  };
+
+  const makePerfil = (overrides: Partial<Perfil> = {}): Perfil => {
+    const p = Perfil.criar({
+      nome: 'Admin',
+      codigo: 'ADMIN',
+      descricao: 'Administrator',
+      empresaId: 'empresa-1',
+    });
+    Object.assign(p, overrides);
+    return p;
+  };
+
+  const makeUsuario = (overrides: Partial<Usuario> = {}): Usuario => {
+    const u = Usuario.criar({
+      email: 'test@example.com',
+      senhaHash: 'hashedPassword',
+    });
+    Object.assign(u, overrides);
+    return u;
+  };
 
   const mockUsuarioRepository = {
     findByEmailWithPerfisAndPermissoes: jest.fn(),
@@ -29,24 +69,33 @@ describe('AuthService', () => {
   const mockConfigService = {
     get: jest.fn((key: string) => {
       if (key === 'JWT_ACCESS_EXPIRES_IN') return '60s';
+      if (key === 'JWT_REFRESH_EXPIRES_DAYS') return 7;
       return null;
     }),
     getOrThrow: jest.fn((key: string) => {
-      if (key === 'JWT_SECRET') return 'mockSecret';
+      if (key === 'JWT_SECRET')
+        return 'mockSecretWithAtLeast32CharsForValidation!';
       return null;
     }),
   };
 
-  const mockPrismaService = {
-    refreshToken: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
-    },
-    loginHistory: {
-      create: jest.fn(),
-    },
+  // [ALT-001] Mocks das portas substituem o mock de `PrismaService`.
+  const mockRefreshTokenRepository = {
+    create: jest.fn(),
+    findByTokenWithUser: jest.fn(),
+    revoke: jest.fn(),
+    revokeAllForUser: jest.fn(),
+  };
+
+  const mockLoginHistoryRepository = {
+    record: jest.fn(),
+  };
+
+  // [ALT-003] Mock do LoginAttemptTracker.
+  const mockLoginAttemptTracker = {
+    isLocked: jest.fn().mockResolvedValue(false),
+    recordFailure: jest.fn().mockResolvedValue(undefined),
+    clearFailures: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -70,8 +119,16 @@ describe('AuthService', () => {
           useValue: mockConfigService,
         },
         {
-          provide: PrismaService,
-          useValue: mockPrismaService,
+          provide: RefreshTokenRepository,
+          useValue: mockRefreshTokenRepository,
+        },
+        {
+          provide: LoginHistoryRepository,
+          useValue: mockLoginHistoryRepository,
+        },
+        {
+          provide: LoginAttemptTracker,
+          useValue: mockLoginAttemptTracker,
         },
       ],
     }).compile();
@@ -89,48 +146,27 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('deve retornar tokens de acesso e refresh se o login for bem-sucedido', async () => {
-      const mockPermissao: Permissao = {
+      const mockPermissao = makePermissao({ id: 1 });
+      const mockPerfil = makePerfil({
         id: 1,
-        nome: 'read:users',
-        codigo: 'READ_USERS',
-        descricao: 'Read users',
-        ativo: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const mockPerfil: Perfil = {
-        id: 1,
-        nome: 'Admin',
-        codigo: 'ADMIN',
-        descricao: 'Administrator',
-        ativo: true,
-        empresaId: 'empresa-1',
         permissoes: [mockPermissao],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      });
       const mockUsuarioEmpresa = new UsuarioEmpresa({
         id: 1,
         usuarioId: 1,
         empresaId: 'uuid-empresa',
         perfis: [mockPerfil],
       });
-      const mockUser: Usuario = {
+      const mockUser = makeUsuario({
         id: 1,
-        email: 'test@example.com',
-        senha: 'hashedPassword',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-        ativo: true,
         empresas: [mockUsuarioEmpresa],
-      };
+      });
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         mockUser,
       );
       mockPasswordHasher.compare.mockResolvedValue(true);
-      mockPrismaService.refreshToken.create.mockResolvedValue({});
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+      mockLoginHistoryRepository.record.mockResolvedValue(undefined);
 
       const loginDto = { email: 'test@example.com', senha: 'password123' };
       const result = await service.login(loginDto, '127.0.0.1', 'mockAgent');
@@ -148,16 +184,12 @@ describe('AuthService', () => {
         mockUser.senha,
       );
       expect(mockJwtService.sign).toHaveBeenCalled();
-      expect(mockPrismaService.refreshToken.create).toHaveBeenCalled();
-      expect(mockPrismaService.loginHistory.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            userId: 1,
-            ip: '127.0.0.1',
-            userAgent: 'mockAgent',
-          }),
-        }),
-      );
+      expect(mockRefreshTokenRepository.create).toHaveBeenCalled();
+      expect(mockLoginHistoryRepository.record).toHaveBeenCalledWith({
+        userId: 1,
+        ip: '127.0.0.1',
+        userAgent: 'mockAgent',
+      });
     });
 
     it('deve lançar UnauthorizedException se o usuário não existir', async () => {
@@ -177,19 +209,14 @@ describe('AuthService', () => {
         mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
       ).toHaveBeenCalledWith('nonexistent@example.com');
       expect(mockJwtService.sign).not.toHaveBeenCalled();
+      // [ALT-004] LoginHistory NÃO é gravado em falha
+      expect(mockLoginHistoryRepository.record).not.toHaveBeenCalled();
+      // [ALT-004] RefreshToken NÃO é criado em falha
+      expect(mockRefreshTokenRepository.create).not.toHaveBeenCalled();
     });
 
     it('deve lançar UnauthorizedException se a senha for inválida', async () => {
-      const mockUser: Usuario = {
-        id: 1,
-        email: 'test@example.com',
-        senha: 'hashedPassword',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-        ativo: true,
-        empresas: [],
-      };
+      const mockUser = makeUsuario({ id: 1, empresas: [] });
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         mockUser,
       );
@@ -209,48 +236,116 @@ describe('AuthService', () => {
         mockUser.senha,
       );
       expect(mockJwtService.sign).not.toHaveBeenCalled();
+      // [ALT-003] Falha registra tentativa no tracker
+      expect(mockLoginAttemptTracker.recordFailure).toHaveBeenCalledWith(
+        'test@example.com',
+      );
+    });
+
+    // [ALT-003] Account lockout
+    it('deve lançar TooManyRequestsException se a conta está bloqueada', async () => {
+      mockLoginAttemptTracker.isLocked.mockResolvedValueOnce(true);
+
+      const loginDto = { email: 'bloqueado@exemplo.com', senha: 'qualquer' };
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Conta temporariamente bloqueada',
+      );
+      // Não deve nem consultar o DB
+      expect(
+        mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
+      ).not.toHaveBeenCalled();
+    });
+
+    // [ALT-003] Login bem-sucedido reseta o tracker
+    it('deve limpar o contador de falhas no tracker após login bem-sucedido', async () => {
+      const mockUser = makeUsuario({ id: 1, empresas: [] });
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
+        mockUser,
+      );
+      mockPasswordHasher.compare.mockResolvedValue(true);
+
+      await service.login({ email: 'test@example.com', senha: 'senha' });
+
+      expect(mockLoginAttemptTracker.clearFailures).toHaveBeenCalledWith(
+        'test@example.com',
+      );
     });
   });
 
   describe('refreshTokens', () => {
     it('deve renovar tokens com sucesso', async () => {
-      const mockUser = { id: 1, email: 'test@test.com', empresas: [] };
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 1);
 
-      mockPrismaService.refreshToken.findUnique.mockResolvedValue({
+      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
         id: '1',
         token: 'old-token',
         userId: 1,
         expiresAt,
         revokedAt: null,
-        user: mockUser,
+        user: {
+          id: 1,
+          email: 'test@test.com',
+          empresas: [],
+        },
       });
-      mockPrismaService.refreshToken.update.mockResolvedValue({});
-      mockPrismaService.refreshToken.create.mockResolvedValue({});
+      mockRefreshTokenRepository.revoke.mockResolvedValue(undefined);
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
 
       const result = await service.refreshTokens('old-token');
 
       expect(result).toHaveProperty('access_token');
       expect(result).toHaveProperty('refresh_token');
-      expect(mockPrismaService.refreshToken.update).toHaveBeenCalled();
+      expect(mockRefreshTokenRepository.revoke).toHaveBeenCalledWith('1');
     });
 
     it('deve lançar ForbiddenException e revogar tudo se o token já foi usado (detecção de reuso)', async () => {
-      mockPrismaService.refreshToken.findUnique.mockResolvedValue({
+      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
         id: '1',
         token: 'stolen-token',
         userId: 1,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60),
         revokedAt: new Date(),
+        user: {
+          id: 1,
+          email: 'test@test.com',
+          empresas: [],
+        },
       });
+      mockRefreshTokenRepository.revokeAllForUser.mockResolvedValue(undefined);
 
       await expect(service.refreshTokens('stolen-token')).rejects.toThrow(
         ForbiddenException,
       );
-      expect(mockPrismaService.refreshToken.updateMany).toHaveBeenCalledWith({
-        where: { userId: 1 },
-        data: { revokedAt: expect.any(Date) },
+      expect(mockRefreshTokenRepository.revokeAllForUser).toHaveBeenCalledWith(
+        1,
+      );
+    });
+
+    it('deve lançar UnauthorizedException quando o token não existe', async () => {
+      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue(null);
+
+      await expect(service.refreshTokens('inexistente')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockRefreshTokenRepository.revoke).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar UnauthorizedException quando o token está expirado', async () => {
+      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
+        id: '1',
+        token: 'expired-token',
+        userId: 1,
+        expiresAt: new Date(Date.now() - 1000), // expirado
+        revokedAt: null,
+        user: { id: 1, email: 'x@x.com', empresas: [] },
       });
+
+      await expect(service.refreshTokens('expired-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockRefreshTokenRepository.revoke).not.toHaveBeenCalled();
     });
   });
 });

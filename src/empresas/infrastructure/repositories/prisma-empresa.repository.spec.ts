@@ -20,6 +20,7 @@ describe('PrismaEmpresaRepository', () => {
     findUnique: jest.fn(),
     update: jest.fn(),
     create: jest.fn(),
+    upsert: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
   };
@@ -72,7 +73,20 @@ describe('PrismaEmpresaRepository', () => {
       const result = await repository.create(createDto);
 
       expect(result).toBeInstanceOf(Empresa);
-      expect(mockEmpresaModel.create).toHaveBeenCalledWith({ data: createDto });
+      expect(mockEmpresaModel.create).toHaveBeenCalledWith({
+        data: createDto,
+        select: {
+          id: true,
+          nome: true,
+          descricao: true,
+          responsavelId: true,
+          plano: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+        },
+      });
     });
   });
 
@@ -133,31 +147,34 @@ describe('PrismaEmpresaRepository', () => {
   });
 
   describe('addUserToCompany', () => {
-    it('deve criar novo vinculo se não existir', async () => {
-      mockUsuarioEmpresaModel.findUnique.mockResolvedValue(null);
+    it('deve usar upsert atômico (evita race condition) ao vincular usuário', async () => {
+      // TDD: features/empresas.feature:Cenário: Vincular usuário a empresa
+      // BDD: vinculação é idempotente e atômica (constraint @@unique[usuarioId,empresaId])
+      mockUsuarioEmpresaModel.upsert.mockResolvedValue({ id: 1 });
 
       await repository.addUserToCompany('empresa-id', 1, [1, 2]);
 
-      expect(mockUsuarioEmpresaModel.create).toHaveBeenCalledWith({
-        data: {
+      // Verifica chamada atômica: where, create e update no mesmo upsert
+      expect(mockUsuarioEmpresaModel.upsert).toHaveBeenCalledWith({
+        where: {
+          usuarioId_empresaId: {
+            usuarioId: 1,
+            empresaId: 'empresa-id',
+          },
+        },
+        create: {
           usuarioId: 1,
           empresaId: 'empresa-id',
           perfis: { connect: [{ id: 1 }, { id: 2 }] },
         },
-      });
-    });
-
-    it('deve atualizar vinculo se existir', async () => {
-      mockUsuarioEmpresaModel.findUnique.mockResolvedValue({ id: 10 });
-
-      await repository.addUserToCompany('empresa-id', 1, [3]);
-
-      expect(mockUsuarioEmpresaModel.update).toHaveBeenCalledWith({
-        where: { id: 10 },
-        data: {
-          perfis: { set: [{ id: 3 }] },
+        update: {
+          perfis: { set: [{ id: 1 }, { id: 2 }] },
         },
       });
+      // Garante que NÃO usa o caminho antigo (findUnique + create/update)
+      expect(mockUsuarioEmpresaModel.findUnique).not.toHaveBeenCalled();
+      expect(mockUsuarioEmpresaModel.create).not.toHaveBeenCalled();
+      expect(mockUsuarioEmpresaModel.update).not.toHaveBeenCalled();
     });
   });
 

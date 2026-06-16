@@ -30,9 +30,13 @@ export class PerfisService {
       createPerfilDto.permissoesIds &&
       createPerfilDto.permissoesIds.length > 0
     ) {
-      for (const id of createPerfilDto.permissoesIds) {
-        await this.permissoesService.findOne(id); // Validate if permission exists
-      }
+      // [ALT-005] Validação em paralelo (1 round-trip em vez de N sequenciais).
+      // `findOne` lança NotFoundException → Promise.all rejeita no primeiro ID inválido.
+      await Promise.all(
+        createPerfilDto.permissoesIds.map((id) =>
+          this.permissoesService.findOne(id),
+        ),
+      );
     }
     const existingPerfil = await this.perfilRepository.findByNome(
       createPerfilDto.nome,
@@ -122,9 +126,12 @@ export class PerfisService {
     empresaId?: string,
   ): Promise<Perfil> {
     if (updatePerfilDto.permissoesIds) {
-      for (const permId of updatePerfilDto.permissoesIds) {
-        await this.permissoesService.findOne(permId);
-      }
+      // [ALT-005] Validação paralela (1 round-trip em vez de N).
+      await Promise.all(
+        updatePerfilDto.permissoesIds.map((permId) =>
+          this.permissoesService.findOne(permId),
+        ),
+      );
     }
     const perfil = await this.perfilRepository.findOne(id, true, empresaId);
     if (!perfil) {
@@ -145,7 +152,10 @@ export class PerfisService {
         if (perfil.deletedAt === null) {
           throw new ConflictException(`Perfil com ID ${id} não está deletado.`);
         }
-        const restoredPerfil = await this.perfilRepository.restore(id);
+        const restoredPerfil = await this.perfilRepository.restore(
+          id,
+          empresaId,
+        );
         if (!restoredPerfil) {
           throw new NotFoundException(
             `Perfil com ID ${id} não encontrado após restauração.`,

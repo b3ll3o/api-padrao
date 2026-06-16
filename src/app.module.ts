@@ -21,11 +21,13 @@ import { AllExceptionsFilter } from './shared/infrastructure/filters/all-excepti
 import { LoggingInterceptor } from './shared/infrastructure/interceptors/logging.interceptor';
 import { EmpresaContext } from './shared/infrastructure/services/empresa-context.service';
 import { EmpresaInterceptor } from './shared/infrastructure/interceptors/empresa.interceptor';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { HealthModule } from './shared/infrastructure/health/health.module';
 import { SharedModule } from './shared/shared.module';
 import { AppConfig } from './shared/infrastructure/config/app.config';
 import { AuditInterceptor } from './shared/infrastructure/interceptors/audit.interceptor';
+import { TenantThrottlerGuard } from './shared/infrastructure/throttling/tenant-throttler.guard';
 
 @Module({
   imports: [
@@ -74,34 +76,50 @@ import { AuditInterceptor } from './shared/infrastructure/interceptors/audit.int
     PerfisModule,
     EmpresasModule,
     HealthModule,
-    ThrottlerModule.forRoot([
-      {
-        name: 'short',
-        ttl: parseInt(process.env.THROTTLER_SHORT_TTL || '1000', 10),
-        limit: parseInt(process.env.THROTTLER_SHORT_LIMIT || '3', 10),
-      },
-      {
-        name: 'medium',
-        ttl: parseInt(process.env.THROTTLER_MEDIUM_TTL || '10000', 10),
-        limit: parseInt(process.env.THROTTLER_MEDIUM_LIMIT || '20', 10),
-      },
-      {
-        name: 'long',
-        ttl: parseInt(process.env.THROTTLER_LONG_TTL || '60000', 10),
-        limit: parseInt(process.env.THROTTLER_LONG_LIMIT || '100', 10),
-      },
-      {
-        name: 'sensitive',
-        ttl: parseInt(process.env.THROTTLER_SENSITIVE_TTL || '60000', 10),
-        limit: parseInt(process.env.THROTTLER_SENSITIVE_LIMIT || '10', 10),
-      },
-    ]),
+    SharedModule,
+    // [MED-005] Throttler com storage Redis para escalar em multi-instância.
+    // Antes: in-memory → atacante podia bater `limit×N` distribuindo
+    // requests entre instâncias. Agora todos compartilham o mesmo
+    // contador via Redis. `useFactory` lê TTL/limit das mesmas env vars
+    // de antes, mas via `AppConfig` para manter tipagem.
+    ThrottlerModule.forRootAsync({
+      imports: [SharedModule],
+      inject: [AppConfig],
+      useFactory: (config: AppConfig) => ({
+        throttlers: [
+          {
+            name: 'short',
+            ttl: config.throttlerShortTtl,
+            limit: config.throttlerShortLimit,
+          },
+          {
+            name: 'medium',
+            ttl: config.throttlerMediumTtl,
+            limit: config.throttlerMediumLimit,
+          },
+          {
+            name: 'long',
+            ttl: config.throttlerLongTtl,
+            limit: config.throttlerLongLimit,
+          },
+          {
+            name: 'sensitive',
+            ttl: config.throttlerSensitiveTtl,
+            limit: config.throttlerSensitiveLimit,
+          },
+        ],
+        storage: new ThrottlerStorageRedisService({
+          host: config.redisHost,
+          port: config.redisPort,
+        }),
+      }),
+    }),
   ],
   controllers: [],
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: TenantThrottlerGuard,
     },
     {
       provide: APP_GUARD,

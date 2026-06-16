@@ -103,7 +103,7 @@ describe('PerfisService', () => {
         ativo: true,
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as Perfil;
+      } as unknown as Perfil;
       (mockPerfilRepository.findByNome as jest.Mock).mockResolvedValue(null);
       (mockPerfilRepository.create as jest.Mock).mockResolvedValue(
         expectedPerfil,
@@ -143,7 +143,7 @@ describe('PerfisService', () => {
         ativo: true,
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as Perfil;
+      } as unknown as Perfil;
       (mockPerfilRepository.findByNome as jest.Mock).mockResolvedValue(null);
       (mockPerfilRepository.create as jest.Mock).mockResolvedValue(
         expectedPerfil,
@@ -223,7 +223,7 @@ describe('PerfisService', () => {
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
 
       expect(result.deletedAt).toBeNull();
-      expect(mockPerfilRepository.restore).toHaveBeenCalledWith(1);
+      expect(mockPerfilRepository.restore).toHaveBeenCalledWith(1, undefined);
       expect(mockPerfilRepository.update).not.toHaveBeenCalled();
     });
 
@@ -531,7 +531,7 @@ describe('PerfisService', () => {
         ], // Added full Permissao object
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as Perfil;
+      } as unknown as Perfil;
 
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
         existingPerfil,
@@ -576,7 +576,7 @@ describe('PerfisService', () => {
       const expectedPerfil = {
         ...existingPerfil,
         ...updatePerfilDto,
-      } as Perfil;
+      } as unknown as Perfil;
 
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
         existingPerfil,

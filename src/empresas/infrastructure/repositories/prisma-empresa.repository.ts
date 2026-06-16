@@ -14,6 +14,18 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
   async create(data: CreateEmpresaDto): Promise<Empresa> {
     const empresa = await this.prisma.extended.empresa.create({
       data,
+      // [ALT-006] `select` específico (mesma justificativa do findAll).
+      select: {
+        id: true,
+        nome: true,
+        descricao: true,
+        responsavelId: true,
+        plano: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      },
     });
     return new Empresa(empresa);
   }
@@ -29,6 +41,18 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        // [ALT-006] `select` específico: lista apenas os campos públicos da Empresa.
+        select: {
+          id: true,
+          nome: true,
+          descricao: true,
+          responsavelId: true,
+          plano: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+        },
       }),
       this.prisma.extended.empresa.count(),
     ]);
@@ -47,6 +71,18 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
   async findOne(id: string): Promise<Empresa | null> {
     const empresa = await this.prisma.extended.empresa.findUnique({
       where: { id },
+      // [ALT-006] `select` específico.
+      select: {
+        id: true,
+        nome: true,
+        descricao: true,
+        responsavelId: true,
+        plano: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      },
     });
 
     if (!empresa) return null;
@@ -59,6 +95,16 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
       data: {
         ...data,
         updatedAt: new Date(),
+      },
+      // [ALT-006] `select` específico (mesma justificativa do findAll).
+      select: {
+        id: true,
+        nome: true,
+        plano: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
       },
     });
     return new Empresa(empresa);
@@ -75,38 +121,29 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
     usuarioId: number,
     perfilIds: number[],
   ): Promise<void> {
-    // Check if user is already in company
-    const existingLink = await this.prisma.extended.usuarioEmpresa.findUnique({
+    // upsert: operação atômica que elimina race condition em chamadas
+    // concorrentes (sem leitura + escrita que poderia duplicar inserts e
+    // violar a constraint `@@unique([usuarioId, empresaId])`).
+    await this.prisma.extended.usuarioEmpresa.upsert({
       where: {
         usuarioId_empresaId: {
           usuarioId,
           empresaId,
         },
       },
+      create: {
+        usuarioId,
+        empresaId,
+        perfis: {
+          connect: perfilIds.map((id) => ({ id })),
+        },
+      },
+      update: {
+        perfis: {
+          set: perfilIds.map((id) => ({ id })),
+        },
+      },
     });
-
-    if (existingLink) {
-      // Update profiles
-      await this.prisma.extended.usuarioEmpresa.update({
-        where: { id: existingLink.id },
-        data: {
-          perfis: {
-            set: perfilIds.map((id) => ({ id })),
-          },
-        },
-      });
-    } else {
-      // Create new link
-      await this.prisma.extended.usuarioEmpresa.create({
-        data: {
-          usuarioId,
-          empresaId,
-          perfis: {
-            connect: perfilIds.map((id) => ({ id })),
-          },
-        },
-      });
-    }
   }
 
   async findUsersByCompany(
@@ -119,7 +156,9 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
     const [items, total] = await Promise.all([
       this.prisma.extended.usuarioEmpresa.findMany({
         where: { empresaId },
-        include: {
+        // [ALT-006] `select` específico: nunca expor `senha` no `usuario`,
+        // e `perfis` com apenas campos públicos (LGPD + performance).
+        select: {
           usuario: {
             select: {
               id: true,
@@ -127,7 +166,17 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
               ativo: true,
             },
           },
-          perfis: true,
+          perfis: {
+            select: {
+              id: true,
+              nome: true,
+              codigo: true,
+              descricao: true,
+              empresaId: true,
+              deletedAt: true,
+              ativo: true,
+            },
+          },
         },
         skip,
         take: limit,
@@ -159,9 +208,31 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
     const [items, total] = await Promise.all([
       this.prisma.extended.usuarioEmpresa.findMany({
         where: { usuarioId },
-        include: {
-          empresa: true,
-          perfis: true,
+        // [ALT-006] `select` específico: `empresa` com apenas campos
+        // públicos e `perfis` com subset enxuto.
+        select: {
+          empresa: {
+            select: {
+              id: true,
+              nome: true,
+              plano: true,
+              ativo: true,
+              createdAt: true,
+              updatedAt: true,
+              deletedAt: true,
+            },
+          },
+          perfis: {
+            select: {
+              id: true,
+              nome: true,
+              codigo: true,
+              descricao: true,
+              empresaId: true,
+              deletedAt: true,
+              ativo: true,
+            },
+          },
         },
         skip,
         take: limit,

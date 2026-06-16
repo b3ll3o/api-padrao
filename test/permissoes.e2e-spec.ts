@@ -218,6 +218,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('POST /permissoes', () => {
+    // BDD: features/permissoes.feature:Cenário: Criar permissão com dados válidos
     it('deve criar uma permissão', async () => {
       const createPermissaoDto = {
         nome: `read:users-${Date.now()}`,
@@ -238,6 +239,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
+    // BDD: features/permissoes.feature:Cenário: Criar permissão com dados válidos (autorização)
     it('deve retornar 403 se o usuário não tiver permissão para criar permissão', () => {
       const createPermissaoDto = {
         nome: `NoPerms-${Date.now()}`,
@@ -252,6 +254,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(403);
     });
 
+    // BDD: features/permissoes.feature:Cenário: Criar permissão sem nome
     it('deve retornar 400 se o nome estiver faltando', () => {
       const createPermissaoDto = {};
 
@@ -263,6 +266,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(400);
     });
 
+    // BDD: features/permissoes.feature:Cenário: Criar permissão com código duplicado
     it('deve retornar 409 se a permissão com o mesmo nome já existir', async () => {
       const createPermissaoDto = {
         nome: 'duplicate:name',
@@ -293,6 +297,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('GET /permissoes', () => {
+    // BDD: features/permissoes.feature:Cenário: Listar permissões com paginação
     it('deve retornar uma lista paginada de permissões', async () => {
       return request(app.getHttpServer())
         .get('/permissoes')
@@ -309,6 +314,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
+    // BDD: features/permissoes.feature:Cenário: Listar permissões com paginação (autorização)
     it('deve retornar 403 se o usuário não tiver permissão para ler permissões', () => {
       return request(app.getHttpServer())
         .get('/permissoes')
@@ -319,6 +325,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('GET /permissoes/:id', () => {
+    // BDD: features/permissoes.feature:Cenário: Buscar permissão por ID
     it('deve retornar uma única permissão', async () => {
       const permissao = await prisma.permissao.create({
         data: {
@@ -340,6 +347,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
+    // BDD: features/permissoes.feature:Cenário: Buscar permissão por ID (autorização)
     it('deve retornar 403 se o usuário não tiver permissão para ler permissão por ID', async () => {
       const permissao = await prisma.permissao.create({
         data: {
@@ -355,6 +363,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(403);
     });
 
+    // BDD: features/permissoes.feature:Cenário: Buscar permissão por ID inexistente
     it('deve retornar 404 se a permissão não for encontrada', () => {
       return request(app.getHttpServer())
         .get('/permissoes/99999')
@@ -365,6 +374,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('GET /permissoes/nome/:nome', () => {
+    // BDD: features/permissoes.feature:Cenário: Buscar permissão por código (variação)
     it('deve retornar permissões que contêm a string no nome', async () => {
       await prisma.permissao.createMany({
         data: [
@@ -403,6 +413,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
+    // BDD: features/permissoes.feature:Cenário: Buscar permissão por código (autorização)
     it('deve retornar 403 se o usuário não tiver permissão para ler permissões por nome', () => {
       const paginationDto = { page: 1, limit: 10 };
       return request(app.getHttpServer())
@@ -434,6 +445,7 @@ describe('PermissoesController (e2e)', () => {
   });
 
   describe('PATCH /permissoes/:id', () => {
+    // BDD: features/permissoes.feature:Cenário: Atualizar permissão
     it('deve atualizar uma permissão', async () => {
       const permissao = await prisma.permissao.create({
         data: {
@@ -456,6 +468,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
+    // BDD: features/permissoes.feature:Cenário: Atualizar permissão (autorização)
     it('deve retornar 403 se o usuário não tiver permissão para atualizar permissão', async () => {
       const permissao = await prisma.permissao.create({
         data: {
@@ -473,6 +486,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(403);
     });
 
+    // BDD: features/permissoes.feature:Cenário: Buscar permissão por ID inexistente (variação PATCH)
     it('deve retornar 404 se a permissão a ser atualizada não for encontrada', () => {
       const updatePermissaoDto = { nome: 'nonexistent:update' };
       return request(app.getHttpServer())
@@ -483,6 +497,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(404);
     });
 
+    // BDD: features/permissoes.feature:Cenário: Atualizar permissão (variação restaurar)
     it('deve restaurar uma permissão deletada via PATCH /permissoes/:id com { ativo: true }', async () => {
       const permissao = await prisma.permissao.create({
         data: {
@@ -507,6 +522,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
+    // BDD: features/permissoes.feature:Cenário: Atualizar permissão (autorização restaurar)
     it('deve retornar 403 se não for admin ao tentar restaurar via PATCH', async () => {
       const permissao = await prisma.permissao.create({
         data: {
@@ -526,6 +542,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(403);
     });
 
+    // BDD: features/permissoes.feature:Cenário: Atualizar permissão (variação conflito restaurar)
     it('deve retornar 409 se tentar restaurar uma permissão não deletada via PATCH', async () => {
       const permissao = await prisma.permissao.create({
         data: {
@@ -544,6 +561,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(409);
     });
 
+    // BDD: features/permissoes.feature:Cenário: Permissão associada a perfil não pode ser removida (soft-delete)
     it('deve realizar soft delete de uma permissão via PATCH /permissoes/:id com { ativo: false }', async () => {
       const permissao = await prisma.permissao.create({
         data: {
@@ -566,6 +584,7 @@ describe('PermissoesController (e2e)', () => {
         });
     });
 
+    // BDD: features/permissoes.feature:Cenário: Permissão associada a perfil não pode ser removida (autorização)
     it('deve retornar 403 se não for admin ao tentar deletar via PATCH', async () => {
       const permissao = await prisma.permissao.create({
         data: {
@@ -584,6 +603,7 @@ describe('PermissoesController (e2e)', () => {
         .expect(403);
     });
 
+    // BDD: features/permissoes.feature:Cenário: Permissão associada a perfil não pode ser removida (conflito)
     it('deve retornar 409 se tentar deletar uma permissão já deletada via PATCH', async () => {
       const permissao = await prisma.permissao.create({
         data: {

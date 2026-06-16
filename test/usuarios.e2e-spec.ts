@@ -258,6 +258,7 @@ describe('UsuariosController (e2e)', () => {
   });
 
   describe('POST /usuarios', () => {
+    // BDD: features/usuarios.feature:Cenário: Criar usuário com dados válidos
     it('deve criar um usuário e retornar 201', () => {
       const createUserDto = {
         email: 'test@example.com',
@@ -281,6 +282,7 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Criar usuário com e-mail já existente
     it('deve retornar 409 se o email já existir', async () => {
       const createUserDto = {
         email: 'test@example.com',
@@ -297,6 +299,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(409);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Criar usuário com e-mail inválido
     it('deve retornar 400 se o email for inválido', () => {
       const createUserDto = { email: 'invalid-email', senha: 'Password123!' };
 
@@ -306,6 +309,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(400);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Criar usuário com senha curta
     it('deve retornar 400 se a senha for muito curta', () => {
       const createUserDto = { email: 'test@example.com', senha: '123' };
 
@@ -315,6 +319,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(400);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Criar usuário com senha fraca - sem maiúscula
     it('deve retornar 400 se a senha não atender aos requisitos de complexidade', () => {
       const createUserDto = {
         email: 'test@example.com',
@@ -327,6 +332,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(400);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Criar usuário com e-mail inválido (variação sem email)
     it('deve retornar 400 se o email estiver faltando', () => {
       const createUserDto = { senha: 'Password123!' };
       return supertestRequest(app.getHttpServer())
@@ -338,6 +344,7 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Criar usuário com senha curta (variação sem senha)
     it('deve retornar 400 se a senha estiver faltando', () => {
       const createUserDto = { email: 'missing_password@example.com' };
       return supertestRequest(app.getHttpServer())
@@ -371,6 +378,7 @@ describe('UsuariosController (e2e)', () => {
       });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Buscar usuário por ID existente
     it('deve permitir que um usuário acesse seus próprios dados', () => {
       return supertestRequest(app.getHttpServer())
         .get(`/usuarios/${user1.id}`)
@@ -390,6 +398,7 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Usuário não-admin não pode listar usuários (autorização)
     it('deve retornar 403 quando um usuário tenta acessar dados de outro usuário', () => {
       return supertestRequest(app.getHttpServer())
         .get(`/usuarios/${user2.id}`)
@@ -403,12 +412,14 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/autenticacao.feature (autorização - sem token)
     it('deve retornar 401 quando não há token de autenticação', () => {
       return supertestRequest(app.getHttpServer())
         .get(`/usuarios/${user1.id}`)
         .expect(401);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Buscar usuário por ID inexistente
     it('deve retornar 404 quando o usuário não existe', () => {
       return supertestRequest(app.getHttpServer())
         .get('/usuarios/99999')
@@ -420,6 +431,7 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Buscar usuário por ID existente (admin)
     it('deve permitir que um admin acesse os dados de outro usuário', () => {
       return supertestRequest(app.getHttpServer())
         .get(`/usuarios/${user1.id}`)
@@ -439,6 +451,7 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Desativar usuário (soft-delete) - GET não retorna soft-deletado
     it('deve retornar 404 para um usuário deletado por padrão', () => {
       return supertestRequest(app.getHttpServer())
         .get(`/usuarios/${deletedUser.id}`)
@@ -487,6 +500,7 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Atualizar e-mail de usuário (admin)
     it('deve permitir que um admin atualize os dados de outro usuário', async () => {
       const updateDto = { email: 'admin_updated@example.com' };
       return supertestRequest(app.getHttpServer())
@@ -500,6 +514,7 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Atualizar e-mail de usuário (autorização)
     it('deve retornar 403 quando um usuário tenta atualizar dados de outro usuário', async () => {
       const anotherUser = await prisma.usuario.create({
         data: {
@@ -517,6 +532,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(403);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Buscar usuário por ID inexistente (variação PATCH)
     it('deve retornar 404 quando o usuário a ser atualizado não existe', () => {
       const updateDto = { email: 'nonexistent_update@example.com' };
       return supertestRequest(app.getHttpServer())
@@ -527,6 +543,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(404);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Reativar usuário
     it('deve restaurar um usuário deletado via PATCH /usuarios/:id com { ativo: true }', async () => {
       const restoreDto = { ativo: true };
       return supertestRequest(app.getHttpServer())
@@ -547,6 +564,7 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Reativar usuário (autorização)
     it('deve retornar 403 se não for admin ao tentar restaurar via PATCH', async () => {
       const restoreDto = { ativo: true };
       return supertestRequest(app.getHttpServer())
@@ -557,6 +575,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(403);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Reativar usuário (conflito)
     it('deve retornar 409 se tentar restaurar um usuário não deletado via PATCH', async () => {
       const restoreDto = { ativo: true };
       return supertestRequest(app.getHttpServer())
@@ -567,6 +586,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(409);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Desativar usuário (soft-delete)
     it('deve realizar soft delete de um usuário via PATCH /usuarios/:id com { ativo: false }', async () => {
       const deleteDto = { ativo: false };
       return supertestRequest(app.getHttpServer())
@@ -587,6 +607,7 @@ describe('UsuariosController (e2e)', () => {
         });
     });
 
+    // BDD: features/usuarios.feature:Cenário: Desativar usuário (autorização)
     it('deve retornar 403 se não for admin ao tentar deletar via PATCH', async () => {
       const deleteDto = { ativo: false };
       return supertestRequest(app.getHttpServer())
@@ -597,6 +618,7 @@ describe('UsuariosController (e2e)', () => {
         .expect(403);
     });
 
+    // BDD: features/usuarios.feature:Cenário: Desativar usuário (conflito)
     it('deve retornar 409 se tentar deletar um usuário já deletado via PATCH', async () => {
       const deleteDto = { ativo: false };
       return supertestRequest(app.getHttpServer())
@@ -609,6 +631,7 @@ describe('UsuariosController (e2e)', () => {
   });
 
   describe('GET /usuarios/:id/empresas', () => {
+    // BDD: features/empresas.feature:Cenário: Listar usuários de uma empresa (variação inversa)
     it('deve listar empresas de um usuário', async () => {
       // Setup já criou user1 vinculado à globalEmpresaId no beforeEach do describe pai ou aqui
       // Vamos usar o user1Token e globalEmpresaId

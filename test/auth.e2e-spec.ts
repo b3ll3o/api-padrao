@@ -56,6 +56,7 @@ describe('AuthController (e2e)', () => {
   });
 
   describe('POST /auth/login', () => {
+    // BDD: features/autenticacao.feature:Cenário: Login com credenciais válidas
     it('deve permitir que um usuário faça login com sucesso e retorne JWT com perfis e permissões', async () => {
       // 1. Criar um usuário, perfil e permissão
       const createUserDto = {
@@ -84,6 +85,7 @@ describe('AuthController (e2e)', () => {
       expect(decoded).toHaveProperty('empresas');
     });
 
+    // BDD: features/autenticacao.feature:Cenário: Login com credenciais inválidas - senha incorreta
     it('deve retornar 401 para credenciais inválidas', () => {
       const loginDto = {
         email: 'test@example.com',
@@ -96,6 +98,7 @@ describe('AuthController (e2e)', () => {
         .expect(401);
     });
 
+    // BDD: features/autenticacao.feature:Cenário: Login com e-mail não cadastrado
     it('deve retornar 401 para usuário inexistente', () => {
       const loginDto = {
         email: 'nonexistent@example.com',
@@ -108,6 +111,7 @@ describe('AuthController (e2e)', () => {
         .expect(401);
     });
 
+    // BDD: features/autenticacao.feature:Cenário: Login com e-mail inválido
     it('deve retornar 400 para email inválido', () => {
       const loginDto = {
         email: 'invalid-email',
@@ -123,6 +127,7 @@ describe('AuthController (e2e)', () => {
         });
     });
 
+    // BDD: features/autenticacao.feature:Cenário: Login com senha curta
     it('deve retornar 400 para senha muito curta', () => {
       const loginDto = {
         email: 'test@example.com',
@@ -140,6 +145,7 @@ describe('AuthController (e2e)', () => {
         });
     });
 
+    // BDD: features/autenticacao.feature:Cenário: Login sem credenciais
     it('deve retornar 400 se o email estiver faltando', () => {
       const loginDto = {
         senha: 'Password123!',
@@ -154,6 +160,7 @@ describe('AuthController (e2e)', () => {
         });
     });
 
+    // BDD: features/autenticacao.feature:Cenário: Login sem credenciais
     it('deve retornar 400 se a senha estiver faltando', () => {
       const loginDto = {
         email: 'test@example.com',

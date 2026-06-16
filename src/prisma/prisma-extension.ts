@@ -12,6 +12,22 @@ const multiTenantModels = ['Perfil', 'UsuarioEmpresa'];
  * Operações que exigem troca de método (`delete` → `update`,
  * `findUnique` → `findFirst`) são tratadas na camada `model` abaixo, onde
  * `this` é o proxy do modelo e `this.update(...)` etc. funcionam de fato.
+ *
+ * ## Por que `any` é justificado aqui
+ *
+ * O tipo do parâmetro `(this, { model, operation, args, query })` na API
+ * do Prisma Client extensions é `any` por design — o tipo exato de
+ * `args`/`query` é gerado dinamicamente por modelo/operação e o
+ * `@prisma/client` não exporta um tipo genérico que cubra todos os
+ * modelos. Tentar parametrizar isso exigiria generics distribuídos em
+ * 7+ call sites sem ganho real de segurança de tipo (a checagem real
+ * acontece em runtime, via Zod/DTOs na camada de entrada).
+ *
+ * Os `any` foram intencionalmente mantidos aqui (após [BAI-005]) com
+ * `// eslint-disable` explícito por motivo de auditoria. Migrar para
+ * tipos do Prisma quebraria a assinatura dos callbacks sem benefício
+ * de type-safety (a inferência do Prisma também retorna `any` quando
+ * o modelo é dinâmico).
  */
 export const handleSoftDeleteAndMultiTenant = async function (
   this: any,
@@ -23,7 +39,9 @@ export const handleSoftDeleteAndMultiTenant = async function (
   }: {
     model: string;
     operation: string;
+
     args: any;
+
     query: (args: any) => Promise<any>;
   },
 ) {
@@ -40,7 +58,7 @@ export const handleSoftDeleteAndMultiTenant = async function (
       operation === 'findFirstOrThrow' ||
       operation === 'findUniqueOrThrow'
     ) {
-      const where = (args.where as any) || {};
+      const where = args.where || {};
       if (where.deletedAt === undefined) {
         args.where = { ...where, deletedAt: null };
       }
@@ -70,8 +88,8 @@ export const handleSoftDeleteAndMultiTenant = async function (
       // Se o caller já passou empresaId no data, não sobrescrevemos
       // (permite criar registros em outras empresas, ex: admin adicionando
       // usuário a uma empresa diferente da sua)
-      if (!(args.data as any)?.empresaId) {
-        args.data = { ...(args.data as any), empresaId };
+      if (!args.data?.empresaId) {
+        args.data = { ...args.data, empresaId };
       }
     }
   }
@@ -95,6 +113,7 @@ function makeSoftDeleteHandlers() {
         data: { ...(args?.data || {}), deletedAt: new Date(), ativo: false },
       });
     },
+
     async deleteMany(args: any) {
       return (this as any).updateMany({
         ...args,
@@ -141,6 +160,7 @@ function makeMultiTenantHandlers() {
         where: transformWhere(args, empresaId),
       });
     },
+
     async findUniqueOrThrow(args: any) {
       const context = contextStorage.getStore();
       const empresaId = context?.empresaId;

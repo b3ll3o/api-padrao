@@ -29,6 +29,14 @@ Gerencia os perfis de acesso (ex.: ADMIN, GESTOR, OPERADOR) vinculados às empre
 - **Permissão**: `READ_PERFIL_BY_ID`.
 - **Contexto**: exige `x-empresa-id`.
 
+### Buscar Perfil por Nome
+
+- **URL**: `GET /perfis/nome/:nome`
+- **Permissão**: `READ_PERFIS`.
+- **Contexto**: exige `x-empresa-id` (perfis são escopados por empresa, então o mesmo nome pode existir em empresas diferentes).
+- **Resposta 200**: perfil correspondente.
+- **Resposta 404**: nenhum perfil com esse nome na empresa.
+
 ### Atualizar Perfil
 
 - **URL**: `PATCH /perfis/:id`

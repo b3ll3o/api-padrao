@@ -37,6 +37,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# [MED-001] Aumenta o thread pool do libuv de 4 (padrão) para 10 para
+# acomodar chamadas concorrentes a bcrypt.hash/bcrypt.compare sem
+# bloquear o event loop do Node. 10 é o valor recomendado pelo time
+# do Node.js para APIs com auth que dependem de bcrypt.
+ENV UV_THREADPOOL_SIZE=10
+
 COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:appgroup /app/package*.json ./

@@ -33,8 +33,13 @@ Interface `PasswordHasher` e implementação `BcryptPasswordHasherService` para 
 
 ### 7. Interceptores de Sistema
 
-- `LoggerErrorInterceptor`: Garante que erros sejam logados corretamente usando o Pino.
-- `LoggingInterceptor`: Interceptor customizado para logar tempo de resposta e detalhes das requisições HTTP.
+Os interceptors globais ficam registrados em [src/app.module.ts](../app.module.ts). Detalhes completos em [AGENTS.md §4](../../AGENTS.md#4-arquitetura). Resumo dos que vivem em `src/shared/infrastructure/interceptors/`:
+
+- `LoggingInterceptor` — loga método/URL/status/latência de toda requisição.
+- `EmpresaInterceptor` — extrai o `empresaId` do header `x-empresa-id` e popula o `EmpresaContext` (request-scoped).
+- `AuditInterceptor` — persiste ações marcadas com `@Auditar({...})` na tabela `AuditLog`.
+
+> O `LoggerErrorInterceptor` (do `nestjs-pino`) também está ativo, mas é registrado em [src/main.ts](../main.ts), não aqui.
 
 ## Segurança e Rate Limit
 

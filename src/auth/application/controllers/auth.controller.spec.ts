@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from '../services/auth.service';
+import { PasswordRecoveryService } from '../services/password-recovery.service';
 import { LoginUsuarioDto } from '../../dto/login-usuario.dto';
 import { FastifyRequest } from 'fastify';
 
@@ -12,6 +13,11 @@ describe('AuthController', () => {
     login: jest.fn(),
   };
 
+  const mockPasswordRecoveryService = {
+    forgotPassword: jest.fn(),
+    resetPassword: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -19,6 +25,10 @@ describe('AuthController', () => {
         {
           provide: AuthService,
           useValue: mockAuthService,
+        },
+        {
+          provide: PasswordRecoveryService,
+          useValue: mockPasswordRecoveryService,
         },
       ],
     }).compile();

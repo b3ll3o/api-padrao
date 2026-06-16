@@ -18,6 +18,15 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
         email: email as string,
         senha: senha,
       },
+      // [ALT-006] `select` específico.
+      select: {
+        id: true,
+        email: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+        ativo: true,
+      },
     });
     return this.mapToEntity(usuario)!;
   }
@@ -26,10 +35,26 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     id: number,
     includeDeleted: boolean = false,
   ): Promise<Usuario | undefined> {
-    // If we want to include deleted, we should bypass the extension by providing deletedAt filter
+    // [ALT-006] `select` explícito: nunca retornar `senha` em `findOne`
+    // (LGPD). Caller que precisa autenticar deve usar `findByEmail*`.
+    const selectFields = {
+      id: true,
+      email: true,
+      createdAt: true,
+      updatedAt: true,
+      deletedAt: true,
+      ativo: true,
+    } as const;
+
     const queryResult = includeDeleted
-      ? await this.prisma.usuario.findUnique({ where: { id } })
-      : await this.prisma.extended.usuario.findUnique({ where: { id } });
+      ? await this.prisma.usuario.findUnique({
+          where: { id },
+          select: selectFields,
+        })
+      : await this.prisma.extended.usuario.findUnique({
+          where: { id },
+          select: selectFields,
+        });
 
     if (!queryResult) return undefined;
 
@@ -47,11 +72,21 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       ? this.prisma.usuario
       : this.prisma.extended.usuario;
 
+    // [ALT-006] `select` explícito: NUNCA retornar `senha` em listagens
+    // (LGPD + segurança). Apenas campos públicos.
     const [items, total] = await Promise.all([
       client.findMany({
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+          ativo: true,
+        },
       }),
       client.count(),
     ]);
@@ -106,6 +141,15 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
         senha,
         ativo,
       },
+      // [ALT-006] `select` específico.
+      select: {
+        id: true,
+        email: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+        ativo: true,
+      },
     });
 
     return this.mapToEntity(updatedUsuario)!;
@@ -116,6 +160,15 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       // The extension will turn this 'delete' into an 'update' automatically
       const softDeletedUsuario = await this.prisma.extended.usuario.delete({
         where: { id },
+        // [ALT-006] `select` específico.
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+          ativo: true,
+        },
       });
 
       return this.mapToEntity(softDeletedUsuario)!;
@@ -137,6 +190,15 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
       const restoredUsuario = await this.prisma.usuario.update({
         where: { id },
         data: { deletedAt: null, ativo: true },
+        // [ALT-006] `select` específico.
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+          ativo: true,
+        },
       });
 
       return this.mapToEntity(restoredUsuario)!;

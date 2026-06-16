@@ -66,6 +66,16 @@ describe('PrismaPermissaoRepository', () => {
       expect(result.deletedAt).toBeNull(); // Assert deletedAt
       expect(mockPermissaoModel.create).toHaveBeenCalledWith({
         data: createPermissaoDto,
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+        },
       });
     });
   });
@@ -131,8 +141,19 @@ describe('PrismaPermissaoRepository', () => {
       const result = await repository.findOne(1);
       expect(result).toEqual(prismaResult);
       expect(result!.deletedAt).toBeNull();
+      // [ALT-006] Verifica `select` específico adicionado.
       expect(mockPermissaoModel.findFirst).toHaveBeenCalledWith({
         where: { id: 1 },
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     });
 
@@ -143,8 +164,19 @@ describe('PrismaPermissaoRepository', () => {
       const result = await repository.findOne(1, true); // Pass true for includeDeleted
       expect(result).toEqual(deletedPrismaResult);
       expect(result!.deletedAt).toEqual(deletedPrismaResult.deletedAt);
+      // [ALT-006] Verifica `select` específico adicionado.
       expect(mockPermissaoModel.findFirst).toHaveBeenCalledWith({
         where: { id: 1 }, // No deletedAt filter
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     });
 
@@ -175,9 +207,20 @@ describe('PrismaPermissaoRepository', () => {
 
       const result = await repository.update(1, updatePermissaoDto);
       expect(result).toEqual(expectedPermissao);
+      // [ALT-006] Verifica `select` específico.
       expect(mockPermissaoModel.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: updatePermissaoDto,
+        select: {
+          ativo: true,
+          codigo: true,
+          createdAt: true,
+          deletedAt: true,
+          descricao: true,
+          id: true,
+          nome: true,
+          updatedAt: true,
+        },
       });
     });
 
@@ -213,8 +256,19 @@ describe('PrismaPermissaoRepository', () => {
 
       expect(result).toEqual(prismaResult);
       expect(result.deletedAt).not.toBeNull(); // Assert deletedAt is set
+      // [ALT-006] Verifica `select` específico.
       expect(mockPermissaoModel.delete).toHaveBeenCalledWith({
         where: { id: 1 },
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     });
 
@@ -243,9 +297,20 @@ describe('PrismaPermissaoRepository', () => {
 
       expect(result).toEqual(prismaResult);
       expect(result.deletedAt).toBeNull(); // Assert deletedAt is null
+      // [ALT-006] Verifica `select` específico.
       expect(mockPermissaoModel.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { deletedAt: null, ativo: true },
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     });
 
@@ -273,8 +338,19 @@ describe('PrismaPermissaoRepository', () => {
       const result = await repository.findByNome('Test Permissao');
       expect(result).toEqual(prismaResult);
       expect(result!.deletedAt).toBeNull();
+      // [ALT-006] Verifica `select` específico.
       expect(mockPermissaoModel.findFirst).toHaveBeenCalledWith({
         where: { nome: 'Test Permissao' },
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     });
 
@@ -285,8 +361,19 @@ describe('PrismaPermissaoRepository', () => {
       const result = await repository.findByNome('Test Permissao', true); // Pass true for includeDeleted
       expect(result).toEqual(deletedPrismaResult);
       expect(result!.deletedAt).toEqual(deletedPrismaResult.deletedAt);
+      // [ALT-006] Verifica `select` específico.
       expect(mockPermissaoModel.findFirst).toHaveBeenCalledWith({
         where: { nome: 'Test Permissao' }, // No deletedAt filter
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     });
   });

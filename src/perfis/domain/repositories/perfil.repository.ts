@@ -20,7 +20,7 @@ export abstract class PerfilRepository {
     data: UpdatePerfilDto,
   ): Promise<Perfil | undefined>;
   abstract remove(id: number): Promise<Perfil>;
-  abstract restore(id: number): Promise<Perfil>;
+  abstract restore(id: number, empresaId?: string): Promise<Perfil>;
   abstract findByNome(
     nome: string,
     includeDeleted?: boolean,

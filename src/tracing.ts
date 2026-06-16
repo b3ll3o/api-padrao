@@ -4,6 +4,8 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import pino from 'pino';
 
 const logger = pino({ level: 'warn' });
@@ -16,6 +18,9 @@ const traceExporter = new OTLPTraceExporter({
 
 const sdk = new NodeSDK({
   traceExporter,
+  resource: resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'api-padrao',
+  }),
   instrumentations: [
     getNodeAutoInstrumentations({}),
     new NestInstrumentation(),

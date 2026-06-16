@@ -21,7 +21,11 @@ export default [
         afterAll: 'readonly',
         it: 'readonly',
         expect: 'readonly',
-        jest: 'readonly'
+        jest: 'readonly',
+        // Node 19+ globals (compatíveis com Node 20 LTS usado no Dockerfile)
+        crypto: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
       parserOptions: {
         project: './tsconfig.json',

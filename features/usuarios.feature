@@ -96,9 +96,23 @@ Cenário: Usuário não-admin não pode listar usuários
   Quando eu enviar uma requisição GET para "/usuarios?page=1&limit=10"
   Então o status da resposta deve ser 403
   E o corpo da resposta deve conter "Forbidden"
+# ============================================================
+# Rate Limit por Tenant (US-NF-001)
+# Feature: tenant-rate-limit
+# Source: .openspec/changes/tenant-rate-limit/{proposal,design,tasks}.md
+# ============================================================
 
-Cenário: Buscar usuário por e-mail
-  Dado que existe usuário com e-mail "usuario@empresa.com"
-  Quando eu enviar uma requisição GET para "/usuarios/email/usuario@empresa.com"
-  Então o status da resposta deve ser 200
-  E a resposta deve conter o email "usuario@empresa.com"
+Cenário: Rate limit por tenant — FREE bloqueia em 100 req/min
+  Dado que existe uma empresa com plano "FREE"
+  Quando eu enviar 101 requisições GET para "/usuarios" no intervalo de 1 minuto
+  Então a 101ª resposta deve ter status 429
+
+Cenário: Rate limit por tenant — PRO permite 1000 req/min
+  Dado que existe uma empresa com plano "PRO"
+  Quando eu enviar 100 requisições GET para "/usuarios" no intervalo de 1 minuto
+  Então todas as 100 respostas devem ter status 200
+
+Cenário: Rate limit respeita empresaId do JWT
+  Dado que existem duas empresas com plano "FREE"
+  Quando eu enviar 100 requisições da Empresa A e 100 requisições da Empresa B
+  Então ambas devem ter status 200 (contadores independentes)

@@ -208,6 +208,7 @@ describe('EmpresasController (e2e)', () => {
   });
 
   describe('Cenários de Erro e Casos de Borda', () => {
+    // BDD: features/empresas.feature:Cenário: Atualizar empresa inexistente
     it('deve retornar 404 ao tentar atualizar empresa que não existe', () => {
       return request(app.getHttpServer())
         .patch('/empresas/non-existent-uuid')
@@ -217,6 +218,7 @@ describe('EmpresasController (e2e)', () => {
         .expect(404);
     });
 
+    // BDD: features/empresas.feature:Cenário: Remover empresa (soft-delete) - variação ID inexistente
     it('deve retornar 404 ao tentar deletar empresa que não existe', () => {
       return request(app.getHttpServer())
         .delete('/empresas/non-existent-uuid')
@@ -225,6 +227,7 @@ describe('EmpresasController (e2e)', () => {
         .expect(404);
     });
 
+    // BDD: features/empresas.feature:Cenário: Adicionar usuário à empresa (empresa inexistente)
     it('deve retornar 404 ao tentar adicionar usuário a empresa que não existe', () => {
       return request(app.getHttpServer())
         .post('/empresas/non-existent-uuid/usuarios')
@@ -234,6 +237,7 @@ describe('EmpresasController (e2e)', () => {
         .expect(404);
     });
 
+    // BDD: features/empresas.feature:Cenário: Remover empresa (soft-delete) - soft-deleted não aparece em GET
     it('deve falhar ao buscar empresa que sofreu soft delete', async () => {
       const empresa = await prisma.empresa.create({
         data: { nome: 'To Delete', responsavelId: adminUser.id },
@@ -254,6 +258,7 @@ describe('EmpresasController (e2e)', () => {
   });
 
   describe('POST /empresas', () => {
+    // BDD: features/empresas.feature:Cenário: Criar empresa com dados válidos
     it('deve criar uma nova empresa', async () => {
       const createDto = {
         nome: 'Tech Solutions',
@@ -273,6 +278,7 @@ describe('EmpresasController (e2e)', () => {
       expect(res.body.ativo).toBe(true);
     });
 
+    // BDD: features/empresas.feature:Cenário: Criar empresa sem nome
     it('deve retornar 400 se o nome estiver faltando', () => {
       return request(app.getHttpServer())
         .post('/empresas')
@@ -284,6 +290,7 @@ describe('EmpresasController (e2e)', () => {
   });
 
   describe('GET /empresas', () => {
+    // BDD: features/empresas.feature:Cenário: Listar empresas com paginação
     it('deve listar empresas paginadas', async () => {
       await prisma.empresa.create({
         data: { nome: 'Empresa 1', responsavelId: adminUser.id },
@@ -301,6 +308,7 @@ describe('EmpresasController (e2e)', () => {
   });
 
   describe('GET /empresas/:id', () => {
+    // BDD: features/empresas.feature:Cenário: Buscar empresa por ID existente
     it('deve retornar uma empresa por ID', async () => {
       const empresa = await prisma.empresa.create({
         data: { nome: 'Tech', responsavelId: adminUser.id },
@@ -315,6 +323,7 @@ describe('EmpresasController (e2e)', () => {
       expect(res.body.id).toBe(empresa.id);
     });
 
+    // BDD: features/empresas.feature:Cenário: Buscar empresa por ID inexistente
     it('deve retornar 404 para ID inexistente', () => {
       return request(app.getHttpServer())
         .get('/empresas/non-existent-uuid')
@@ -325,6 +334,7 @@ describe('EmpresasController (e2e)', () => {
   });
 
   describe('PATCH /empresas/:id', () => {
+    // BDD: features/empresas.feature:Cenário: Atualizar empresa existente
     it('deve atualizar o nome da empresa', async () => {
       const empresa = await prisma.empresa.create({
         data: { nome: 'Old Name', responsavelId: adminUser.id },
@@ -342,6 +352,7 @@ describe('EmpresasController (e2e)', () => {
   });
 
   describe('DELETE /empresas/:id', () => {
+    // BDD: features/empresas.feature:Cenário: Remover empresa (soft-delete)
     it('deve realizar soft delete', async () => {
       const empresa = await prisma.empresa.create({
         data: { nome: 'To Delete', responsavelId: adminUser.id },
@@ -363,6 +374,7 @@ describe('EmpresasController (e2e)', () => {
   });
 
   describe('POST /empresas/:id/usuarios', () => {
+    // BDD: features/empresas.feature:Cenário: Adicionar usuário à empresa
     it('deve vincular usuário a empresa com perfis', async () => {
       const empresa = await prisma.empresa.create({
         data: { nome: 'Cloud Tech', responsavelId: adminUser.id },
@@ -402,6 +414,7 @@ describe('EmpresasController (e2e)', () => {
       expect(link?.perfis[0].codigo).toBe('STAFF');
     });
 
+    // BDD: features/empresas.feature:Cenário: Listar usuários de uma empresa
     it('deve listar usuários de uma empresa', async () => {
       // Cria um user adicional no admin's empresa
       const user = await prisma.usuario.create({
@@ -428,6 +441,7 @@ describe('EmpresasController (e2e)', () => {
       expect(emails).toContain('list-staff@example.com');
     });
 
+    // BDD: features/empresas.feature:Cenário: Adicionar usuário à empresa (idempotência)
     it('deve atualizar perfis se o vínculo já existir', async () => {
       const user = await prisma.usuario.create({
         data: { email: 'staff2@example.com' },
@@ -480,6 +494,7 @@ describe('EmpresasController (e2e)', () => {
       expect(link?.perfis[0].codigo).toBe('P2');
     });
 
+    // BDD: features/empresas.feature:Cenário: Adicionar usuário inexistente à empresa
     it('deve retornar 404 se o usuário não existir', async () => {
       const empresa = await prisma.empresa.create({
         data: { nome: 'Cloud Tech', responsavelId: adminUser.id },
@@ -496,6 +511,7 @@ describe('EmpresasController (e2e)', () => {
         .expect(404);
     });
 
+    // BDD: features/empresas.feature:Cenário: Adicionar usuário inexistente à empresa (variação perfil inválido)
     it('deve retornar 404 se um perfil não existir', async () => {
       const empresa = await prisma.empresa.create({
         data: { nome: 'Cloud Tech', responsavelId: adminUser.id },

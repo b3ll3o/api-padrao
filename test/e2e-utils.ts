@@ -6,6 +6,10 @@ export async function cleanDatabase(prisma: PrismaClient) {
   // However, explicit listing can sometimes be more reliable in certain environments.
 
   const tables = [
+    'PasswordResetToken',
+    'RefreshToken',
+    'LoginHistory',
+    'AuditLog',
     'UsuarioEmpresa',
     'Perfil',
     'Usuario',

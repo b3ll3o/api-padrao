@@ -11,6 +11,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import helmet from '@fastify/helmet';
+import compress from '@fastify/compress';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -23,23 +24,56 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
   app.useGlobalInterceptors(new LoggerErrorInterceptor());
 
+  // [BAI-001] Compressão gzip/br — registrado ANTES do helmet para
+  // garantir que respostas grandes (Swagger, listagens paginadas) sejam
+  // comprimidas. Threshold 1024 bytes evita comprimir payloads pequenos
+  // onde o overhead do gzip supera o benefício.
+  await app.register(compress, {
+    global: true,
+    threshold: 1024,
+    encodings: ['gzip', 'br', 'deflate'],
+  });
+
   // Security: Helmet
   const configService = app.get(ConfigService);
   const logger = app.get(Logger);
+  const isProduction = configService.get('NODE_ENV') === 'production';
 
+  // [BAI-002] CSP strict: desabilitamos Swagger em produção para
+  // permitir uma CSP sem `'unsafe-inline'` em `scriptSrc` (o Swagger UI
+  // injeta `<script>` inline para o bundle do React). Em dev/test
+  // mantemos a CSP permissiva com `'unsafe-inline'` apenas para que
+  // o Swagger UI funcione sem complexidade de nonce.
   await app.register(helmet, {
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: [`'self'`],
-        styleSrc: [`'self'`, `'unsafe-inline'`],
-        imgSrc: [`'self'`, 'data:', 'validator.swagger.io'],
-        scriptSrc: [`'self'`, `https: 'unsafe-inline'`],
-      },
-    },
+    contentSecurityPolicy: isProduction
+      ? {
+          // CSP strict em produção: zero inline, zero eval. Como
+          // Swagger fica desabilitado, não precisamos de `'unsafe-inline'`.
+          directives: {
+            defaultSrc: [`'self'`],
+            styleSrc: [`'self'`, `'unsafe-inline'`], // helmet/serializer de erros
+            imgSrc: [`'self'`, 'data:'],
+            scriptSrc: [`'self'`],
+            connectSrc: [`'self'`],
+            frameAncestors: [`'none'`],
+            formAction: [`'self'`],
+            baseUri: [`'self'`],
+            objectSrc: [`'none'`],
+            upgradeInsecureRequests: [],
+          },
+        }
+      : {
+          // CSP permissiva em dev/test para o Swagger UI funcionar.
+          directives: {
+            defaultSrc: [`'self'`],
+            styleSrc: [`'self'`, `'unsafe-inline'`],
+            imgSrc: [`'self'`, 'data:', 'validator.swagger.io'],
+            scriptSrc: [`'self'`, `'unsafe-inline'`],
+          },
+        },
   });
 
   // Security: CORS
-  const isProduction = configService.get('NODE_ENV') === 'production';
   app.enableCors({
     origin: isProduction
       ? configService.get<string>('ALLOWED_ORIGINS')?.split(',') || false
@@ -114,10 +148,19 @@ async function bootstrap() {
     .addTag('Perfis', 'Gerenciamento de perfis de acesso')
     .addTag('Permissões', 'Gerenciamento de permissões do sistema')
     .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('swagger', app, document, {
-    jsonDocumentUrl: 'swagger-json',
-  });
+  // [BAI-002] Swagger só fica disponível fora de produção.
+  // Em produção a documentação interativa é omitida para permitir
+  // uma CSP estrita (sem `'unsafe-inline'` em `script-src`). O JSON
+  // também é ocultado — quem precisar de contrato lê o OpenAPI do
+  // repositório. Em dev/test o setup roda normalmente.
+  if (!isProduction) {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('swagger', app, document, {
+      jsonDocumentUrl: 'swagger-json',
+    });
+  } else {
+    logger.log('Swagger UI desabilitado em produção (BAI-002).');
+  }
 
   const port = configService.get<number>('PORT') ?? 3001;
   await app.listen(port, '0.0.0.0'); // Listen on all interfaces

@@ -11,7 +11,7 @@
 
 ### Phase 2: Test Development (ATDD)
 
-- [ ] Write acceptance tests in `src/**/*.<feature>.acceptance.spec.ts`
+- [ ] Write acceptance tests in `test/<feature>.e2e-spec.ts`
 - [ ] Verify tests fail (Red Phase)
 - [ ] Review acceptance tests
 

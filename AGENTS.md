@@ -9,6 +9,10 @@
 - [3. Setup e Comandos](#3-setup-e-comandos)
 - [4. Arquitetura](#4-arquitetura)
 - [5. Convenções](#5-convenções)
+  - [5.1 Entidades ricas (DDD) — convenção de fábricas e transições](#51-entidades-ricas-ddd--convenção-de-fábricas-e-transições)
+  - [5.2 Tipos compartilhados de domínio (JwtPayload, etc.)](#52-tipos-compartilhados-de-domínio-jwtpayload-etc)
+  - [5.3 Segurança: CSP strict e Swagger em produção (BAI-002)](#53-segurança-csp-strict-e-swagger-em-produção-bai-002)
+  - [5.4 `any` em produção — política](#54-any-em-produção--política)
 - [6. Workflow de Desenvolvimento (DDD → BDD → SDD → ATDD → TDD)](#6-workflow-de-desenvolvimento-ddd--bdd--sdd--atdd--tdd)
 - [7. Catálogo de Módulos](#7-catálogo-de-módulos)
 - [8. Pré-commit e Validação de Alterações](#8-pré-commit-e-validação-de-alterações)
@@ -145,9 +149,105 @@ Fluxo: `EmpresaInterceptor` → `EmpresaContext` (provider request-scoped) → `
 > - **Permissões são globais** (representam ações do código, ex.: `READ_USUARIOS`).
 > - O JWT carrega o `sub` (id do usuário) e a lista de empresas+perfis do usuário.
 
+### Diagrama Entidade-Relacionamento (ER)
+
+O modelo de dados completo, derivado de [`prisma/schema.prisma`](./prisma/schema.prisma):
+
+```mermaid
+erDiagram
+    Usuario ||--o{ UsuarioEmpresa : "pertence a"
+    Empresa ||--o{ UsuarioEmpresa : "tem"
+    Usuario ||--o{ RefreshToken : "possui"
+    Usuario ||--o{ PasswordResetToken : "solicita"
+    Usuario ||--o{ LoginHistory : "registra"
+    Usuario ||--o{ AuditLog : "executa"
+    Empresa ||--o{ Perfil : "escopa"
+    Perfil }o--o{ Permissao : "compõe"
+    Perfil }o--o{ UsuarioEmpresa : "atribuído em"
+    Empresa }o--|| Usuario : "responsável"
+
+    Usuario {
+        int id PK
+        string email UK
+        string senha
+        boolean ativo
+        datetime deletedAt
+        datetime createdAt
+    }
+    Empresa {
+        string id PK
+        string nome
+        boolean ativo
+        Plano plano
+        int responsavelId FK
+        datetime deletedAt
+    }
+    Perfil {
+        int id PK
+        string nome
+        string codigo
+        string empresaId FK
+        boolean ativo
+        datetime deletedAt
+    }
+    Permissao {
+        int id PK
+        string nome UK
+        string codigo UK
+        boolean ativo
+        datetime deletedAt
+    }
+    RefreshToken {
+        string id PK
+        int userId FK
+        string token UK
+        datetime expiresAt
+        datetime revokedAt
+    }
+    PasswordResetToken {
+        string id PK
+        int userId FK
+        string tokenHash UK
+        datetime expiresAt
+        datetime usedAt
+    }
+    LoginHistory {
+        string id PK
+        int userId FK
+        string ip
+        string userAgent
+    }
+    AuditLog {
+        string id PK
+        int usuarioId FK
+        string acao
+        string recurso
+        string recursoId
+    }
+    UsuarioEmpresa {
+        int id PK
+        int usuarioId FK
+        string empresaId FK
+    }
+```
+
+> **Notas**:
+>
+> - `Usuario` é a raiz de identidade e o pivô das tabelas transversais (`RefreshToken`, `PasswordResetToken`, `LoginHistory`, `AuditLog`).
+> - `UsuarioEmpresa` é a tabela de junção que materializa o vínculo N:M entre usuários e empresas, e carrega a atribuição de perfis (também N:M com `Perfil`).
+> - `Perfil` é escopado por `Empresa` (FK obrigatória); `Permissao` é global.
+
 ### Soft delete
 
 Todas as entidades persistentes estendem `BaseEntity` com `id`, `createdAt`, `updatedAt`, `deletedAt`, `ativo`. **Deletes são sempre lógicos** — setar `deletedAt` e `ativo=false`. `PrismaService` ([src/prisma/prisma.service.ts](./src/prisma/prisma.service.ts)) é estendido com um query extension que **auto-filtra `deletedAt: null`** — repositórios não precisam lembrar de adicionar a cláusula. Restore via PATCH limpando `deletedAt` e setando `ativo=true`.
+
+### Modelos de dados transversais (não-business)
+
+Tabelas que existem no [prisma/schema.prisma](./prisma/schema.prisma) mas que **não** representam entidades de negócio:
+
+- **`AuditLog`** — registro imutável de ações marcadas com `@Auditar({...})` no controller. Campos: `id`, `usuarioId`, `acao`, `recurso`, `recursoId`, `detalhes (Json)`, `ip`, `userAgent`, `createdAt`. **Sem soft-delete** (append-only). Sem retenção automática — considere job de cleanup em releases futuros. Persistido pelo [src/shared/infrastructure/interceptors/audit.interceptor.ts](./src/shared/infrastructure/interceptors/audit.interceptor.ts).
+- **`LoginHistory`** — histórico de logins bem-sucedidos e falhas. Campos: `id`, `userId`, `ip`, `userAgent`, `createdAt`. Sem retenção definida. Útil para auditoria e detecção de anomalias.
+- **`RefreshToken`** — refresh tokens ativos (rotação habilitada). Campos: `id`, `token (unique)`, `userId`, `expiresAt`, `revokedAt`, `createdAt`. Ao usar `/auth/refresh`, o token é revogado (`revokedAt` setado) e um novo é emitido. Reuso de token revogado → invalida toda a cadeia (suspeita de roubo).
 
 ### Guards globais (registrados em `src/app.module.ts`)
 
@@ -181,12 +281,119 @@ Ordem de execução: `ThrottlerGuard` → `AuthGuard` → `PermissaoGuard`.
 - **Idioma**: **português (pt-BR)** para comentários de código, descrições Swagger, Gherkin, docs de tarefa e commits. Identifiers e descrições de API podem ficar em inglês.
 - **Segurança de dados**: **nunca** delete campos sensíveis manualmente nos services (`delete user.password`). Use `@Exclude()` na entidade e confie no `ClassSerializerInterceptor` global.
 - **Paginação**: todos os endpoints de listagem **devem** usar `PaginationDto` (default `page=1`, `limit=10`) e retornar `PaginatedResponseDto<T>` (campos: `data`, `total`, `page`, `limit`, `totalPages`).
-- **Swagger**: anote endpoints novos/alterados com `@ApiTags`, `@ApiOperation`, `@ApiResponse`, `@ApiBearerAuth` etc. OpenAPI em `/swagger`.
+- **Swagger**: anote endpoints novos/alterados com `@ApiTags`, `@ApiOperation`, `@ApiResponse`, `@ApiBearerAuth` etc. OpenAPI em `/swagger` (somente fora de produção — ver §5.2).
 - **Logging**: use o `Logger` de `@nestjs/common` (ou o de `nestjs-pino`) dentro de services. `LoggingInterceptor` cuida do HTTP.
 - **Validação**: `ValidationPipe` global está configurado com `whitelist: true` e `forbidNonWhitelisted: true` — DTOs novos só precisam de `class-validator`.
 - **Qualidade**: SOLID, Clean Code. **Sem warnings, sem regras de lint desabilitadas sem justificativa**. Husky roda `validate:quick` em arquivos staged via lint-staged.
 - **Config**: variáveis validadas por Joi em [src/config/env.validation.ts](./src/config/env.validation.ts). Defaults vêm de lá — não hardcode em services.
 - **Documentação**: ao mudar contratos de API ou arquitetura, atualize `README.md`, `AGENTS.md` e o `README.md` do módulo afetado.
+
+### 5.1 Entidades ricas (DDD) — convenção de fábricas e transições
+
+Desde a Sprint 3 ([MED-003]), as 4 entidades de domínio centrais usam o
+padrão de **Aggregate Root com fábrica estática + métodos de transição**:
+
+```typescript
+// src/<modulo>/domain/entities/<entidade>.entity.ts
+export class Entidade extends BaseEntity {
+  static criar(props: { ... }): Entidade {
+    // valida invariantes, normaliza, gera id/timestamps
+  }
+  desativar(): void { /* soft delete idempotente */ }
+  restaurar(): void { /* lança se não estava desativado */ }
+  atualizarMetadados(props: { ... }): void { /* editáveis; resto é imutável */ }
+  // métodos de domínio específicos do agregado
+}
+```
+
+**Regras:**
+
+1. **Fábrica `criar()` é a porta de entrada** para novas instâncias.
+   Valida invariantes (ex: `email` regex em `Usuario`, `codigo`
+   UPPER_SNAKE_CASE em `Perfil`/`Permissao`, `empresaId` obrigatório
+   em `Perfil`), normaliza (lowercase, trim, upper), e gera `id` +
+   timestamps. O repositório preenche `id` numérico se ausente.
+2. **Construtor `Object.assign(this, partial)` permanece** para
+   reidratação do DB (Prisma → entity). O uso de `criar()` é
+   **mandatório** no service/handler ao construir uma nova instância.
+3. **Transições (`desativar`, `restaurar`, `atualizarMetadados`,
+   `transferirResponsabilidade`, `trocarPlano`, etc.)** ficam na
+   entity — o service **delega** para elas. Não mutar campos
+   `ativo`/`deletedAt` diretamente no service.
+4. **Imutabilidade de identificadores de domínio**: `codigo` em
+   `Perfil`/`Permissao`, `empresaId` em `Perfil` e `id` em geral
+   **não** mudam após `criar()`. Para alterar, criar nova instância.
+5. **Cobertura de testes**: cada `criar()` + cada transição + cada
+   validação de invariante tem `it()` no spec. Aproximadamente
+   +15 testes novos por entidade (Sprint 3: +59 totais).
+6. **Spec helpers**: quando o spec constrói entidades via mock,
+   use **factories de domínio** (helpers locais `make*()`) em vez
+   de `const mock: T = { ... }` para evitar acoplar o teste a
+   campos/métodos. Exemplo em
+   [src/auth/application/services/auth.service.spec.ts:27-55](./src/auth/application/services/auth.service.spec.ts).
+
+### 5.2 Tipos compartilhados de domínio (JwtPayload, etc.)
+
+Para tipos que são **compartilhados entre camadas** (AuthService,
+JwtStrategy, PermissaoGuard, controllers), criar arquivo dedicado em
+`src/<modulo>/domain/types/<nome>.ts` (interface pura, sem classe
+NestJS):
+
+```typescript
+// src/auth/domain/types/jwt-payload.ts
+export interface EmpresaJwtPayload {
+  id: string;            // UUID
+  perfis?: PerfilJwtPayload[];
+}
+export interface JwtAccessTokenPayload {
+  sub: number;
+  email: string;
+  empresas: EmpresaJwtPayload[];
+  // ...
+}
+```
+
+**Quando usar `domain/types/` vs `domain/types/` no module:**
+
+- `domain/types/<X>.ts` — tipos **puros de domínio** (sem decoradores
+  NestJS), compartilhados por ≥ 2 camadas do mesmo módulo.
+- Tipos usados em **uma única camada** ficam no próprio arquivo
+  (ex: DTOs em `application/dtos/`).
+
+Exemplos em produção:
+[src/auth/domain/types/jwt-payload.ts](./src/auth/domain/types/jwt-payload.ts)
+(JwtAccessTokenPayload, EmpresaJwtPayload, PerfilJwtPayload,
+PermissaoJwtPayload).
+
+### 5.3 Segurança: CSP strict e Swagger em produção ([BAI-002])
+
+[src/main.ts](./src/main.ts) registra `helmet` com diretiva CSP
+**condicional ao `NODE_ENV`**:
+
+- **Produção**: CSP estrita — `default-src 'self'`, `script-src 'self'`
+  (sem `'unsafe-inline'`), `object-src 'none'`, `frame-ancestors 'none'`,
+  `upgrade-insecure-requests`. **Swagger UI desabilitado** (o bundle
+  React dele injeta `<script>` inline, incompatível com a CSP).
+- **Dev/test**: CSP permissiva com `'unsafe-inline'` em `script-src` e
+  `style-src` para que o Swagger UI funcione sem complicar com nonce.
+
+O JSON do OpenAPI também é ocultado em prod — quem precisa do contrato
+lê o arquivo versionado no repositório. Health-check (`/health`) e a
+API em si continuam expostos; só a documentação interativa some.
+
+### 5.4 `any` em produção — política
+
+A regra `@typescript-eslint/no-explicit-any` está **off** no
+[eslint.config.mjs](./eslint.config.mjs). Permitido, mas com
+**auditoria obrigatória**:
+
+1. **Preferir `unknown`** (com narrowing) sobre `any`.
+2. **`any` justificado**: API do Prisma Client extensions
+   ([src/prisma/prisma-extension.ts](./src/prisma/prisma-extension.ts))
+   — a tipagem é intrinsecamente `any` por design (modelo/operação
+   gerados dinamicamente). Cada `any` tem `// eslint-disable-next-line
+   @typescript-eslint/no-explicit-any` com motivo em linha.
+3. **`any` injustificado é regressão** — abrir finding MÉDIO.
 
 ## 6. Workflow de Desenvolvimento (DDD → BDD → SDD → ATDD → TDD)
 
@@ -230,8 +437,8 @@ AppModule
 ├── PerfisModule       → PermissoesModule
 ├── PermissoesModule   → AuthModule
 ├── PrismaModule       (global, sem deps)
-├── HealthModule       (Terminus)
-├── SharedModule       (decorators, filters, interceptors, config)
+├── HealthController   (Terminus, em src/shared/infrastructure/health/)
+├── SharedModule       (decorators, filters, interceptors, config, health)
 └── ThrottlerModule    (global)
 ```
 
@@ -289,7 +496,7 @@ Se qualquer passo falhar, corrija e reinicie a partir do passo 1. **Só faça co
 
 Detalhamento em [src/shared/README_infra.md](./src/shared/README_infra.md). Resumo:
 
-- **Porta host → container**: Postgres `5434` → `5432`, pgAdmin `8081` → `80`, Jaeger UI `16686`, OTEL HTTP `4318`, OTEL gRPC `4317` (host) → `4317` (container), Redis `6379`.
+- **Porta host → container**: Postgres `5434` → `5432`, pgAdmin `8081` → `80`, Jaeger UI `16686`, OTEL HTTP `4318`, OTEL gRPC `43170` (host) → `4317` (container), Redis `6379`.
 - **Tracing init em [src/tracing.ts](./src/tracing.ts)**: importado como **primeira linha** de `src/main.ts` para garantir que o SDK do OpenTelemetry inicia antes do NestFactory. Não reordene os imports.
 - **Jaeger UI**: `http://localhost:16686` para inspecionar traces.
 - **OTEL Collector** ([otel-collector-config.yaml](./otel-collector-config.yaml)): recebe OTLP (HTTP/gRPC) e exporta para Jaeger via gRPC.
@@ -313,8 +520,9 @@ Validadas em [src/config/env.validation.ts](./src/config/env.validation.ts) (Joi
 - `THROTTLER_SENSITIVE_TTL` / `THROTTLER_SENSITIVE_LIMIT` — defaults `60000` / `10`. Tier `sensitive` (rotas com `@Throttle`).
 - `ALLOWED_ORIGINS` — opcional. CSV de origens CORS (em produção).
 - `OTEL_EXPORTER_OTLP_ENDPOINT` — não obrigatório, default `http://localhost:4318`. Coletor OTEL.
+- `OTEL_SERVICE_NAME` — não obrigatório, default `api-padrao`. Identifica o serviço no backend OTEL (lido em `src/tracing.ts`).
 
-Para a stack Docker, ver [docker-compose.yml](./docker-compose.yml) — o serviço `api` lê `DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `OTEL_EXPORTER_OTLP_ENDPOINT` e define `NODE_ENV=production`.
+Para a stack Docker, ver [docker-compose.yml](./docker-compose.yml) — o serviço `api` lê `DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_DAYS`, `REDIS_HOST=redis`, `REDIS_PORT=6379`, `OTEL_EXPORTER_OTLP_ENDPOINT` e `OTEL_SERVICE_NAME`, e define `NODE_ENV=production`.
 
 ## 11. Testing
 

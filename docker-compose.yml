@@ -65,10 +65,19 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_DAYS: ${JWT_REFRESH_EXPIRES_DAYS}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       NODE_ENV: production
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-api-padrao}
+      # [MED-001] libuv thread pool — 10 threads para bcrypt.hash/compare
+      # sem bloquear o event loop. Antes: 4 (padrão Node). Veja Dockerfile.
+      UV_THREADPOOL_SIZE: 10
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       otel-collector:
         condition: service_healthy
@@ -143,6 +152,8 @@ services:
       - "6379:6379"
     networks:
       - local-network
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

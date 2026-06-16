@@ -9,7 +9,7 @@ Cenário: Login com credenciais válidas
   Quando eu enviar uma requisição POST para "/auth/login" com:
     | email | usuario@empresa.com |
     | senha | Password123! |
-  Então o status da resposta deve ser 200
+  Então o status da resposta deve ser 201
   E o corpo da resposta deve conter "access_token"
   E o corpo da resposta deve conter "refresh_token"
 
@@ -45,7 +45,7 @@ Cenário: Login com senha curta
 Cenário: Refresh token válido
   Dado que o usuário está autenticado com um refresh_token válido
   Quando eu enviar uma requisição POST para "/auth/refresh" com o refresh_token
-  Então o status da resposta deve ser 200
+  Então o status da resposta deve ser 201
   E o corpo da resposta deve conter novos "access_token" e "refresh_token"
 
 Cenário: Refresh token expirado
@@ -62,3 +62,34 @@ Cenário: Refresh token inválido
 Cenário: Login sem credenciais
   Quando eu enviar uma requisição POST para "/auth/login" com body vazio
   Então o status da resposta deve ser 400
+
+Cenário: Solicitar recuperação de senha com e-mail válido
+  Quando eu enviar uma requisição POST para "/auth/forgot-password" com:
+    | email | usuario@empresa.com |
+  Então o status da resposta deve ser 200
+
+Cenário: Solicitar recuperação de senha com e-mail inexistente
+  Quando eu enviar uma requisição POST para "/auth/forgot-password" com:
+    | email | naoexiste@empresa.com |
+  Então o status da resposta deve ser 200
+
+Cenário: Resetar senha com token válido
+  Dado que existe um token de reset válido para "usuario@empresa.com"
+  Quando eu enviar uma requisição POST para "/auth/reset-password" com:
+    | token | TOKEN_VALIDO |
+    | novaSenha | NovaSenha123! |
+  Então o status da resposta deve ser 200
+
+Cenário: Resetar senha com token expirado
+  Dado que existe um token de reset expirado
+  Quando eu enviar uma requisição POST para "/auth/reset-password" com:
+    | token | TOKEN_EXPIRADO |
+    | novaSenha | NovaSenha123! |
+  Então o status da resposta deve ser 401
+
+Cenário: Resetar senha com token já utilizado
+  Dado que existe um token de reset já utilizado
+  Quando eu enviar uma requisição POST para "/auth/reset-password" com:
+    | token | TOKEN_USADO |
+    | novaSenha | NovaSenha123! |
+  Então o status da resposta deve ser 401

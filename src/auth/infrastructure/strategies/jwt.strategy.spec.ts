@@ -43,13 +43,13 @@ describe('JwtStrategy', () => {
   const mockConfigService = {
     get: jest.fn((key: string) => {
       if (key === 'JWT_SECRET') {
-        return 'mockSecret';
+        return 'mockSecretWithAtLeast32CharsForValidation!';
       }
       return null;
     }),
     getOrThrow: jest.fn((key: string) => {
       if (key === 'JWT_SECRET') {
-        return 'mockSecret';
+        return 'mockSecretWithAtLeast32CharsForValidation!';
       }
       throw new Error(`Config ${key} missing`);
     }),

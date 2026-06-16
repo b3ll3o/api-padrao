@@ -12,16 +12,12 @@ describe('EmpresasController', () => {
   let controller: EmpresasController;
   let service: EmpresasService;
 
-  const mockEmpresa: Empresa = {
+  const mockEmpresa: Empresa = Empresa.criar({
     id: 'uuid-1',
     nome: 'Empresa Teste',
     descricao: 'Descrição Teste',
-    ativo: true,
     responsavelId: 1,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deletedAt: null,
-  };
+  });
 
   const mockEmpresasService = {
     create: jest.fn(),

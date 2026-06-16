@@ -50,7 +50,7 @@ Brief description of the feature.
 
 ## Acceptance Tests Associated
 
-- `tests/acceptance/<feature>.spec.ts`
+- `test/<feature>.e2e-spec.ts`
 
 ## Technical Notes
 
@@ -65,8 +65,8 @@ Implementation details and considerations.
 2. Create `proposal.md` with initial analysis
 3. Create `design.md` with RFC 2119 requirements (MUST be approved before proceeding)
 4. Create `tasks.md` with atomic task breakdown
-5. Write acceptance tests in `tests/acceptance/` (ATDD - must fail initially)
-6. Write unit tests in `tests/unit/` (TDD - must fail initially)
+5. Write acceptance tests in `test/<feature>.e2e-spec.ts` (ATDD - must fail initially)
+6. Write unit tests co-located in `src/**/*.spec.ts` (TDD - must fail initially)
 7. Implement in Build Mode only after all previous steps complete
 
 ### Completing a Feature
@@ -82,5 +82,5 @@ Every source file MUST have comments linking to:
 
 - BDD scenario: `// BDD: features/<feature>.feature:Scenario: ...`
 - SDD requirement: `// SDD: .openspec/changes/<feature>/design.md:REQ-XXX`
-- ATDD test: `// ATDD: tests/acceptance/<feature>.spec.ts`
-- TDD test: `// TDD: tests/unit/.../<feature>.spec.ts`
+- ATDD test: `// ATDD: test/<feature>.e2e-spec.ts`
+- TDD test: `// TDD: src/<...>/<feature>.spec.ts`

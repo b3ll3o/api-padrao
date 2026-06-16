@@ -164,6 +164,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('POST /perfis', () => {
+    // BDD: features/perfis.feature:Cenário: Criar perfil com dados válidos
     it('deve criar um novo perfil com sucesso', async () => {
       const dto = {
         nome: 'Novo Perfil',
@@ -181,6 +182,7 @@ describe('PerfisController (e2e)', () => {
         .expect(201);
     });
 
+    // BDD: features/perfis.feature:Cenário: Criar perfil com código duplicado na mesma empresa
     it('deve retornar 409 se o perfil com o mesmo nome já existir na mesma empresa', async () => {
       const dto = {
         nome: 'Perfil Duplicado',
@@ -210,6 +212,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('GET /perfis', () => {
+    // BDD: features/perfis.feature:Cenário: Listar perfis por empresa
     it('deve retornar uma lista paginada de perfis', async () => {
       return request(app.getHttpServer())
         .get('/perfis')
@@ -223,6 +226,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('GET /perfis/:id', () => {
+    // BDD: features/perfis.feature:Cenário: Buscar perfil por ID
     it('deve retornar um único perfil', async () => {
       const perfil = await prisma.perfil.create({
         data: {
@@ -242,6 +246,7 @@ describe('PerfisController (e2e)', () => {
   });
 
   describe('PATCH /perfis/:id', () => {
+    // BDD: features/perfis.feature:Cenário: Atualizar perfil
     it('deve atualizar um perfil', async () => {
       const perfil = await prisma.perfil.create({
         data: {
@@ -260,6 +265,7 @@ describe('PerfisController (e2e)', () => {
         .expect(200);
     });
 
+    // BDD: features/perfis.feature:Cenário: Atualizar perfil (variação restaurar soft-deletado)
     it('deve restaurar um perfil deletado', async () => {
       const perfil = await prisma.perfil.create({
         data: {

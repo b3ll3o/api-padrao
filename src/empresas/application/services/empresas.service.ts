@@ -60,12 +60,16 @@ export class EmpresasService {
       throw new NotFoundException(`Usuário com ID ${usuarioId} não encontrado`);
     }
 
-    // Validar existência dos perfis
-    for (const perfilId of perfilIds) {
-      const perfil = await this.perfilRepository.findOne(perfilId);
-      if (!perfil) {
-        throw new NotFoundException(`Perfil com ID ${perfilId} não encontrado`);
-      }
+    // [ALT-005] Validação paralela (1 round-trip em vez de N sequenciais).
+    // `findOne` retorna undefined quando não encontra → lança NotFoundException.
+    const perfis = await Promise.all(
+      perfilIds.map((perfilId) => this.perfilRepository.findOne(perfilId)),
+    );
+    const perfilFaltando = perfis.findIndex((p) => !p);
+    if (perfilFaltando !== -1) {
+      throw new NotFoundException(
+        `Perfil com ID ${perfilIds[perfilFaltando]} não encontrado`,
+      );
     }
 
     await this.empresaRepository.addUserToCompany(

@@ -45,7 +45,28 @@ export class PrismaPerfilRepository implements PerfilRepository {
           connect: permissoesIds?.map((id) => ({ id })),
         },
       },
-      include: { permissoes: true },
+      // [ALT-006] `select` específico (mesma justificativa do findAll).
+      select: {
+        id: true,
+        nome: true,
+        codigo: true,
+        descricao: true,
+        empresaId: true,
+        deletedAt: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+        permissoes: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true,
+            descricao: true,
+            deletedAt: true,
+            ativo: true,
+          },
+        },
+      },
     });
     return this.toDomain(perfil);
   }
@@ -69,7 +90,29 @@ export class PrismaPerfilRepository implements PerfilRepository {
       skip,
       take,
       where: whereClause,
-      include: { permissoes: true },
+      // [ALT-006] `select` específico: lista apenas os campos públicos do Perfil
+      // e das Permissões (sem expor `createdAt/updatedAt` interno da pivot).
+      select: {
+        id: true,
+        nome: true,
+        codigo: true,
+        descricao: true,
+        empresaId: true,
+        deletedAt: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+        permissoes: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true,
+            descricao: true,
+            deletedAt: true,
+            ativo: true,
+          },
+        },
+      },
     });
     const total = await client.count({ where: whereClause });
     return [data.map((p: any) => this.toDomain(p)), total];
@@ -91,7 +134,28 @@ export class PrismaPerfilRepository implements PerfilRepository {
 
     const perfil = await client.findFirst({
       where: whereClause,
-      include: { permissoes: true },
+      // [ALT-006] `select` específico (mesma justificativa do findAll).
+      select: {
+        id: true,
+        nome: true,
+        codigo: true,
+        descricao: true,
+        empresaId: true,
+        deletedAt: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+        permissoes: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true,
+            descricao: true,
+            deletedAt: true,
+            ativo: true,
+          },
+        },
+      },
     });
     return perfil ? this.toDomain(perfil) : undefined;
   }
@@ -115,7 +179,28 @@ export class PrismaPerfilRepository implements PerfilRepository {
             set: permissoesIds?.map((id) => ({ id })),
           },
         },
-        include: { permissoes: true },
+        // [ALT-006] `select` específico (mesma justificativa do findAll).
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          empresaId: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+          permissoes: {
+            select: {
+              id: true,
+              nome: true,
+              codigo: true,
+              descricao: true,
+              deletedAt: true,
+              ativo: true,
+            },
+          },
+        },
       });
       return this.toDomain(perfil);
     } catch (error) {
@@ -130,7 +215,28 @@ export class PrismaPerfilRepository implements PerfilRepository {
     try {
       const softDeletedPerfil = await this.prisma.extended.perfil.delete({
         where: { id },
-        include: { permissoes: true },
+        // [ALT-006] `select` específico (mesma justificativa do findAll).
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          empresaId: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+          permissoes: {
+            select: {
+              id: true,
+              nome: true,
+              codigo: true,
+              descricao: true,
+              deletedAt: true,
+              ativo: true,
+            },
+          },
+        },
       });
       return this.toDomain(softDeletedPerfil);
     } catch (error) {
@@ -141,12 +247,40 @@ export class PrismaPerfilRepository implements PerfilRepository {
     }
   }
 
-  async restore(id: number): Promise<Perfil> {
+  async restore(id: number, empresaId?: string): Promise<Perfil> {
+    // Para suportar multi-tenant, o `where` precisa carregar o `empresaId`
+    // do contexto. Sem isso, um admin poderia restaurar um Perfil de
+    // OUTRA empresa inadvertidamente.
+    const where: any = { id };
+    if (empresaId) {
+      where.empresaId = empresaId;
+    }
     try {
-      const restoredPerfil = await this.prisma.perfil.update({
-        where: { id },
+      const restoredPerfil = await this.prisma.extended.perfil.update({
+        where,
         data: { deletedAt: null, ativo: true },
-        include: { permissoes: true },
+        // [ALT-006] `select` específico (mesma justificativa do findAll).
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          empresaId: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+          permissoes: {
+            select: {
+              id: true,
+              nome: true,
+              codigo: true,
+              descricao: true,
+              deletedAt: true,
+              ativo: true,
+            },
+          },
+        },
       });
       return this.toDomain(restoredPerfil);
     } catch (error) {

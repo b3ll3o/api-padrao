@@ -91,7 +91,7 @@ Todas as respostas de erro seguem o envelope:
 ```json
 {
   "statusCode": 400,
-  "timestamp": "2026-02-03T17:00:00.000Z",
+  "timestamp": "2026-06-15T17:00:00.000Z",
   "path": "/usuarios",
   "message": "Mensagem de erro explicativa"
 }

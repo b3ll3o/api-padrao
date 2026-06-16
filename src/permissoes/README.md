@@ -26,6 +26,14 @@ Gerencia as permissões atômicas do sistema que são atribuídas aos perfis. Di
 - **URL**: `GET /permissoes/:id`
 - **Permissão**: `READ_PERMISSAO_BY_ID`.
 
+### Buscar por Nome (código)
+
+- **URL**: `GET /permissoes/nome/:nome`
+- **Permissão**: `READ_PERMISSOES`.
+- **Contexto**: `x-empresa-id` opcional (permissões são globais).
+- **Resposta 200**: permissão correspondente ao `codigo` (ex.: `READ_USUARIOS`).
+- **Resposta 404**: nenhuma permissão com esse nome.
+
 ### Atualizar Permissão
 
 - **URL**: `PATCH /permissoes/:id`

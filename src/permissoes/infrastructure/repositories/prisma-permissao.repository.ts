@@ -21,7 +21,20 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
   }
 
   async create(data: CreatePermissaoDto): Promise<Permissao> {
-    const permissao = await this.prisma.extended.permissao.create({ data });
+    const permissao = await this.prisma.extended.permissao.create({
+      data,
+      // [ALT-006] `select` específico.
+      select: {
+        id: true,
+        nome: true,
+        codigo: true,
+        descricao: true,
+        deletedAt: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
     return this.toDomain(permissao);
   }
 
@@ -37,6 +50,17 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     const data = await client.findMany({
       skip,
       take,
+      // [ALT-006] `select` específico.
+      select: {
+        id: true,
+        nome: true,
+        codigo: true,
+        descricao: true,
+        deletedAt: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     const total = await client.count();
     return [data.map((p: any) => this.toDomain(p)), total];
@@ -52,6 +76,17 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
 
     const permissao = await client.findFirst({
       where: { id },
+      // [ALT-006] `select` específico.
+      select: {
+        id: true,
+        nome: true,
+        codigo: true,
+        descricao: true,
+        deletedAt: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     return permissao ? this.toDomain(permissao) : undefined;
   }
@@ -72,6 +107,17 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
       const permissao = await this.prisma.extended.permissao.update({
         where: { id },
         data,
+        // [ALT-006] `select` específico.
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
       return this.toDomain(permissao);
     } catch (error) {
@@ -86,6 +132,17 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     try {
       const softDeletedPermissao = await this.prisma.extended.permissao.delete({
         where: { id },
+        // [ALT-006] `select` específico.
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
       return this.toDomain(softDeletedPermissao);
     } catch (error) {
@@ -101,6 +158,17 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
       const restoredPermissao = await this.prisma.permissao.update({
         where: { id },
         data: { deletedAt: null, ativo: true },
+        // [ALT-006] `select` específico.
+        select: {
+          id: true,
+          nome: true,
+          codigo: true,
+          descricao: true,
+          deletedAt: true,
+          ativo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
       return this.toDomain(restoredPermissao);
     } catch (error) {
@@ -121,6 +189,17 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
 
     const permissao = await client.findFirst({
       where: { nome },
+      // [ALT-006] `select` específico.
+      select: {
+        id: true,
+        nome: true,
+        codigo: true,
+        descricao: true,
+        deletedAt: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     return permissao ? this.toDomain(permissao) : null;
   }
@@ -143,6 +222,17 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
           contains: nome,
           mode: 'insensitive',
         },
+      },
+      // [ALT-006] `select` específico.
+      select: {
+        id: true,
+        nome: true,
+        codigo: true,
+        descricao: true,
+        deletedAt: true,
+        ativo: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
     const total = await client.count({
