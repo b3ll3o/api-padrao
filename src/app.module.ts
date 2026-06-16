@@ -1,4 +1,9 @@
-import { Module, ClassSerializerInterceptor } from '@nestjs/common';
+import {
+  Module,
+  ClassSerializerInterceptor,
+  MiddlewareConsumer,
+  NestModule,
+} from '@nestjs/common';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
@@ -28,6 +33,7 @@ import { SharedModule } from './shared/shared.module';
 import { AppConfig } from './shared/infrastructure/config/app.config';
 import { AuditInterceptor } from './shared/infrastructure/interceptors/audit.interceptor';
 import { TenantThrottlerGuard } from './shared/infrastructure/throttling/tenant-throttler.guard';
+import { CacheControlMiddleware } from './shared/infrastructure/middleware/cache-control.middleware';
 
 @Module({
   imports: [
@@ -156,4 +162,13 @@ import { TenantThrottlerGuard } from './shared/infrastructure/throttling/tenant-
     EmpresaContext,
   ],
 })
-export class AppModule {}
+// BDD: features/devsecops-sprint1-quick-wins.feature:Funcionalidade: HTTP Hardening
+// SDD: .openspec/changes/devsecops-sprint1-quick-wins/design.md#fase-1
+// ATDD: test/http-hardening.e2e-spec.ts
+// TDD: src/shared/infrastructure/middleware/cache-control.middleware.spec.ts
+// [Sprint1-HTTP] Aplica CacheControlMiddleware globalmente em todas as rotas.
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CacheControlMiddleware).forRoutes('*');
+  }
+}

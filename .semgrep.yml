@@ -1,0 +1,59 @@
+# =============================================================================
+# Semgrep SAST configuration for api-padrao
+# -----------------------------------------------------------------------------
+# Traceability:
+#   BDD:   features/devsecops-sprint1-quick-wins.feature
+#          -> "Funcionalidade: SDLC Scanning"
+#          -> "Cenário: Semgrep detecta SQL injection em src/"
+#   SDD:   .openspec/changes/devsecops-sprint1-quick-wins/design.md#fase-2
+#          -> "Fase 2: SDLC Scanning — Semgrep (SAST) + Gitleaks (secret scan)"
+#   ATDD:  .openspec/changes/devsecops-sprint1-quick-wins/tasks.md
+#          -> Task 2.2 — Conservative SAST config (public registry rulesets)
+#   TDD:   N/A (config file; behavior is exercised by CI integration tests)
+#
+# Scope:
+#   Conservative — relies on the official Semgrep public registry rulesets
+#   (p/typescript, p/security-audit, p/owasp-top-ten, p/jwt) instead of
+#   in-repo custom rules, to keep the signal-to-noise ratio high during the
+#   Sprint 1 quick-wins.
+#
+# Tuning (per-rule):
+#   timeout: 60 — long enough for cross-file taint analysis on a NestJS repo.
+#   jobs: 4     — default CI runner concurrency; safe for a 4-vCPU box.
+#
+# Excludes:
+#   node_modules, dist, coverage    — generated / vendored
+#   test/, *.spec.ts                — test code (mock secrets, fake tokens)
+#   .openspec/, docs/               — spec / documentation, not source
+# =============================================================================
+
+rules:
+  # Use the official public Semgrep registry. Each entry pulls a curated set
+  # of rules maintained by Semgrep / community.
+  - p/typescript
+  - p/security-audit
+  - p/owasp-top-ten
+  - p/jwt
+
+# Global options applied to every rule above.
+options:
+  # Per-rule timeout (seconds). 60s is the registry default; bumped from 30s
+  # to give the OWASP taint rules headroom on the auth module.
+  timeout: 60
+
+  # Number of parallel rule evaluations.
+  jobs: 4
+
+  # Paths that Semgrep must never scan. Mirrors `.gitignore` plus a few
+  # repo-specific additions (specs, docs, test artifacts).
+  exclude:
+    - node_modules
+    - dist
+    - coverage
+    - "test/**"
+    - "*.spec.ts"
+    - .openspec
+    - docs
+
+  # Surface the language breakdown in the CI report (helps tuning).
+  metrics: auto

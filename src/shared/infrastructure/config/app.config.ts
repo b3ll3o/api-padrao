@@ -9,6 +9,19 @@ export class AppConfig {
     return this.configService.get<string>('NODE_ENV', 'development');
   }
 
+  // [Sprint1-HTTP] Trust proxy: 'loopback' | 'true' | number (hops).
+  // - 'loopback': apenas o primeiro hop (default seguro).
+  // - 'true': confiar em qualquer proxy (NÃO usar em prod — IP spoofing).
+  // - 'N' (número): confiar nos primeiros N hops.
+  // BDD: features/devsecops-sprint1-quick-wins.feature:Cenário: Trust proxy reflete X-Forwarded-For
+  get trustProxy(): true | 'loopback' | number {
+    const raw = this.configService.get<string>('TRUST_PROXY', 'loopback');
+    if (raw === 'true') return true;
+    if (raw === 'loopback') return 'loopback';
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 'loopback';
+  }
+
   get port(): number {
     return this.configService.get<number>('PORT', 3001);
   }

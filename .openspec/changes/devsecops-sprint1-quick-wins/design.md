@@ -95,13 +95,33 @@ e melhoram postura de segurança em produção.
 ### Fase 1 — API/Configuration
 
 ```typescript
-// src/main.ts (trecho)
-const trustProxy = configService.get<string>('TRUST_PROXY', 'loopback');
-const numericTrustProxy = trustProxy === 'loopback' || trustProxy === 'true'
-  ? trustProxy
-  : parseInt(trustProxy, 10);
-await app.register(fastify, { trustProxy: numericTrustProxy });
+// src/main.ts (trecho — ANTES de NestFactory.create)
+const rawTrustProxy = process.env['TRUST_PROXY'] ?? 'loopback';
+const trustProxy: true | 'loopback' | number =
+  rawTrustProxy === 'true'
+    ? true
+    : rawTrustProxy === 'loopback'
+      ? 'loopback'
+      : (() => {
+          const n = parseInt(rawTrustProxy, 10);
+          return Number.isFinite(n) && n >= 0 ? n : 'loopback';
+        })();
+
+const app = await NestFactory.create<NestFastifyApplication>(
+  AppModule,
+  new FastifyAdapter({ trustProxy }), // MUST be no construtor — Fastify lê options.trustProxy uma única vez em kRequest.
+  { bufferLogs: true },
+);
 ```
+
+> **⚠️ IMPORTANTE**: `trustProxy` é lido pelo Fastify **uma única vez** em
+> `fastify.js:168` (`[kRequest]: Request.buildRequest(Request, options.trustProxy)`)
+> durante a construção da instância. Tentar setá-lo via `app.register(fastify, { trustProxy })`
+> cria uma instância Fastify FILHA que nunca recebe requests — não muta o parent.
+> O parent continua com `Request` sem suporte a `X-Forwarded-For`, e `req.ip`
+> retorna o IP do socket. **SEMPRE passe `trustProxy` no construtor do FastifyAdapter.**
+> Como `ConfigService` não existe antes de `NestFactory.create`, lemos `process.env`
+> diretamente no escopo do módulo.
 
 ```typescript
 // src/shared/infrastructure/middleware/cache-control.middleware.ts
