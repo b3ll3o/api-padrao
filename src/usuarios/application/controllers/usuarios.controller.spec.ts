@@ -50,7 +50,7 @@ describe('UsuariosController', () => {
   });
 
   it('deve ser definido', () => {
-    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(UsuariosController);
   });
 
   describe('criação', () => {

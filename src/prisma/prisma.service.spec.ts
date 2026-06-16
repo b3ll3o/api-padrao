@@ -19,8 +19,14 @@ describe('PrismaService', () => {
     service.$disconnect = jest.fn().mockResolvedValue(undefined);
   });
 
-  it('deve ser definido', () => {
+  it('deve ser uma instância de PrismaService (extends PrismaClient)', () => {
+    // Verificamos que service expõe o contrato esperado de PrismaService
+    // (membros públicos + ciclo de vida Nest). toBeInstanceOf é frágil
+    // para subclasses de PrismaClient devido ao prototype de $extends.
     expect(service).toBeDefined();
+    expect(typeof service.onModuleInit).toBe('function');
+    expect(typeof service.onModuleDestroy).toBe('function');
+    expect(service).toHaveProperty('runResilient');
   });
 
   it('deve estender PrismaClient (acesso aos modelos)', () => {
@@ -52,6 +58,7 @@ describe('PrismaService', () => {
     it('deve expor `extended` com o cliente $extends(softDeleteExtension)', () => {
       // O construtor do service aplica o softDeleteExtension
       expect(service.extended).toBeDefined();
+      expect(service.extended).not.toBe(service);
     });
 
     it('extended deve ser diferente do próprio service (cópia estendida)', () => {
@@ -77,9 +84,11 @@ describe('PrismaService', () => {
     });
 
     it('deve expor o circuit breaker internamente para diagnóstico', () => {
-      // Opossum CircuitBreaker expõe `opened` (boolean) e `state` ('open' | 'halfOpen' | 'closed')
-      expect(service['breaker']).toBeDefined();
-      expect(typeof service['breaker'].fire).toBe('function');
+      // Opossum CircuitBreaker expõe `opened` (boolean) e `fire` (function)
+      const breaker = service['breaker'];
+      expect(breaker).toBeDefined();
+      expect(typeof breaker.fire).toBe('function');
+      expect(typeof breaker.opened).toBe('boolean');
     });
   });
 });

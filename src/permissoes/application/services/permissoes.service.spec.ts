@@ -54,7 +54,7 @@ describe('PermissoesService', () => {
   });
 
   it('deve ser definido', () => {
-    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(PermissoesService);
   });
 
   describe('criação', () => {

@@ -88,7 +88,7 @@ describe('PasswordRecoveryService', () => {
   });
 
   it('deve ser definido', () => {
-    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(PasswordRecoveryService);
   });
 
   describe('forgotPassword', () => {

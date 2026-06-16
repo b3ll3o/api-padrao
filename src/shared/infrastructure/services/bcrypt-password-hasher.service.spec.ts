@@ -15,7 +15,7 @@ describe('BcryptPasswordHasherService', () => {
   });
 
   it('deve ser definido', () => {
-    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(BcryptPasswordHasherService);
   });
 
   it('deve fazer o hash de uma senha', async () => {

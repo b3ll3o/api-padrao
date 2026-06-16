@@ -28,7 +28,7 @@ describe('TemplateLoaderService (REQ-EM-08, REQ-EM-N04)', () => {
   });
 
   it('deve ser definido', () => {
-    expect(loader).toBeDefined();
+    expect(loader).toBeInstanceOf(TemplateLoaderService);
   });
 
   // REQ-EM-08

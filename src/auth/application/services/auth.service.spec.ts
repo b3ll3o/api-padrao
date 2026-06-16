@@ -141,7 +141,7 @@ describe('AuthService', () => {
   });
 
   it('deve ser definido', () => {
-    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(AuthService);
   });
 
   describe('login', () => {

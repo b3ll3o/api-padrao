@@ -36,7 +36,7 @@ describe('PrismaPerfilRepository', () => {
   });
 
   it('deve ser definido', () => {
-    expect(repository).toBeDefined();
+    expect(repository).toBeInstanceOf(PrismaPerfilRepository);
   });
 
   const mockPerfil = {

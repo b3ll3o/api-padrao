@@ -15,7 +15,7 @@ describe('LoggingInterceptor', () => {
   });
 
   it('deve ser definido', () => {
-    expect(interceptor).toBeDefined();
+    expect(interceptor).toBeInstanceOf(LoggingInterceptor);
   });
 
   it('deve logar o método, url, status code e tempo de resposta', (done) => {

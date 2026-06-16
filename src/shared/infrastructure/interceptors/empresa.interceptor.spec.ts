@@ -13,7 +13,7 @@ describe('EmpresaInterceptor', () => {
   });
 
   it('deve ser definido', () => {
-    expect(interceptor).toBeDefined();
+    expect(interceptor).toBeInstanceOf(EmpresaInterceptor);
   });
 
   it('deve extrair empresaId do header x-empresa-id', (done) => {

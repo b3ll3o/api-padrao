@@ -16,7 +16,7 @@ describe('UsuarioAuthorizationService', () => {
   });
 
   it('deve ser definido', () => {
-    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(UsuarioAuthorizationService);
   });
 
   describe('pode acessar usuário', () => {

@@ -16,7 +16,7 @@ describe('DefaultAuthorizationService', () => {
   });
 
   it('deve ser definido', () => {
-    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(DefaultAuthorizationService);
   });
 
   it('deve retornar true se o usuário tiver perfil ADMIN', () => {

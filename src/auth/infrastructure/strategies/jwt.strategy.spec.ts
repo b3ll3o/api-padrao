@@ -77,7 +77,7 @@ describe('JwtStrategy', () => {
   });
 
   it('deve ser definido', () => {
-    expect(jwtStrategy).toBeDefined();
+    expect(jwtStrategy).toBeInstanceOf(JwtStrategy);
   });
 
   describe('validação', () => {
@@ -279,7 +279,7 @@ describe('JwtStrategy', () => {
       );
       // Como mockamos o Strategy, podemos inspecionar via options
       expect(mockConfigService.getOrThrow).toHaveBeenCalledWith('JWT_SECRET');
-      expect(strategy).toBeDefined();
+      expect(strategy).toBeInstanceOf(JwtStrategy);
     });
 
     it('deve propagar erro do ConfigService.getOrThrow quando JWT_SECRET ausente', () => {

@@ -69,7 +69,7 @@ describe('PermissoesController', () => {
   });
 
   it('deve ser definido', () => {
-    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(PermissoesController);
   });
 
   describe('criação', () => {

@@ -45,7 +45,7 @@ describe('EmpresasController', () => {
   });
 
   it('deve ser definido', () => {
-    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(EmpresasController);
   });
 
   describe('create', () => {

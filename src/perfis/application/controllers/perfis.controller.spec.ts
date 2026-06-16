@@ -42,7 +42,7 @@ describe('PerfisController', () => {
   });
 
   it('deve ser definido', () => {
-    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(PerfisController);
   });
 
   describe('create', () => {

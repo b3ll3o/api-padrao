@@ -93,7 +93,7 @@ describe('EmpresasService', () => {
   });
 
   it('deve ser definido', () => {
-    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(EmpresasService);
   });
 
   describe('create', () => {

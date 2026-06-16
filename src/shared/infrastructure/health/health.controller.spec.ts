@@ -65,7 +65,7 @@ describe('HealthController', () => {
   });
 
   it('deve ser definido', () => {
-    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(HealthController);
   });
 
   describe('checkLiveness', () => {

@@ -28,7 +28,7 @@ describe('PermissaoGuard', () => {
   });
 
   it('deve ser definido', () => {
-    expect(guard).toBeDefined();
+    expect(guard).toBeInstanceOf(PermissaoGuard);
   });
 
   it('deve retornar true se nenhuma permissão obrigatória for definida para a rota', () => {

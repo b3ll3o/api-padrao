@@ -47,7 +47,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('deve ser definido', () => {
-    expect(interceptor).toBeDefined();
+    expect(interceptor).toBeInstanceOf(AuditInterceptor);
   });
 
   it('NÃO deve logar quando não há @Auditar() no handler', (done) => {

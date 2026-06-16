@@ -42,7 +42,7 @@ describe('AuthGuard', () => {
   });
 
   it('deve ser definido', () => {
-    expect(guard).toBeDefined();
+    expect(guard).toBeInstanceOf(AuthGuard);
   });
 
   it('deve retornar true se a rota for pública', async () => {

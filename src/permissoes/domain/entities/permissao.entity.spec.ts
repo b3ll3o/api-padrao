@@ -158,7 +158,7 @@ describe('Permissao', () => {
       );
       // codigo continua sendo propriedade pública, mas a API de transição
       // não permite alterá-lo — documentado no JSDoc.
-      expect(p.atualizarMetadados).toBeDefined();
+      expect(typeof p.atualizarMetadados).toBe('function');
     });
   });
 });

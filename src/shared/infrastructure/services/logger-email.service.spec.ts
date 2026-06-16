@@ -22,7 +22,7 @@ describe('LoggerEmailService (REQ-EM-N02)', () => {
   });
 
   it('deve ser definido', () => {
-    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(LoggerEmailService);
   });
 
   // BDD: features/email-notifications.feature:Cenário: E-mail de recuperação de senha continua sendo enviado via template auth.password_reset

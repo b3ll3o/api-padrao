@@ -50,7 +50,7 @@ describe('PrismaEmpresaRepository', () => {
   });
 
   it('deve ser definido', () => {
-    expect(repository).toBeDefined();
+    expect(repository).toBeInstanceOf(PrismaEmpresaRepository);
   });
 
   describe('create', () => {

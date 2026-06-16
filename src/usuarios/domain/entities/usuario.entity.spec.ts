@@ -6,9 +6,9 @@ import { UsuarioEmpresa } from './usuario-empresa.entity';
 //      + AGENTS.md §5 — segurança de dados: @Exclude() na entity + ClassSerializerInterceptor
 
 describe('Usuario', () => {
-  it('deve ser definido', () => {
+  it('deve ser uma instância de Usuario', () => {
     const usuario = new Usuario();
-    expect(usuario).toBeDefined();
+    expect(usuario).toBeInstanceOf(Usuario);
   });
 
   describe('campos básicos', () => {

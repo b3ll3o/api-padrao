@@ -43,7 +43,7 @@ describe('AuthController', () => {
   });
 
   it('deve ser definido', () => {
-    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(AuthController);
   });
 
   describe('login', () => {

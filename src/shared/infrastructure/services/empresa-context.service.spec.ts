@@ -9,7 +9,7 @@ describe('EmpresaContext', () => {
   });
 
   it('deve ser definido', () => {
-    expect(context).toBeDefined();
+    expect(context).toBeInstanceOf(EmpresaContext);
   });
 
   it('deve permitir setar e recuperar o empresaId', () => {
