@@ -149,7 +149,8 @@ export class UsuariosService {
           empresaId &&
           usuarioLogado.empresas?.some(
             (e) =>
-              e.id === empresaId && e.perfis?.some((p) => p.codigo === 'ADMIN'),
+              e.id === empresaId &&
+              e.perfis?.some((p) => p.codigo === Roles.ADMIN),
           );
 
         if (!isAdminInEmpresa) {

@@ -13,6 +13,7 @@ import { PermissoesService } from '../../../permissoes/application/services/perm
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
+import { Roles } from 'src/shared/domain/constants/auth.constants';
 
 type UsuarioLogado = JwtPayload;
 
@@ -140,7 +141,7 @@ export class PerfisService {
 
     if (updatePerfilDto.ativo !== undefined) {
       const isAdmin = usuarioLogado.empresas?.some((e: any) =>
-        e.perfis?.some((p: any) => p.codigo === 'ADMIN'),
+        e.perfis?.some((p: any) => p.codigo === Roles.ADMIN),
       );
       if (!isAdmin) {
         throw new ForbiddenException(

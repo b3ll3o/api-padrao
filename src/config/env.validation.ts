@@ -25,6 +25,7 @@ export const envValidationSchema = Joi.object({
   THROTTLER_SENSITIVE_TTL: Joi.number().default(60000),
   THROTTLER_SENSITIVE_LIMIT: Joi.number().default(10),
   THROTTLER_SENSITIVE_LIMIT_FORGOT: Joi.number().default(5),
+  THROTTLER_SENSITIVE_LIMIT_REFRESH: Joi.number().default(10),
   THROTTLER_SENSITIVE_LIMIT_RESET: Joi.number().default(10),
   FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
   PASSWORD_RESET_EXPIRES_MINUTES: Joi.number().default(60).min(1),

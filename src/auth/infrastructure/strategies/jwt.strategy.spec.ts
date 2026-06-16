@@ -2,7 +2,6 @@ import { JwtStrategy, JwtPayload } from './jwt.strategy';
 import { UsuariosService } from '../../../usuarios/application/services/usuarios.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-// import { Strategy } from 'passport-jwt'; // Removed unused import
 
 // Mock PassportStrategy and Strategy
 jest.mock('passport-jwt', () => ({

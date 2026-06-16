@@ -10,9 +10,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  * Invariantes protegidas:
  * - `nome` é obrigatório.
  * - `responsavelId` é obrigatório (toda empresa tem um owner).
- * - `cnpj` é validado apenas quando presente (mais de uma empresa
- *   pode omitir CNPJ em tenant-poc, mas se presente precisa ter
- *   14 dígitos).
  *
  * @see Perfil e Usuario (escopados por `empresaId`).
  */
