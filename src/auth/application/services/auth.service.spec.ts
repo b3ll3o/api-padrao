@@ -460,7 +460,8 @@ describe('AuthService', () => {
 
       const result = await service.refreshTokens('old-token');
 
-      expect(result.access_token).toBeDefined();
+      expect(result.access_token).toEqual(expect.any(String));
+      expect(result.access_token.length).toBeGreaterThan(0);
       const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
       expect(signCall.empresas).toEqual([]);
     });
@@ -486,7 +487,8 @@ describe('AuthService', () => {
 
       const result = await service.refreshTokens('old-token');
 
-      expect(result.access_token).toBeDefined();
+      expect(result.access_token).toEqual(expect.any(String));
+      expect(result.access_token.length).toBeGreaterThan(0);
       const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
       expect(signCall.empresas).toEqual([]);
     });
@@ -499,7 +501,8 @@ describe('AuthService', () => {
       const result = await service.generateTokens(1, 'user@e.com', undefined);
 
       expect(result.access_token).toBe('mockAccessToken');
-      expect(result.refresh_token).toBeDefined();
+      expect(result.refresh_token).toEqual(expect.any(String));
+      expect(result.refresh_token.length).toBeGreaterThan(0);
 
       // Verifica que o JWT foi assinado com payload { sub, email, empresas: [] }
       const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
