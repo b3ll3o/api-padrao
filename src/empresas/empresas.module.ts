@@ -6,12 +6,14 @@ import { EmpresaRepository } from './domain/repositories/empresa.repository';
 import { PrismaEmpresaRepository } from './infrastructure/repositories/prisma-empresa.repository';
 import { UsuariosModule } from '../usuarios/usuarios.module';
 import { PerfisModule } from '../perfis/perfis.module';
+import { SharedModule } from '../shared/shared.module';
 
 @Module({
   imports: [
     PrismaModule,
     forwardRef(() => UsuariosModule),
     forwardRef(() => PerfisModule),
+    SharedModule,
   ],
   controllers: [EmpresasController],
   providers: [

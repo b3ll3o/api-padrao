@@ -8,15 +8,16 @@ import { PasswordHasher } from 'src/shared/domain/services/password-hasher.servi
 import { UsuarioRepository } from 'src/usuarios/domain/repositories/usuario.repository';
 import { UnitOfWork } from '../../domain/services/unit-of-work.service';
 import {
-  EMAIL_SERVICE,
-  EmailService,
-} from '../../domain/services/email.service';
+  EMAIL_SENDER_SERVICE,
+  EmailSenderService,
+} from '../../../shared/application/services/email-sender.service';
 
 describe('PasswordRecoveryService', () => {
   let service: PasswordRecoveryService;
 
   const mockUsuarioRepository = {
     findByEmail: jest.fn(),
+    findOne: jest.fn(),
   };
 
   const mockResetTokenRepository = {
@@ -34,6 +35,8 @@ describe('PasswordRecoveryService', () => {
   const mockConfigService = {
     get: jest.fn((key: string) => {
       if (key === 'FRONTEND_URL') return 'http://localhost:3000';
+      if (key === 'APP_NAME') return 'API Padrão';
+      if (key === 'APP_LOGIN_URL') return 'http://localhost:3000';
       return null;
     }),
   };
@@ -54,8 +57,8 @@ describe('PasswordRecoveryService', () => {
     }),
   };
 
-  const mockEmailService: jest.Mocked<EmailService> = {
-    send: jest.fn(),
+  const mockEmailSender: jest.Mocked<EmailSenderService> = {
+    send: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -72,7 +75,7 @@ describe('PasswordRecoveryService', () => {
         { provide: PasswordHasher, useValue: mockPasswordHasher },
         { provide: UnitOfWork, useValue: mockUnitOfWork },
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: EMAIL_SERVICE, useValue: mockEmailService },
+        { provide: EMAIL_SENDER_SERVICE, useValue: mockEmailSender },
       ],
     }).compile();
 
@@ -81,6 +84,7 @@ describe('PasswordRecoveryService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    mockEmailSender.send.mockResolvedValue(undefined);
   });
 
   it('deve ser definido', () => {
@@ -100,7 +104,7 @@ describe('PasswordRecoveryService', () => {
         undefined,
       );
       mockResetTokenRepository.create.mockResolvedValue({});
-      mockEmailService.send.mockResolvedValue();
+      mockEmailSender.send.mockResolvedValue();
 
       await service.forgotPassword({ email: 'usuario@empresa.com' });
 
@@ -117,11 +121,13 @@ describe('PasswordRecoveryService', () => {
       expect(createdArg.expiresAt).toBeInstanceOf(Date);
       expect(createdArg.expiresAt.getTime()).toBeGreaterThan(Date.now());
 
-      expect(mockEmailService.send).toHaveBeenCalledTimes(1);
-      const sentMessage = mockEmailService.send.mock.calls[0][0];
-      expect(sentMessage.to).toBe('usuario@empresa.com');
-      expect(sentMessage.subject).toBe('Recuperação de senha');
-      expect(sentMessage.body).toContain('token=');
+      // [email-notifications] Verifica que o orquestrador foi chamado com o template correto
+      expect(mockEmailSender.send).toHaveBeenCalledTimes(1);
+      const sentArgs = mockEmailSender.send.mock.calls[0];
+      expect(sentArgs[0]).toBe('auth.password_reset');
+      expect(sentArgs[1]).toBe('usuario@empresa.com');
+      expect(sentArgs[2]).toHaveProperty('link');
+      expect(sentArgs[2]).toHaveProperty('validade');
     });
 
     // BDD: features/autenticacao.feature:Cenário: Solicitar recuperação de senha com e-mail inexistente
@@ -136,7 +142,7 @@ describe('PasswordRecoveryService', () => {
         mockResetTokenRepository.invalidateAllForUser,
       ).not.toHaveBeenCalled();
       expect(mockResetTokenRepository.create).not.toHaveBeenCalled();
-      expect(mockEmailService.send).not.toHaveBeenCalled();
+      expect(mockEmailSender.send).not.toHaveBeenCalled();
     });
 
     it('deve retornar silenciosamente quando usuário está desativado', async () => {
@@ -151,7 +157,7 @@ describe('PasswordRecoveryService', () => {
         mockResetTokenRepository.invalidateAllForUser,
       ).not.toHaveBeenCalled();
       expect(mockResetTokenRepository.create).not.toHaveBeenCalled();
-      expect(mockEmailService.send).not.toHaveBeenCalled();
+      expect(mockEmailSender.send).not.toHaveBeenCalled();
     });
 
     // BDD: features/autenticacao.feature:REQ-PR-005
@@ -162,7 +168,7 @@ describe('PasswordRecoveryService', () => {
         undefined,
       );
       mockResetTokenRepository.create.mockResolvedValue({});
-      mockEmailService.send.mockResolvedValue();
+      mockEmailSender.send.mockResolvedValue();
 
       await service.forgotPassword({ email: 'usuario@empresa.com' });
 
@@ -202,6 +208,16 @@ describe('PasswordRecoveryService', () => {
       };
       mockResetTokenRepository.findValidByHash.mockResolvedValue(tokenRecord);
       mockPasswordHasher.hash.mockResolvedValue('new-hash');
+      // [email-notifications] Mock do usuarioRepository.findOne para o e-mail password_changed
+      mockUsuarioRepository.findOne.mockResolvedValue({
+        id: 1,
+        email: 'usuario@empresa.com',
+        nome: 'João',
+        deletedAt: null,
+        ativo: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
       await expect(
         service.resetPassword({
@@ -241,6 +257,13 @@ describe('PasswordRecoveryService', () => {
         where: { id: 'token-id' },
         data: { usedAt: expect.any(Date) },
       });
+
+      // [email-notifications] Após reset bem-sucedido, dispara e-mail password_changed
+      expect(mockEmailSender.send).toHaveBeenCalledWith(
+        'usuarios.password_changed',
+        'usuario@empresa.com',
+        expect.objectContaining({ nome: expect.any(String) }),
+      );
     });
   });
 });

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EmpresaRepository } from '../../domain/repositories/empresa.repository';
 import { CreateEmpresaDto } from '../../dto/create-empresa.dto';
 import { UpdateEmpresaDto } from '../../dto/update-empresa.dto';
@@ -6,6 +7,10 @@ import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
 import { PerfilRepository } from '../../../perfis/domain/repositories/perfil.repository';
 import { AddUsuarioEmpresaDto } from '../../dto/add-usuario-empresa.dto';
+import {
+  EMAIL_SENDER_SERVICE,
+  EmailSenderService,
+} from '../../../shared/application/services/email-sender.service';
 
 @Injectable()
 export class EmpresasService {
@@ -15,6 +20,9 @@ export class EmpresasService {
     private readonly empresaRepository: EmpresaRepository,
     private readonly usuarioRepository: UsuarioRepository,
     private readonly perfilRepository: PerfilRepository,
+    private readonly configService: ConfigService,
+    @Inject(EMAIL_SENDER_SERVICE)
+    private readonly emailSenderService: EmailSenderService,
   ) {}
 
   async create(createEmpresaDto: CreateEmpresaDto) {
@@ -52,7 +60,7 @@ export class EmpresasService {
     const { usuarioId, perfilIds } = addUsuarioEmpresaDto;
 
     // Validar existência da empresa
-    await this.findOne(empresaId);
+    const empresa = await this.findOne(empresaId);
 
     // Validar existência do usuário
     const usuario = await this.usuarioRepository.findOne(usuarioId);
@@ -60,15 +68,14 @@ export class EmpresasService {
       throw new NotFoundException(`Usuário com ID ${usuarioId} não encontrado`);
     }
 
-    // [ALT-005] Validação paralela (1 round-trip em vez de N sequenciais).
-    // `findOne` retorna undefined quando não encontra → lança NotFoundException.
-    const perfis = await Promise.all(
-      perfilIds.map((perfilId) => this.perfilRepository.findOne(perfilId)),
-    );
-    const perfilFaltando = perfis.findIndex((p) => !p);
-    if (perfilFaltando !== -1) {
+    // [email-notifications + performance] Batch lookup de perfis em 1 round-trip.
+    // SDD: .openspec/changes/email-notifications/design.md (1 query)
+    const perfis = await this.perfilRepository.findManyByIds(perfilIds);
+    const encontrados = new Set(perfis.map((p) => p.id));
+    const perfilFaltando = perfilIds.find((id) => !encontrados.has(id));
+    if (perfilFaltando !== undefined) {
       throw new NotFoundException(
-        `Perfil com ID ${perfilIds[perfilFaltando]} não encontrado`,
+        `Perfil com ID ${perfilFaltando} não encontrado`,
       );
     }
 
@@ -80,6 +87,21 @@ export class EmpresasService {
     this.logger.log(
       `Usuário ${usuarioId} adicionado à empresa ${empresaId} com perfis ${perfilIds.join(', ')}`,
     );
+
+    // [email-notifications] Best-effort: dispara e-mail de boas-vindas à empresa.
+    // O EmailSenderService.send() é não-bloqueante (try/catch interno).
+    const perfisNomes = perfis
+      .map((p) => p.nome ?? `perfil-${p.id}`)
+      .join(', ');
+    const loginUrl =
+      this.configService.get<string>('APP_LOGIN_URL') ??
+      'http://localhost:3000';
+    await this.emailSenderService.send('empresas.user_added', usuario.email, {
+      nomeUsuario: usuario.email,
+      nomeEmpresa: empresa.nome,
+      perfis: perfisNomes,
+      loginUrl,
+    });
   }
 
   async findUsersByCompany(empresaId: string, paginationDto: PaginationDto) {

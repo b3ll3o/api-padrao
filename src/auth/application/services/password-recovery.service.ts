@@ -11,9 +11,9 @@ import { PasswordHasher } from 'src/shared/domain/services/password-hasher.servi
 import { UsuarioRepository } from 'src/usuarios/domain/repositories/usuario.repository';
 import { PasswordResetTokenRepository } from '../../domain/repositories/password-reset-token.repository';
 import {
-  EMAIL_SERVICE,
-  EmailService,
-} from '../../domain/services/email.service';
+  EMAIL_SENDER_SERVICE,
+  EmailSenderService,
+} from '../../../shared/application/services/email-sender.service';
 import { ForgotPasswordDto } from '../../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../../dto/reset-password.dto';
 import { UnitOfWork } from '../../domain/services/unit-of-work.service';
@@ -49,7 +49,8 @@ export class PasswordRecoveryService {
     private passwordHasher: PasswordHasher,
     private unitOfWork: UnitOfWork,
     private configService: ConfigService,
-    @Inject(EMAIL_SERVICE) private emailService: EmailService,
+    @Inject(EMAIL_SENDER_SERVICE)
+    private emailSenderService: EmailSenderService,
   ) {}
 
   /**
@@ -86,12 +87,17 @@ export class PasswordRecoveryService {
       expiresAt,
     });
 
-    // Envia e-mail (mock em dev/test; SMTP em prod via outro adapter)
+    // [email-notifications] Delega ao EmailSenderService (template auth.password_reset).
+    // O EmailSenderService cuida de: kill-switch, validação de templateId,
+    // render de placeholders, injeção de APP_NAME/APP_LOGIN_URL/ano_atual,
+    // e logging estruturado.
+    // SDD: .openspec/changes/email-notifications/design.md:REQ-EM-07
     const resetUrl = `${this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000'}/reset-password?token=${rawToken}`;
-    await this.emailService.send({
-      to: user.email,
-      subject: 'Recuperação de senha',
-      body: `Você solicitou recuperação de senha. Use este link (válido por 1h): ${resetUrl}`,
+    const validade = '1 hora';
+    await this.emailSenderService.send('auth.password_reset', user.email, {
+      nome: user.email,
+      link: resetUrl,
+      validade,
     });
 
     this.logger.log(
@@ -152,5 +158,21 @@ export class PasswordRecoveryService {
       { event: 'auth.reset_password.success', userId: token.userId },
       'Senha redefinida com sucesso',
     );
+
+    // [email-notifications] Notifica o usuário sobre a troca de senha.
+    // Best-effort: EmailSenderService.send() é não-bloqueante (try/catch interno).
+    const usuario = await this.usuarioRepository.findOne(token.userId, false);
+    if (usuario) {
+      const dataHora = new Date().toISOString();
+      await this.emailSenderService.send(
+        'usuarios.password_changed',
+        usuario.email,
+        {
+          nome: usuario.email,
+          dataHora,
+          ip: 'desconhecido',
+        },
+      );
+    }
   }
 }

@@ -33,4 +33,6 @@ export abstract class PerfilRepository {
     includeDeleted?: boolean,
     empresaId?: string,
   ): Promise<[Perfil[], number]>;
+  // [email-notifications] Batch lookup em 1 round-trip (substitui N findOne).
+  abstract findManyByIds(ids: number[]): Promise<Perfil[]>;
 }

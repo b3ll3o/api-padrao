@@ -30,4 +30,11 @@ export const envValidationSchema = Joi.object({
   FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
   PASSWORD_RESET_EXPIRES_MINUTES: Joi.number().default(60).min(1),
   ALLOWED_ORIGINS: Joi.string().optional(),
+  // [email-notifications] Envs para feature de e-mails transacionais
+  // BDD: features/email-notifications.feature
+  // SDD: .openspec/changes/email-notifications/design.md:REQ-EM-N01
+  EMAIL_NOTIFICATIONS_ENABLED: Joi.boolean().default(true),
+  APP_NAME: Joi.string().default('API Padrão'),
+  APP_LOGIN_URL: Joi.string().uri().default('http://localhost:3000'),
+  EMAIL_NOTIFICATIONS_METRICS_ENABLED: Joi.boolean().default(false),
 });

@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { UsuariosService } from './usuarios.service';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
@@ -13,6 +14,10 @@ import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 import { IUsuarioAuthorizationService } from './usuario-authorization.service';
 import { EmpresaRepository } from '../../../empresas/domain/repositories/empresa.repository';
+import {
+  EMAIL_SENDER_SERVICE,
+  EmailSenderService,
+} from '../../../shared/application/services/email-sender.service';
 
 describe('UsuariosService', () => {
   let service: UsuariosService;
@@ -38,6 +43,8 @@ describe('UsuariosService', () => {
   let mockEmpresaRepository: {
     findCompaniesByUser: jest.Mock;
   };
+  let mockConfigService: { get: jest.Mock };
+  let mockEmailSender: jest.Mocked<EmailSenderService>;
 
   beforeEach(async () => {
     mockUsuarioRepository = {
@@ -66,6 +73,16 @@ describe('UsuariosService', () => {
     mockEmpresaRepository = {
       findCompaniesByUser: jest.fn(),
     };
+    mockConfigService = {
+      get: jest.fn((key: string) => {
+        if (key === 'APP_NAME') return 'API Padrão';
+        if (key === 'APP_LOGIN_URL') return 'http://localhost:3000';
+        return null;
+      }),
+    };
+    mockEmailSender = {
+      send: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -86,6 +103,8 @@ describe('UsuariosService', () => {
           provide: EmpresaRepository,
           useValue: mockEmpresaRepository,
         },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: EMAIL_SENDER_SERVICE, useValue: mockEmailSender },
       ],
     }).compile();
 

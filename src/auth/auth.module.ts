@@ -11,8 +11,6 @@ import { AuthorizationService } from '../shared/domain/services/authorization.se
 import { DefaultAuthorizationService } from './infrastructure/services/default-authorization.service';
 import { SharedModule } from '../shared/shared.module';
 import { PrismaModule } from '../prisma/prisma.module';
-import { EMAIL_SERVICE } from './domain/services/email.service';
-import { LoggerEmailService } from './infrastructure/services/logger-email.service';
 import { PrismaPasswordResetTokenRepository } from './infrastructure/repositories/prisma-password-reset-token.repository';
 import { PasswordResetTokenRepository } from './domain/repositories/password-reset-token.repository';
 import { RefreshTokenRepository } from './domain/repositories/refresh-token.repository';
@@ -49,10 +47,6 @@ import { CacheLoginAttemptTracker } from './infrastructure/services/cache-login-
     {
       provide: AuthorizationService,
       useClass: DefaultAuthorizationService,
-    },
-    {
-      provide: EMAIL_SERVICE,
-      useClass: LoggerEmailService,
     },
     // [ALT-001] Bind das portas RefreshTokenRepository e LoginHistoryRepository.
     // AuthService agora depende apenas de abstrações (DIP).

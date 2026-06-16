@@ -10,6 +10,11 @@ import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto
 import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
 import { PerfilRepository } from '../../../perfis/domain/repositories/perfil.repository';
 import { AddUsuarioEmpresaDto } from '../../dto/add-usuario-empresa.dto';
+import { ConfigService } from '@nestjs/config';
+import {
+  EMAIL_SENDER_SERVICE,
+  EmailSenderService,
+} from '../../../shared/application/services/email-sender.service';
 
 describe('EmpresasService', () => {
   let service: EmpresasService;
@@ -42,6 +47,19 @@ describe('EmpresasService', () => {
 
   const mockPerfilRepository = {
     findOne: jest.fn(),
+    findManyByIds: jest.fn(),
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      if (key === 'APP_NAME') return 'API Padrão';
+      if (key === 'APP_LOGIN_URL') return 'http://localhost:3000';
+      return null;
+    }),
+  };
+
+  const mockEmailSender: jest.Mocked<EmailSenderService> = {
+    send: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -60,6 +78,8 @@ describe('EmpresasService', () => {
           provide: PerfilRepository,
           useValue: mockPerfilRepository,
         },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: EMAIL_SENDER_SERVICE, useValue: mockEmailSender },
       ],
     }).compile();
 
@@ -68,6 +88,8 @@ describe('EmpresasService', () => {
     usuarioRepository = module.get(UsuarioRepository);
     perfilRepository = module.get(PerfilRepository);
     jest.clearAllMocks();
+    // reset default mock implementations after clearAllMocks
+    mockEmailSender.send.mockResolvedValue(undefined);
   });
 
   it('deve ser definido', () => {
@@ -176,8 +198,15 @@ describe('EmpresasService', () => {
 
     it('deve adicionar um usuário a uma empresa', async () => {
       repository.findOne.mockResolvedValue(mockEmpresa);
-      usuarioRepository.findOne.mockResolvedValue({ id: 1 } as any);
-      perfilRepository.findOne.mockResolvedValue({ id: 1 } as any);
+      usuarioRepository.findOne.mockResolvedValue({
+        id: 1,
+        email: 'user@empresa.com',
+        nome: 'João',
+      } as any);
+      perfilRepository.findManyByIds.mockResolvedValue([
+        { id: 1 },
+        { id: 2 },
+      ] as any);
       repository.addUserToCompany.mockResolvedValue(undefined);
 
       await service.addUser('uuid-123', addDto);
@@ -208,11 +237,16 @@ describe('EmpresasService', () => {
 
     it('deve lançar NotFoundException se um perfil não existir', async () => {
       repository.findOne.mockResolvedValue(mockEmpresa);
-      usuarioRepository.findOne.mockResolvedValue({ id: 1 } as any);
-      perfilRepository.findOne.mockResolvedValue(undefined);
+      usuarioRepository.findOne.mockResolvedValue({
+        id: 1,
+        email: 'user@empresa.com',
+        nome: 'João',
+      } as any);
+      // retorna apenas 1 dos 2 perfis solicitados → 1 falta
+      perfilRepository.findManyByIds.mockResolvedValue([{ id: 1 }] as any);
 
       await expect(service.addUser('uuid-123', addDto)).rejects.toThrow(
-        `Perfil com ID ${addDto.perfilIds[0]} não encontrado`,
+        /Perfil com ID 2 não encontrado/,
       );
     });
   });

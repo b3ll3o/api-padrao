@@ -1,10 +1,12 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 
@@ -16,6 +18,10 @@ import { IUsuarioAuthorizationService } from './usuario-authorization.service';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { Roles } from '../../../shared/domain/constants/auth.constants';
+import {
+  EMAIL_SENDER_SERVICE,
+  EmailSenderService,
+} from '../../../shared/application/services/email-sender.service';
 
 type UsuarioLogado = JwtPayload;
 
@@ -27,6 +33,9 @@ export class UsuariosService {
     private readonly usuarioRepository: UsuarioRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly usuarioAuthorizationService: IUsuarioAuthorizationService,
+    private readonly configService: ConfigService,
+    @Inject(EMAIL_SENDER_SERVICE)
+    private readonly emailSenderService: EmailSenderService,
   ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto) {
@@ -51,6 +60,17 @@ export class UsuariosService {
     const usuario = await this.usuarioRepository.create(newUsuario);
 
     this.logger.log(`Usuário criado com sucesso: ${usuario.email}`);
+
+    // [email-notifications] Dispara e-mail de boas-vindas (template usuarios.welcome).
+    // Best-effort: EmailSenderService.send() é não-bloqueante.
+    const loginUrl =
+      this.configService.get<string>('APP_LOGIN_URL') ??
+      'http://localhost:3000';
+    await this.emailSenderService.send('usuarios.welcome', usuario.email, {
+      nome: usuario.email,
+      email: usuario.email,
+      link: `${loginUrl}/auth/forgot-password`,
+    });
 
     return usuario;
   }
@@ -117,6 +137,7 @@ export class UsuariosService {
     }
 
     // Handle 'ativo' flag for soft delete/restore
+    let disabledNow = false;
     if (updateUsuarioDto.ativo !== undefined) {
       if (updateUsuarioDto.ativo === true) {
         // Attempt to restore
@@ -162,6 +183,7 @@ export class UsuariosService {
         await this.usuarioRepository.remove(id);
         usuario.deletedAt = new Date();
         usuario.ativo = false;
+        disabledNow = true;
         this.logger.log(`Usuário removido (soft-delete): ${usuario.email}`);
       }
     }
@@ -199,6 +221,20 @@ export class UsuariosService {
 
     const updatedUsuario = await this.usuarioRepository.update(id, usuario);
     this.logger.log(`Usuário atualizado: ${updatedUsuario.email}`);
+
+    // [email-notifications] Notifica o usuário quando ele for desativado
+    // (transição ativo: true → false). Best-effort.
+    if (disabledNow) {
+      const dataHora = new Date().toISOString();
+      await this.emailSenderService.send(
+        'usuarios.account_disabled',
+        updatedUsuario.email,
+        {
+          nome: updatedUsuario.email,
+          dataHora,
+        },
+      );
+    }
 
     return updatedUsuario;
   }

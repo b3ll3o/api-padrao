@@ -344,4 +344,13 @@ export class PrismaPerfilRepository implements PerfilRepository {
     });
     return [data.map((p: any) => this.toDomain(p)), total];
   }
+
+  // [email-notifications] Batch lookup: 1 round-trip em vez de N findOne.
+  async findManyByIds(ids: number[]): Promise<Perfil[]> {
+    if (ids.length === 0) return [];
+    const data = await this.prisma.extended.perfil.findMany({
+      where: { id: { in: ids } },
+    });
+    return data.map((p: any) => this.toDomain(p));
+  }
 }
