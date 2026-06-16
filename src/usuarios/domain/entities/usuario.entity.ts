@@ -10,14 +10,47 @@ import { BaseEntity } from '../../../shared/domain/entities/base.entity';
  * `senha` **nunca** deve ser serializada em responses
  * (anotada com `@Exclude` e blindada pela factory).
  *
- * Invariantes protegidas:
+ * ## Aggregate Root
+ *
+ * Esta entidade é a **raiz do agregado** `Usuario`. O agregado engloba:
+ *
+ * - **`Usuario`** (esta entidade) — possui identidade global (`id`)
+ *   e ciclo de vida independente. É o ponto de entrada para todas
+ *   as operações que tocam o usuário e seus vínculos.
+ * - **`UsuarioEmpresa`** — entidades-filhas que vinculam o usuário
+ *   a uma empresa com um conjunto de perfis. **NÃO** são acessadas
+ *   diretamente — toda modificação passa por `Usuario.adicionarEmpresa()`,
+ *   `removerEmpresa()` ou `atualizarPerfis()`.
+ * - **Perfis** (referenciados, não contidos) — os perfis são agregados
+ *   distintos, mas o vínculo `UsuarioEmpresa` carrega o snapshot dos
+ *   códigos de permissão no momento da associação (denormalizado em
+ *   `UsuarioEmpresa.permissoesCodigos`).
+ *
+ * ### Limites transacionais
+ *
+ * Todas as operações de escrita que afetam o usuário **e** seus
+ * vínculos de empresa DEVEM ser executadas dentro de uma transação
+ * Prisma única — caso contrário o agregado pode ficar inconsistente
+ * (ex: usuário criado sem nenhuma empresa associada).
+ *
+ * ### Regras de consistência
+ *
+ * 1. O usuário só pode existir no sistema se tiver pelo menos uma
+ *    `UsuarioEmpresa` (constraint de aplicação, não de DB).
+ * 2. A senha **nunca** é exposta em serialização (`@Exclude`).
+ * 3. Soft delete do usuário é idempotente e preserva os vínculos
+ *    de empresa (eles são soft-deletados em cascata).
+ *
+ * ## Invariantes protegidas
+ *
  * - `email` é obrigatório e validado por regex.
  * - `senha` é sempre armazenada como **hash** (bcrypt/argon2);
  *   o setter é privado por design — use `trocarSenha(hash)`.
  * - Soft delete: `desativar()` zera `ativo` e seta `deletedAt`.
  * - Restauração: `restaurar()` reativa e zera `deletedAt`.
  *
- * @see Perfil e UsuarioEmpresa para o vínculo multi-tenant.
+ * @see UsuarioEmpresa para o vínculo multi-tenant
+ * @see Perfil para o agregado de papéis
  */
 // BDD: features/usuarios.feature:Funcionalidade: Usuários
 // SDD: .openspec/changes/usuarios/design.md
