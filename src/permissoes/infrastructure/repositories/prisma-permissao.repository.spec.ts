@@ -238,6 +238,35 @@ describe('PrismaPermissaoRepository', () => {
       const result = await repository.update(999, updatePermissaoDto);
       expect(result).toBeUndefined();
     });
+
+    it('deve retornar undefined quando findFirst encontra mas update lança P2025 (race condition)', async () => {
+      const prismaError = new Error('Record not found');
+      (prismaError as any).code = 'P2025';
+      mockPermissaoModel.findFirst.mockResolvedValue({ id: 1 });
+      mockPermissaoModel.update.mockRejectedValue(prismaError);
+
+      const result = await repository.update(1, { nome: 'X' });
+      expect(result).toBeUndefined();
+    });
+
+    it('deve retornar undefined sem chamar update quando findFirst não encontra registro', async () => {
+      mockPermissaoModel.findFirst.mockResolvedValue(null);
+
+      const result = await repository.update(999, { nome: 'X' });
+
+      expect(result).toBeUndefined();
+      expect(mockPermissaoModel.update).not.toHaveBeenCalled();
+    });
+
+    it('deve propagar erro não-P2025 no update', async () => {
+      const otherError = new Error('Connection refused');
+      mockPermissaoModel.findFirst.mockResolvedValue({ id: 1 });
+      mockPermissaoModel.update.mockRejectedValue(otherError);
+
+      await expect(repository.update(1, { nome: 'X' })).rejects.toThrow(
+        'Connection refused',
+      );
+    });
   });
 
   describe('remoção', () => {
@@ -278,6 +307,13 @@ describe('PrismaPermissaoRepository', () => {
       await expect(repository.remove(999)).rejects.toThrow(
         'Permissão com ID 999 não encontrada.',
       );
+    });
+
+    it('deve propagar erro não-P2025 no remove', async () => {
+      const otherError = new Error('Connection refused');
+      mockPermissaoModel.delete.mockRejectedValue(otherError);
+
+      await expect(repository.remove(1)).rejects.toThrow('Connection refused');
     });
   });
 
@@ -320,6 +356,13 @@ describe('PrismaPermissaoRepository', () => {
       await expect(repository.restore(999)).rejects.toThrow(
         'Permissão com ID 999 não encontrada.',
       );
+    });
+
+    it('deve propagar erro não-P2025 no restore', async () => {
+      const otherError = new Error('Connection refused');
+      mockPermissaoModel.update.mockRejectedValue(otherError);
+
+      await expect(repository.restore(1)).rejects.toThrow('Connection refused');
     });
   });
 
@@ -376,6 +419,14 @@ describe('PrismaPermissaoRepository', () => {
         },
       });
     });
+
+    it('deve retornar null quando a permissão por nome não é encontrada', async () => {
+      mockPermissaoModel.findFirst.mockResolvedValue(null);
+
+      const result = await repository.findByNome('Inexistente');
+
+      expect(result).toBeNull();
+    });
   });
 
   describe('busca por nome contendo', () => {
@@ -396,7 +447,7 @@ describe('PrismaPermissaoRepository', () => {
       },
     ];
 
-    it('should return a list of non-deleted permissoes containing the name and total count by default', async () => {
+    it('deve retornar uma lista de permissões não excluídas contendo o nome e a contagem total por padrão', async () => {
       mockPermissaoModel.findMany.mockResolvedValue([prismaResults[0]]); // Only return non-deleted
       mockPermissaoModel.count.mockResolvedValue(1);
 
@@ -411,6 +462,20 @@ describe('PrismaPermissaoRepository', () => {
       expect(total).toBe(1);
       expect(mockPermissaoModel.findMany).toHaveBeenCalled();
       expect(mockPermissaoModel.count).toHaveBeenCalled();
+    });
+
+    it('deve retornar todas as permissões contendo o nome, incluindo excluídas, quando includeDeleted=true', async () => {
+      mockPermissaoModel.findMany.mockResolvedValue(prismaResults);
+      mockPermissaoModel.count.mockResolvedValue(2);
+
+      const [data, total] = await repository.findByNomeContaining(
+        'Test',
+        0,
+        10,
+        true,
+      );
+      expect(data).toHaveLength(2);
+      expect(total).toBe(2);
     });
   });
 });
