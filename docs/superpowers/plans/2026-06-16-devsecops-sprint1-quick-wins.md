@@ -121,30 +121,44 @@ git commit -m "feat(security): adicionar getter trustProxy em AppConfig"
 Run: `grep -n "helmet\|trustProxy\|app.register" src/main.ts`
 Expected: encontra o `await app.register(helmet, ...)`.
 
-- [ ] **Step 2: Adicionar trustProxy ANTES do helmet**
+- [ ] **Step 2: Adicionar trustProxy NO CONSTRUTOR do FastifyAdapter (NÃO em app.register!)**
 
-Em `src/main.ts`, ANTES de `await app.register(helmet, ...)`, adicionar:
-
-```typescript
-  // [Sprint1-HTTP] Trust proxy — garante que `req.ip` reflete o IP real
-  // do cliente (vindo do X-Forwarded-For do proxy reverso). Sem isto,
-  // throttler, login history e audit log gravam o IP do proxy.
-  // BDD: features/devsecops-sprint1-quick-wins.feature:Funcionalidade: HTTP Hardening
-  // SDD: .openspec/changes/devsecops-sprint1-quick-wins/design.md#fase-1
-  const appConfig = app.get(AppConfig);
-  await app.register(fastify, { trustProxy: appConfig.trustProxy });
-```
-
-- [ ] **Step 3: Importar AppConfig e fastify no topo do main.ts**
-
-Adicionar ao bloco de imports no topo de `src/main.ts`:
+Em `src/main.ts`, ANTES da função `bootstrap()` (no escopo do módulo), adicionar:
 
 ```typescript
-import { AppConfig } from './shared/infrastructure/config/app.config';
-import fastify from 'fastify';
+// [Sprint1-HTTP] Trust proxy — MUST be passed to the FastifyAdapter
+// constructor. Fastify reads options.trustProxy once at instance
+// construction (fastify.js:168) to build the Request prototype.
+// Setting it via app.register(fastify, { trustProxy }) creates a
+// child Fastify with no routes — the parent never gets the option.
+// Reading process.env directly because ConfigService doesn't exist
+// before NestFactory.create.
+// BDD: features/devsecops-sprint1-quick-wins.feature:Funcionalidade: HTTP Hardening
+// SDD: .openspec/changes/devsecops-sprint1-quick-wins/design.md#fase-1
+const rawTrustProxy = process.env['TRUST_PROXY'] ?? 'loopback';
+const trustProxy: true | 'loopback' | number =
+  rawTrustProxy === 'true'
+    ? true
+    : rawTrustProxy === 'loopback'
+      ? 'loopback'
+      : (() => {
+          const n = parseInt(rawTrustProxy, 10);
+          return Number.isFinite(n) && n >= 0 ? n : 'loopback';
+        })();
 ```
 
-(Verificar se `fastify` já está importado; se sim, NÃO duplicar.)
+E na chamada `NestFactory.create`, alterar:
+```typescript
+new FastifyAdapter()
+```
+para:
+```typescript
+new FastifyAdapter({ trustProxy })
+```
+
+- [ ] **Step 3: NÃO importar AppConfig nem fastify para esta task**
+
+`AppConfig` e o getter `trustProxy` (Task 1.2) continuam existindo como contrato tipado, mas o `main.ts` lê `process.env` diretamente porque `ConfigService` não existe antes de `NestFactory.create`. Não há imports novos a adicionar — o snippet acima já é self-contained.
 
 - [ ] **Step 4: Verificar typecheck**
 
