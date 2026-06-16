@@ -169,15 +169,27 @@ describe('Empresa', () => {
     });
 
     it('deve ser idempotente (segunda chamada não muda deletedAt)', async () => {
-      const e = Empresa.criar({ nome: 'X', responsavelId: 1 });
-      e.desativar();
-      const primeiroDeletedAt = e.deletedAt;
+      // Usa fake timers para avançar o tempo virtualmente sem espera real.
+      // Garante que qualquer `new Date()` na segunda chamada produziria
+      // valor distinto — mas a idempotência do método mantém o primeiro.
+      jest.useFakeTimers();
+      const t0 = new Date('2026-01-01T00:00:00.000Z');
+      jest.setSystemTime(t0);
+      try {
+        const e = Empresa.criar({ nome: 'X', responsavelId: 1 });
+        e.desativar();
+        const primeiroDeletedAt = e.deletedAt;
+        expect(primeiroDeletedAt).toEqual(t0);
 
-      // pequena pausa para garantir que um segundo new Date() seria diferente
-      await new Promise((r) => setTimeout(r, 5));
-      e.desativar();
+        // Avança o relógio 1 hora — sem isso, qualquer Date.now() no caminho
+        // produziria o mesmo valor (race no Date).
+        jest.setSystemTime(new Date('2026-01-01T01:00:00.000Z'));
+        e.desativar();
 
-      expect(e.deletedAt).toBe(primeiroDeletedAt);
+        expect(e.deletedAt).toBe(primeiroDeletedAt);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
