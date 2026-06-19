@@ -139,6 +139,11 @@ model Empresa {
   @@index([responsavelId])
   @@index([deletedAt, ativo])
   @@index([plano])
+  // [PERF-003] Índice composto para a query mais comum:
+  // "listar empresas ativas por plano, excluindo soft-deleted".
+  // Suporta `WHERE plano = $1 AND deletedAt IS NULL AND ativo = true`
+  // sem varredura sequencial.
+  @@index([plano, deletedAt, ativo])
 }
 
 enum Plano {
