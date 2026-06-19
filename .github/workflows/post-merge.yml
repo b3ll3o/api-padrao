@@ -1,0 +1,156 @@
+# Post-merge validation — runs only on direct push to main (not on PRs).
+# Complementary to ci.yml (which runs on pull_request + push:main with lighter
+# jobs for fast PR feedback).
+# Spec: docs/superpowers/specs/2026-06-19-post-merge-ci-and-main-validation-design.md
+name: post-merge
+
+on:
+  push:
+    branches: [main]
+
+# Cancel in-progress runs: rare event, but if multiple pushes happen quickly
+# (e.g., post-merge backport + follow-up fix), only the latest matters.
+concurrency:
+  group: post-merge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # [Sprint2-PostMerge] Full integration gate — equivalent to local
+  # `npm run validate` (lint + build + test + test:e2e). Runs with Postgres
+  # + Redis services to mirror production dependencies.
+  integration:
+    name: Integration (validate)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: api-padrao-test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run E2E Test Migrations
+        run: npm run test:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/api-padrao-test
+
+      - name: Run validate (lint + build + test + e2e)
+        run: npm run validate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/api-padrao-test
+
+  # [Sprint2-PostMerge] Coverage gate — runs jest --coverage and enforces
+  # the 80% threshold defined in package.json#jest.coverageThreshold.
+  # Threshold is enforced by jest itself (test:cov fails if below).
+  coverage:
+    name: Coverage gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: api-padrao-test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run coverage
+        run: npm run test:cov
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/api-padrao-test
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+  # [Sprint2-PostMerge] Dependency audit — blocks on HIGH+ CVEs in npm audit,
+  # warns on outdated packages (does not fail).
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit dependencies (block on high+)
+        run: npm audit --audit-level=high
+
+      - name: Check outdated packages (warning only)
+        run: npm outdated --long
+        continue-on-error: true
