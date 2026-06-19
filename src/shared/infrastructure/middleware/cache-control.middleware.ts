@@ -20,8 +20,16 @@ export class CacheControlMiddleware implements NestMiddleware {
   ];
 
   use(req: Request, res: Response, next: NextFunction): void {
+    // Fastify exposes the full request path in `originalUrl`; `req.url` on a
+    // Fastify request is the path relative to the route prefix (often just
+    // '/'). Express middlewares migrated to Fastify commonly need this swap.
+    // See https://docs.nestjs.com/techniques/middleware#middleware (Fastify).
+    const url =
+      (req as unknown as { originalUrl?: string }).originalUrl ??
+      req.url ??
+      '/';
     const isSensitive = CacheControlMiddleware.SENSITIVE_PATHS.some((rx) =>
-      rx.test(req.url ?? '/'),
+      rx.test(url),
     );
     if (isSensitive) {
       res.setHeader('Cache-Control', 'no-store');
