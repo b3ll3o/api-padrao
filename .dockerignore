@@ -18,7 +18,8 @@ docker-compose*.yml
 .prettierrc
 eslint.config.mjs
 nest-cli.json
-tsconfig*.json
+# [Sprint2-PostMerge/Dockerfile] tsconfig*.json é necessário para `npm run build`
+# no stage builder. Era excluído por engano (impossibilitava build de produção).
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
