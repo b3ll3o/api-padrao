@@ -5,6 +5,7 @@ import { Reflector } from '@nestjs/core';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import { TenantThrottlerGuard } from './tenant-throttler.guard';
 import { PlanoService } from './plano.service';
+import { PLANO_LIMITS, DEFAULT_PLANO, PlanoTier } from './plano-limits.config';
 
 /**
  * Constrói uma instância do guard com mocks leves, sem subir o Nest.
@@ -158,79 +159,212 @@ describe('TenantThrottlerGuard (extractEmpresaId)', () => {
   });
 });
 
-describe('TenantThrottlerGuard (preFetchPlano)', () => {
-  it('não chama PlanoService para empresaId undefined', async () => {
+describe('TenantThrottlerGuard (resolvePlano)', () => {
+  it('retorna DEFAULT_PLANO para empresaId undefined (rota pública)', async () => {
     const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
     const guard = buildGuard(planoService);
-    await guard.preFetchPlano(undefined);
+    const plano = await guard.resolvePlano(undefined);
+    expect(plano).toBe(DEFAULT_PLANO);
     expect(planoService.getPlanoByEmpresaId).not.toHaveBeenCalled();
   });
 
-  it('não chama PlanoService para empresaId vazio', async () => {
-    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
-    const guard = buildGuard(planoService);
-    await guard.preFetchPlano('');
-    expect(planoService.getPlanoByEmpresaId).not.toHaveBeenCalled();
-  });
-
-  it('não chama PlanoService para empresaId não-string', async () => {
-    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
-    const guard = buildGuard(planoService);
-    await guard.preFetchPlano(null as any);
-    expect(planoService.getPlanoByEmpresaId).not.toHaveBeenCalled();
-  });
-
-  it('chama PlanoService para empresaId válido', async () => {
+  it('retorna o plano do tenant para empresaId válido', async () => {
     const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
     (planoService.getPlanoByEmpresaId as jest.Mock).mockResolvedValue('PRO');
     const guard = buildGuard(planoService);
-    await guard.preFetchPlano('valid-empresa');
+    const plano = await guard.resolvePlano('empresa-valid');
+    expect(plano).toBe('PRO');
     expect(planoService.getPlanoByEmpresaId).toHaveBeenCalledWith(
-      'valid-empresa',
+      'empresa-valid',
     );
   });
-});
 
-describe('TenantThrottlerGuard (handleRequest)', () => {
-  let planoService: PlanoService;
-
-  beforeEach(() => {
-    planoService = { getPlanoByEmpresaId: jest.fn() } as any;
-  });
-
-  it('pré-aquece o cache do plano via PlanoService quando há empresaId no JWT', async () => {
-    const guard = buildGuard(planoService);
-    (planoService.getPlanoByEmpresaId as jest.Mock).mockResolvedValue('PRO');
-    const req = { user: { empresaId: 'empresa-x' } };
-    await guard.preFetchPlano(guard.extractEmpresaId(req));
-    expect(planoService.getPlanoByEmpresaId).toHaveBeenCalledWith('empresa-x');
-  });
-
-  it('NÃO chama PlanoService quando não há empresaId', async () => {
-    const guard = buildGuard(planoService);
-    const req = { ip: '127.0.0.1' };
-    await guard.preFetchPlano(guard.extractEmpresaId(req));
-    expect(planoService.getPlanoByEmpresaId).not.toHaveBeenCalled();
-  });
-
-  it('NÃO propaga erro do PlanoService (best-effort, fail-open)', async () => {
-    const guard = buildGuard(planoService);
+  it('retorna DEFAULT_PLANO (fail-open) quando PlanoService falha', async () => {
+    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
     (planoService.getPlanoByEmpresaId as jest.Mock).mockRejectedValue(
       new Error('redis offline'),
     );
-    const req = { user: { empresas: [{ id: 'empresa-y' }] } };
+    const guard = buildGuard(planoService);
+    const plano = await guard.resolvePlano('empresa-down');
+    expect(plano).toBe(DEFAULT_PLANO);
+  });
+});
 
-    // Não deve lançar — o pre-fetch é best-effort
-    await expect(
-      guard.preFetchPlano(guard.extractEmpresaId(req)),
-    ).resolves.toBeUndefined();
+describe('TenantThrottlerGuard (handleRequest) — tier override', () => {
+  it('deve MUTAR requestProps.throttler.limit para o tier do plano do tenant', async () => {
+    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
+    (planoService.getPlanoByEmpresaId as jest.Mock).mockResolvedValue('PRO');
+
+    const guard = buildGuard(planoService);
+
+    // Espiamos o super.handleRequest para inspecionar o requestProps MUTADO
+    const superSpy = jest
+      .spyOn(
+        Object.getPrototypeOf(TenantThrottlerGuard.prototype),
+        'handleRequest',
+      )
+      .mockResolvedValue(true);
+
+    const req = { user: { empresaId: 'empresa-pro' } };
+    const fakeContext = {
+      switchToHttp: () => ({ getRequest: () => req }),
+    } as any;
+    const throttler = { name: 'short', limit: 10, ttl: 1000 } as any;
+    const requestProps = {
+      context: fakeContext,
+      limit: 10,
+      ttl: 1000,
+      throttler,
+      blockDuration: 0,
+      getTracker: jest.fn(),
+      generateKey: jest.fn(),
+    } as any;
+
+    try {
+      await (guard as any).handleRequest(requestProps);
+    } finally {
+      superSpy.mockRestore();
+    }
+
+    // PRO plano: short tier = PLANO_LIMITS.PRO.short
+    const expected = PLANO_LIMITS.PRO.short;
+    expect(requestProps.limit).toBe(expected);
+    expect(requestProps.throttler.limit).toBe(expected);
   });
 
-  it('usa header x-empresa-id quando não há JWT', async () => {
+  it('deve usar DEFAULT_PLANO quando não há empresaId (fail-safe para IP tracker)', async () => {
+    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
     const guard = buildGuard(planoService);
-    (planoService.getPlanoByEmpresaId as jest.Mock).mockResolvedValue('FREE');
-    const req = { headers: { 'x-empresa-id': 'emp-z' } };
-    await guard.preFetchPlano(guard.extractEmpresaId(req));
-    expect(planoService.getPlanoByEmpresaId).toHaveBeenCalledWith('emp-z');
+
+    const superSpy = jest
+      .spyOn(
+        Object.getPrototypeOf(TenantThrottlerGuard.prototype),
+        'handleRequest',
+      )
+      .mockResolvedValue(true);
+
+    const req = { ip: '203.0.113.1' };
+    const fakeContext = {
+      switchToHttp: () => ({ getRequest: () => req }),
+    } as any;
+    const throttler = { name: 'medium', limit: 50, ttl: 60_000 } as any;
+    const requestProps = {
+      context: fakeContext,
+      limit: 50,
+      ttl: 60_000,
+      throttler,
+      blockDuration: 0,
+      getTracker: jest.fn(),
+      generateKey: jest.fn(),
+    } as any;
+
+    try {
+      await (guard as any).handleRequest(requestProps);
+    } finally {
+      superSpy.mockRestore();
+    }
+
+    // DEFAULT_PLANO = FREE → medium = PLANO_LIMITS.FREE.medium
+    const expected = PLANO_LIMITS[DEFAULT_PLANO].medium;
+    expect(requestProps.limit).toBe(expected);
+    expect(requestProps.throttler.limit).toBe(expected);
+  });
+
+  it('deve aplicar ENTERPRISE limits (mais permissivos) ao tier "sensitive"', async () => {
+    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
+    (planoService.getPlanoByEmpresaId as jest.Mock).mockResolvedValue(
+      'ENTERPRISE',
+    );
+
+    const guard = buildGuard(planoService);
+
+    const superSpy = jest
+      .spyOn(
+        Object.getPrototypeOf(TenantThrottlerGuard.prototype),
+        'handleRequest',
+      )
+      .mockResolvedValue(true);
+
+    const req = { user: { empresaId: 'empresa-ent' } };
+    const fakeContext = {
+      switchToHttp: () => ({ getRequest: () => req }),
+    } as any;
+    const throttler = { name: 'sensitive', limit: 1, ttl: 60_000 } as any;
+    const requestProps = {
+      context: fakeContext,
+      limit: 1,
+      ttl: 60_000,
+      throttler,
+      blockDuration: 0,
+      getTracker: jest.fn(),
+      generateKey: jest.fn(),
+    } as any;
+
+    try {
+      await (guard as any).handleRequest(requestProps);
+    } finally {
+      superSpy.mockRestore();
+    }
+
+    const expected = PLANO_LIMITS.ENTERPRISE.sensitive;
+    expect(requestProps.limit).toBe(expected);
+    expect(requestProps.throttler.limit).toBe(expected);
+    // ENTERPRISE sensitive é mais permissivo que FREE sensitive
+    expect(expected).toBeGreaterThan(PLANO_LIMITS.FREE.sensitive);
+  });
+
+  it('deve usar DEFAULT_PLANO (fail-open) se PlanoService falhar e continuar com super', async () => {
+    const planoService = { getPlanoByEmpresaId: jest.fn() } as any;
+    (planoService.getPlanoByEmpresaId as jest.Mock).mockRejectedValue(
+      new Error('redis down'),
+    );
+    const guard = buildGuard(planoService);
+
+    const superSpy = jest
+      .spyOn(
+        Object.getPrototypeOf(TenantThrottlerGuard.prototype),
+        'handleRequest',
+      )
+      .mockResolvedValue(true);
+
+    const req = { user: { empresaId: 'empresa-fail' } };
+    const fakeContext = {
+      switchToHttp: () => ({ getRequest: () => req }),
+    } as any;
+    const throttler = { name: 'short', limit: 99, ttl: 1000 } as any;
+    const requestProps = {
+      context: fakeContext,
+      limit: 99,
+      ttl: 1000,
+      throttler,
+      blockDuration: 0,
+      getTracker: jest.fn(),
+      generateKey: jest.fn(),
+    } as any;
+
+    let err: unknown;
+    try {
+      await (guard as any).handleRequest(requestProps);
+    } catch (e) {
+      err = e;
+    } finally {
+      superSpy.mockRestore();
+    }
+    expect(err).toBeUndefined();
+    // Cai para DEFAULT_PLANO (FREE)
+    const expected = PLANO_LIMITS.FREE.short;
+    expect(requestProps.limit).toBe(expected);
+  });
+
+  it('PLANO_LIMITS cobre todos os planos: FREE, PRO, ENTERPRISE', () => {
+    // Garante que o config não está incompleto (todos os planos têm todos os tiers)
+    const tiers: PlanoTier[] = ['short', 'medium', 'long', 'sensitive'];
+    for (const plano of Object.keys(PLANO_LIMITS)) {
+      for (const tier of tiers) {
+        const v = (PLANO_LIMITS as any)[plano][tier];
+        expect(typeof v).toBe('number');
+        expect(v).toBeGreaterThan(0);
+      }
+    }
   });
 });

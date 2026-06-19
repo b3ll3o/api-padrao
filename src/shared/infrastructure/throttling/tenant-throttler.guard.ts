@@ -1,24 +1,6 @@
 // BDD: features/usuarios.feature:Cenário: Rate limit respeita empresaId do JWT
 // SDD: .openspec/changes/tenant-rate-limit/design.md:REQ-TR-002..008
 // ATDD: test/tenant-rate-limit.e2e-spec.ts
-//
-// Estratégia implementada: VERSÃO SIMPLIFICADA (override apenas do `getTracker`).
-// O `TenantThrottlerGuard` sobrescreve apenas o método `getTracker` para usar o
-// `empresaId` (do JWT ou header `x-empresa-id`) como chave de throttling em vez
-// do IP. Isso já garante "rate limit por tenant" — cada tenant tem seu próprio
-// contador Redis, isolado de outros tenants e do IP.
-//
-// O mapa `PLANO_LIMITS` está criado e disponível em `plano-limits.config.ts` para
-// uso futuro (outras features podem aplicar limites diferenciados por plano sem
-// alterar este guard). Para esta primeira versão, o limite do tier permanece o
-// global configurado em `ThrottlerModule.forRoot([...])`.
-//
-// Follow-up documentado: substituir limites do tier dinamicamente a partir de
-// `PLANO_LIMITS[plano][tier]` requer override de `handleRequest` (que no
-// @nestjs/throttler v6 recebe `ThrottlerRequest` mutável). A complexidade da
-// integração vs. o ganho marginal (FREE = mesmo teto de antes) não justifica a
-// implementação nesta primeira versão. O caminho do plano já está resolvido por
-// `PlanoService` e exposto via injeção de dependência.
 import { Injectable, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
@@ -28,7 +10,9 @@ import {
   InjectThrottlerOptions,
   ThrottlerModuleOptions,
 } from '@nestjs/throttler';
+import { Plano } from '@prisma/client';
 import { PlanoService } from './plano.service';
+import { PLANO_LIMITS, DEFAULT_PLANO, PlanoTier } from './plano-limits.config';
 
 @Injectable()
 export class TenantThrottlerGuard extends ThrottlerGuard {
@@ -88,29 +72,35 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
   }
 
   /**
-   * Pré-aquece o cache do plano (best-effort) para que chamadas
-   * subsequentes tenham cache hit no PlanoService. Erros são logados
-   * e não propagam — o throttler continua funcionando.
+   * Resolve o plano do tenant. Retorna DEFAULT_PLANO em caso de erro
+   * (fail-open) — degrada graciosamente sem bloquear tráfego legítimo
+   * se o Redis cair. Throttler global por IP continua protegendo.
    */
-  async preFetchPlano(empresaId: string | undefined): Promise<void> {
-    if (!empresaId || typeof empresaId !== 'string') return;
+  async resolvePlano(empresaId: string | undefined): Promise<Plano> {
+    if (!empresaId) return DEFAULT_PLANO;
     try {
-      await this.planoService.getPlanoByEmpresaId(empresaId);
+      return await this.planoService.getPlanoByEmpresaId(empresaId);
     } catch (err) {
       this.logger.warn({
         event: 'throttler.plano_resolve_failed',
         empresaId,
         error: (err as Error).message,
       });
+      return DEFAULT_PLANO;
     }
   }
 
   /**
    * Override de `handleRequest` para:
    * 1. Resolver o `empresaId` antes da contagem.
-   * 2. Pré-aquecer o cache do plano (best-effort).
-   * 3. Delegar a contagem para o `super.handleRequest` (preserva @SkipThrottle,
-   *    @Throttle decorator, headers Retry-After / X-RateLimit-*).
+   * 2. Sobrescrever os limites do tier (short/medium/long/sensitive) com
+   *    os valores de `PLANO_LIMITS[plano][tier]`. Isso permite que
+   *    tenants do plano PRO tenham limites diferentes de FREE.
+   * 3. Delegar a contagem para o `super.handleRequest` (preserva
+   *    @SkipThrottle, @Throttle decorator, headers Retry-After / X-RateLimit-*).
+   *
+   * MUTA requestProps.throttler.limit e requestProps.limit para que o
+   * `super.handleRequest` use os limites do plano do tenant.
    */
   protected async handleRequest(
     requestProps: Parameters<ThrottlerGuard['handleRequest']>[0],
@@ -119,7 +109,23 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
       string,
       any
     >;
-    await this.preFetchPlano(this.extractEmpresaId(req));
+    const empresaId = this.extractEmpresaId(req);
+    const plano = await this.resolvePlano(empresaId);
+    const tier = (requestProps.throttler.name ?? 'default') as PlanoTier;
+    const planLimits = PLANO_LIMITS[plano] ?? PLANO_LIMITS[DEFAULT_PLANO];
+    const tierLimit = planLimits[tier];
+
+    if (typeof tierLimit === 'number' && Number.isFinite(tierLimit)) {
+      // Muta o throttler config para o tier. `super.handleRequest` lê
+      // `requestProps.limit` (passado pelo canActivate após resolver
+      // o Resolvable), mas o `storageService.increment` é chamado com
+      // `limit` derivado do throttler — mutamos ambos para garantir.
+      requestProps.limit = tierLimit;
+      if (typeof requestProps.throttler.limit === 'number') {
+        requestProps.throttler.limit = tierLimit;
+      }
+    }
+
     return super.handleRequest(requestProps);
   }
 }
