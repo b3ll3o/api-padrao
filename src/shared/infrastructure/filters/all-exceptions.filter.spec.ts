@@ -487,4 +487,193 @@ describe('AllExceptionsFilter', () => {
     // exercido e produziu string (não array, não number cru).
     expect(typeof body.message).toBe('string');
   });
+
+  // [SEC-001] RFC 7807 Problem Details
+  describe('RFC 7807 Problem Details (application/problem+json)', () => {
+    it('deve incluir type/title/status/detail/instance padronizados', () => {
+      const exception = new HttpException(
+        'Token expirado',
+        HttpStatus.UNAUTHORIZED,
+      );
+      filter.catch(exception, mockArgumentsHost as any);
+
+      expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({
+          // RFC 7807 required
+          type: 'https://api.padrao/problems/401',
+          title: 'Não autenticado',
+          status: 401,
+          // RFC 7807 optional
+          detail: 'Token expirado',
+          instance: '/test',
+        }),
+        401,
+      );
+    });
+
+    it('deve usar type/title corretos para cada status HTTP comum', () => {
+      const cases: Array<[number, string, string]> = [
+        [400, 'https://api.padrao/problems/400', 'Requisição inválida'],
+        [401, 'https://api.padrao/problems/401', 'Não autenticado'],
+        [403, 'https://api.padrao/problems/403', 'Acesso negado'],
+        [404, 'https://api.padrao/problems/404', 'Recurso não encontrado'],
+        [409, 'https://api.padrao/problems/409', 'Conflito de dados'],
+        [422, 'https://api.padrao/problems/422', 'Entidade não processável'],
+        [429, 'https://api.padrao/problems/429', 'Muitas requisições'],
+        [500, 'https://api.padrao/problems/500', 'Erro interno do servidor'],
+      ];
+      for (const [status, expectedType, expectedTitle] of cases) {
+        const exception = new HttpException('x', status);
+        filter.catch(exception, mockArgumentsHost as any);
+        const last = mockHttpAdapter.reply.mock.calls.at(-1);
+        expect(last?.[0]).toBeUndefined();
+        expect(last?.[1]).toEqual(
+          expect.objectContaining({
+            type: expectedType,
+            title: expectedTitle,
+            status,
+          }),
+        );
+        expect(last?.[2]).toBe(status);
+      }
+    });
+
+    it('deve incluir code P2002 no body para unique constraint do Prisma', () => {
+      const exception = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: 'test', meta: { target: ['email'] } },
+      );
+      filter.catch(exception, mockArgumentsHost as any);
+      expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({
+          type: 'https://api.padrao/problems/409',
+          title: 'Conflito de dados',
+          status: 409,
+          code: 'P2002',
+        }),
+        409,
+      );
+    });
+
+    it('deve incluir code P2025 para not-found do Prisma', () => {
+      const exception = new Prisma.PrismaClientKnownRequestError(
+        'Record not found',
+        { code: 'P2025', clientVersion: 'test' },
+      );
+      filter.catch(exception, mockArgumentsHost as any);
+      expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({
+          status: 404,
+          code: 'P2025',
+        }),
+        404,
+      );
+    });
+
+    it('deve incluir code HTTP_<status> para HttpException', () => {
+      const exception = new HttpException('x', HttpStatus.FORBIDDEN);
+      filter.catch(exception, mockArgumentsHost as any);
+      expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({ code: 'HTTP_403' }),
+        403,
+      );
+    });
+
+    it('deve incluir code INTERNAL_ERROR para erro 500 genérico', () => {
+      const exception = new Error('boom');
+      filter.catch(exception, mockArgumentsHost as any);
+      expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({ code: 'INTERNAL_ERROR' }),
+        500,
+      );
+    });
+
+    it('deve manter campos legados (statusCode, message, path, timestamp)', () => {
+      const exception = new HttpException('legacy compat', 400);
+      filter.catch(exception, mockArgumentsHost as any);
+      expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({
+          statusCode: 400,
+          message: 'legacy compat',
+          path: '/test',
+          timestamp: expect.stringMatching(
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+          ),
+        }),
+        400,
+      );
+    });
+
+    it('deve setar Content-Type application/problem+json no Fastify (header())', () => {
+      const header = jest.fn();
+      const response = { header };
+      const host = {
+        switchToHttp: () => ({
+          getResponse: () => response,
+          getRequest: () => ({}),
+        }),
+      };
+      const exception = new HttpException('x', 400);
+      filter.catch(exception, host as any);
+      expect(header).toHaveBeenCalledWith(
+        'Content-Type',
+        'application/problem+json',
+      );
+    });
+
+    it('deve setar Content-Type application/problem+json no Express-like (setHeader())', () => {
+      const setHeader = jest.fn();
+      const response = { setHeader }; // só tem setHeader (Express-like)
+      const host = {
+        switchToHttp: () => ({
+          getResponse: () => response,
+          getRequest: () => ({}),
+        }),
+      };
+      const exception = new HttpException('x', 400);
+      filter.catch(exception, host as any);
+      expect(setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'application/problem+json',
+      );
+    });
+
+    it('não deve lançar quando response não tem header() nem setHeader()', () => {
+      const response = {}; // response crua sem métodos
+      const host = {
+        switchToHttp: () => ({
+          getResponse: () => response,
+          getRequest: () => ({}),
+        }),
+      };
+      const exception = new HttpException('x', 400);
+      expect(() => filter.catch(exception, host as any)).not.toThrow();
+    });
+
+    it('detail deve ser a mensagem extraída (mesma de message — compat legada)', () => {
+      const exception = new HttpException(
+        'Detalhe específico do problema',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+      filter.catch(exception, mockArgumentsHost as any);
+      const body = mockHttpAdapter.reply.mock.calls.at(-1)?.[1] as any;
+      expect(body.detail).toBe('Detalhe específico do problema');
+      expect(body.message).toBe('Detalhe específico do problema');
+    });
+
+    it('instance deve refletir o path do request', () => {
+      mockHttpAdapter.getRequestUrl.mockReturnValue('/api/v1/usuarios/42');
+      const exception = new HttpException('not found', 404);
+      filter.catch(exception, mockArgumentsHost as any);
+      const body = mockHttpAdapter.reply.mock.calls.at(-1)?.[1] as any;
+      expect(body.instance).toBe('/api/v1/usuarios/42');
+      expect(body.path).toBe('/api/v1/usuarios/42');
+    });
+  });
 });

@@ -13,17 +13,46 @@ import { Prisma } from '@prisma/client';
 // SDD: .openspec/changes/auth/design.md:REQ-AUTH-N03 (mapeamento centralizado de erros HTTP/Prisma)
 // ATDD: test/all-exceptions.filter.spec.ts:cobre HttpException, P2002, P2025, fallback Fastify/Express
 // TDD: src/shared/infrastructure/filters/all-exceptions.filter.spec.ts
+//
+// [SEC-001] RFC 7807 Problem Details for HTTP APIs (application/problem+json).
+// Body inclui AMBOS os campos legados (`statusCode`, `message`, `path`, `timestamp`)
+// E os campos padronizados (`type`, `title`, `detail`, `instance`) para
+// conformidade com clientes que esperam qualquer um dos formatos.
+// Content-Type fixado em `application/problem+json` quando o adapter permite.
 
-/**
- * Resposta mínima aceita pelo filter em todos os adapters suportados.
- * - Express-like: `response.status(code).send(body)`
- * - Fastify: `response.code(code).send(body)` (não expõe `status`)
- * - Legado: `response.send(body, code)` (alguns testes/mocks)
- */
 interface AdapterResponse {
   status?: (code: number) => { send: (body: unknown) => void };
   code?: (code: number) => { send: (body: unknown) => void };
   send?: (body: unknown, code?: number) => void;
+  header?: (name: string, value: string) => unknown;
+  setHeader?: (name: string, value: string) => unknown;
+}
+
+/**
+ * Tipo-base para um RFC 7807 problem document.
+ * Campos `type` (URI), `title` (curto), `status` (number), `detail` (humano)
+ * e `instance` (URI relativa à ocorrência) são definidos na RFC; extensões
+ * (como `timestamp`, `path`, `errors[]`, `code`) podem coexistir.
+ *
+ * Mantemos também `statusCode`, `message`, `path` e `timestamp` para
+ * compatibilidade com clientes que ainda consomem o schema legado.
+ */
+export interface ProblemDetails {
+  // RFC 7807 required
+  type: string;
+  title: string;
+  status: number;
+  // RFC 7807 optional
+  detail?: string;
+  instance?: string;
+  // Compat legada
+  statusCode: number;
+  message: string;
+  path: string;
+  timestamp: string;
+  // Extensões
+  code?: string;
+  errors?: unknown;
 }
 
 @Catch()
@@ -36,7 +65,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     try {
       const { httpAdapter } = this.httpAdapterHost;
       const ctx = host.switchToHttp();
-      const response = ctx.getResponse();
+      const response = ctx.getResponse() as AdapterResponse;
       const request = ctx.getRequest();
 
       const httpStatus =
@@ -44,12 +73,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
           ? exception.getStatus()
           : this.mapPrismaErrorToStatus(exception);
 
-      const message = this.extractErrorMessage(exception, httpStatus);
+      const detail = this.extractErrorMessage(exception, httpStatus);
+      const requestPath = httpAdapter.getRequestUrl(request);
 
       if (httpStatus >= 500) {
-        // Log critical errors in all environments to the logger
         this.logger.error(
-          `Critical Error at ${httpAdapter.getRequestUrl(request)}: ${
+          `Critical Error at ${requestPath}: ${
             exception instanceof Error ? exception.message : String(exception)
           }`,
           exception instanceof Error ? exception.stack : undefined,
@@ -72,14 +101,39 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
       }
 
-      const responseBody = {
+      // RFC 7807: monta o body com campos padronizados + legado
+      const problem: ProblemDetails = {
+        // Campos RFC 7807
+        type: this.problemTypeFor(httpStatus),
+        title: this.problemTitleFor(httpStatus),
+        status: httpStatus,
+        detail,
+        instance: requestPath,
+        // Campos legados (compat)
         statusCode: httpStatus,
+        message: detail,
+        path: requestPath,
         timestamp: new Date().toISOString(),
-        path: httpAdapter.getRequestUrl(request),
-        message,
+        // Extensões úteis
+        code: this.errorCodeFor(exception, httpStatus),
       };
 
-      httpAdapter.reply(response, responseBody, httpStatus);
+      // Content-Type application/problem+json (RFC 7807 §6.1)
+      // Tenta `header()` (Fastify), depois `setHeader()` (Express-like).
+      // Se a response for undefined ou não tiver nenhum dos métodos,
+      // prossegue sem erro (httpAdapter pode aplicar o content-type default).
+      const responseAny = response as
+        | (AdapterResponse & {
+            header?: (name: string, value: string) => unknown;
+          })
+        | undefined;
+      if (responseAny && typeof responseAny.header === 'function') {
+        responseAny.header('Content-Type', 'application/problem+json');
+      } else if (responseAny && typeof responseAny.setHeader === 'function') {
+        responseAny.setHeader('Content-Type', 'application/problem+json');
+      }
+
+      httpAdapter.reply(response, problem, httpStatus);
     } catch (err) {
       // Se httpAdapter falhar (request já enviada, adapter desconhecido etc.)
       // tenta uma resposta de emergência que funcione em ambos os adapters.
@@ -207,5 +261,53 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof Prisma.PrismaClientKnownRequestError &&
       exception.code === code
     );
+  }
+
+  /**
+   * RFC 7807 §4.2 — `type` deve ser uma URI que identifica o tipo de problema.
+   * Usa-se o `https://api.padrao/problems/{status}` como convenção interna
+   * para que clientes possam fazer dispatch pelo type.
+   */
+  private problemTypeFor(status: number): string {
+    return `https://api.padrao/problems/${status}`;
+  }
+
+  /**
+   * RFC 7807 §4.2 — `title` é um resumo legível por humanos, específico do
+   * `type`, e NÃO deve mudar entre ocorrências (exceto tradução).
+   */
+  private problemTitleFor(status: number): string {
+    switch (status) {
+      case HttpStatus.BAD_REQUEST:
+        return 'Requisição inválida';
+      case HttpStatus.UNAUTHORIZED:
+        return 'Não autenticado';
+      case HttpStatus.FORBIDDEN:
+        return 'Acesso negado';
+      case HttpStatus.NOT_FOUND:
+        return 'Recurso não encontrado';
+      case HttpStatus.CONFLICT:
+        return 'Conflito de dados';
+      case HttpStatus.UNPROCESSABLE_ENTITY:
+        return 'Entidade não processável';
+      case HttpStatus.TOO_MANY_REQUESTS:
+        return 'Muitas requisições';
+      default:
+        return status >= 500
+          ? 'Erro interno do servidor'
+          : 'Erro na requisição';
+    }
+  }
+
+  /**
+   * Código de máquina (não RFC 7807, extensão) — útil para clientes que
+   * querem tomar decisão programática (ex.: "P2002" para unique constraint).
+   */
+  private errorCodeFor(exception: unknown, status: number): string {
+    if (this.isPrismaError(exception, 'P2002')) return 'P2002';
+    if (this.isPrismaError(exception, 'P2025')) return 'P2025';
+    if (exception instanceof HttpException) return `HTTP_${status}`;
+    if (status >= 500) return 'INTERNAL_ERROR';
+    return 'CLIENT_ERROR';
   }
 }
