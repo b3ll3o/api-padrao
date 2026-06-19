@@ -34,6 +34,8 @@ import { AppConfig } from './shared/infrastructure/config/app.config';
 import { AuditInterceptor } from './shared/infrastructure/interceptors/audit.interceptor';
 import { TenantThrottlerGuard } from './shared/infrastructure/throttling/tenant-throttler.guard';
 import { CacheControlMiddleware } from './shared/infrastructure/middleware/cache-control.middleware';
+import { MetricsModule } from './shared/infrastructure/metrics/metrics.module';
+import { HttpMetricsInterceptor } from './shared/infrastructure/metrics/http-metrics.interceptor';
 
 @Module({
   imports: [
@@ -83,6 +85,7 @@ import { CacheControlMiddleware } from './shared/infrastructure/middleware/cache
     EmpresasModule,
     HealthModule,
     SharedModule,
+    MetricsModule,
     // [MED-005] Throttler com storage Redis para escalar em multi-instância.
     // Antes: in-memory → atacante podia bater `limit×N` distribuindo
     // requests entre instâncias. Agora todos compartilham o mesmo
@@ -154,6 +157,10 @@ import { CacheControlMiddleware } from './shared/infrastructure/middleware/cache
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: HttpMetricsInterceptor,
     },
     {
       provide: PasswordHasher,
