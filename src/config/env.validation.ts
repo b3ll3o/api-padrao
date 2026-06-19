@@ -42,4 +42,21 @@ export const envValidationSchema = Joi.object({
   APP_NAME: Joi.string().default('API Padrão'),
   APP_LOGIN_URL: Joi.string().uri().default('http://localhost:3000'),
   EMAIL_NOTIFICATIONS_METRICS_ENABLED: Joi.boolean().default(false),
+  // [SEC-006] OTEL_EXPORTER_OTLP_ENDPOINT — em produção, OTel exporter
+  // PRECISA usar HTTPS. Traces contêm PII (user IDs, emails) e vazam
+  // em cleartext via HTTP. A02 Cryptographic Failures / A09 Logging
+  // Failures (CWE-319). Em dev/test aceita HTTP para collector local.
+  OTEL_EXPORTER_OTLP_ENDPOINT: Joi.string()
+    .uri()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string()
+        .uri({ scheme: ['https'] })
+        .required()
+        .messages({
+          'string.uriCustomScheme':
+            'OTEL_EXPORTER_OTLP_ENDPOINT deve ser https:// em produção (tracing de PII em cleartext).',
+        }),
+      otherwise: Joi.string().uri().optional(),
+    }),
 });

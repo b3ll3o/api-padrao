@@ -27,6 +27,9 @@ export class AuditInterceptor implements NestInterceptor {
   // [PERF-001] Conjunto EXATO de chaves sensíveis. Antes era match por
   // substring (`key.includes('token')`), o que mascarava indevidamente
   // campos legítimos como `tokenType`, `tokenVersion`, `userIdentifier`.
+  // [SEC-LGPD-001] Lista inclui PII brasileiras (LGPD Art. 5º, IV):
+  // cpf/cnpj/telefone/email/endereco/cep/rg. Vazamento em log de
+  // auditoria é infração (multa + dano reputacional).
   private static readonly SENSITIVE_KEYS = new Set([
     'senha',
     'password',
@@ -34,6 +37,16 @@ export class AuditInterceptor implements NestInterceptor {
     'secret',
     'refreshtoken',
     'accesstoken',
+    // PII brasileira — LGPD
+    'cpf',
+    'cnpj',
+    'telefone',
+    'celular',
+    'email',
+    'endereco',
+    'cep',
+    'rg',
+    'pis',
   ]);
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {

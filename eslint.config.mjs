@@ -31,6 +31,7 @@ export default [
         clearTimeout: 'readonly',
         setImmediate: 'readonly',
         clearImmediate: 'readonly',
+        NodeJS: 'readonly',
       },
       parserOptions: {
         project: './tsconfig.json',

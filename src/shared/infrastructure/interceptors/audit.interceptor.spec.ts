@@ -116,7 +116,8 @@ describe('AuditInterceptor', () => {
 
     const call = mockPrisma.auditLog.create.mock.calls[0][0];
     const detalhes = call.data.detalhes;
-    expect(detalhes.body.email).toBe('a@b.com');
+    // [SEC-LGPD-001] email agora é PII — DEVE ser mascarado.
+    expect(detalhes.body.email).toBe('********');
     expect(detalhes.body.senha).toBe('********');
     expect(detalhes.body.refreshToken).toBe('********');
   });
@@ -149,6 +150,51 @@ describe('AuditInterceptor', () => {
     const detalhes = call.data.detalhes;
     expect(detalhes.body.tokenType).toBe('bearer');
     expect(detalhes.body.userIdentifier).toBe('abc');
+  });
+
+  // [SEC-LGPD-001] Campos PII brasileiros DEVEM ser mascarados
+  // antes de ir para o log de auditoria (LGPD Art. 5º, IV).
+  it('deve mascarar PII brasileiras: cpf/cnpj/telefone/email/endereco/cep/rg', async () => {
+    const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
+
+    const req = {
+      method: 'POST',
+      url: '/usuarios',
+      body: {
+        cpf: '123.456.789-00',
+        cnpj: '12.345.678/0001-00',
+        telefone: '(11) 99999-9999',
+        celular: '(11) 98888-8888',
+        email: 'a@b.com',
+        endereco: 'Rua A, 123',
+        cep: '01234-567',
+        rg: '12.345.678-9',
+        pis: '123.45678.90-1',
+        nome: 'João Silva', // não-PII, deve permanecer
+      },
+      params: {},
+      ip: '127.0.0.1',
+      headers: {},
+      usuarioLogado: { sub: 1 },
+    };
+    const next: CallHandler = { handle: () => of({ id: 1 }) };
+
+    interceptor.intercept(buildContext(req), next).subscribe();
+    await flushImmediates();
+
+    const call = mockPrisma.auditLog.create.mock.calls[0][0];
+    const body = call.data.detalhes.body;
+    expect(body.cpf).toBe('********');
+    expect(body.cnpj).toBe('********');
+    expect(body.telefone).toBe('********');
+    expect(body.celular).toBe('********');
+    expect(body.email).toBe('********');
+    expect(body.endereco).toBe('********');
+    expect(body.cep).toBe('********');
+    expect(body.rg).toBe('********');
+    expect(body.pis).toBe('********');
+    expect(body.nome).toBe('João Silva');
   });
 
   it('deve usar params.id como recursoId quando data.id ausente', async () => {

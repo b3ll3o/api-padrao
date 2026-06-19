@@ -177,6 +177,37 @@ async function bootstrap() {
   }
 
   const port = configService.get<number>('PORT') ?? 3001;
+
+  // [Sprint2-Shutdown] enableShutdownHooks: garante que NestJS escuta
+  // sinais de OS (SIGTERM/SIGINT) e dispara o ciclo de vida
+  // onApplicationShutdown em providers registrados. Sem isso, jobs
+  // BullMQ em vôo podem ser perdidos em deploys (docker stop /
+  // kubectl rollout) — Redis perde estado de progresso e conexões
+  // Prisma/Redis são fechadas abruptamente.
+  app.enableShutdownHooks();
+
+  // [Sprint2-Shutdown] Graceful shutdown: ao receber SIGTERM,
+  // logamos o início e garantimos que `app.close()` é awaited
+  // (com timeout de 30s) para fechar BullMQ workers, Prisma, Redis.
+  const shutdown = async (signal: NodeJS.Signals) => {
+    logger.log(`Sinal ${signal} recebido, iniciando graceful shutdown...`);
+    try {
+      await Promise.race([
+        app.close(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('shutdown timeout 30s')), 30000),
+        ),
+      ]);
+      logger.log('Graceful shutdown concluído.');
+      process.exit(0);
+    } catch (err) {
+      logger.error({ err }, 'Falha no graceful shutdown');
+      process.exit(1);
+    }
+  };
+  process.once('SIGTERM', () => void shutdown('SIGTERM'));
+  process.once('SIGINT', () => void shutdown('SIGINT'));
+
   await app.listen(port, '0.0.0.0'); // Listen on all interfaces
   logger.log(`Application is running on: ${await app.getUrl()}`);
 }
