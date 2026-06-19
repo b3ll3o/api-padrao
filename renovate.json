@@ -1,0 +1,69 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":automergeMinor",
+    ":automergePatch",
+    "group:allNonMajor",
+    "schedule:weekends"
+  ],
+  "labels": ["dependencies"],
+  "assignees": ["@b3ll3o"],
+  "reviewers": ["@b3ll3o"],
+  "timezone": "America/Sao_Paulo",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "branchPrefix": "renovate/",
+  "commitMessageTopic": "{{depName}}",
+  "packageRules": [
+    {
+      "description": "Pin Node base image major to 22 (LTS Iron) — não auto-upgrade major",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["node"],
+      "allowedVersions": "<=22"
+    },
+    {
+      "description": "Auto-merge patch updates em prod deps",
+      "matchDatasources": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    },
+    {
+      "description": "Auto-merge patch+minor em devDeps",
+      "matchDatasources": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
+    },
+    {
+      "description": "Major updates em prod deps: criar issue, não auto-merge",
+      "matchDatasources": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "breaking-change"]
+    },
+    {
+      "description": "BullMQ, Prisma, NestJS: minor updates requerem review manual",
+      "matchPackageNames": [
+        "@nestjs/.*",
+        "prisma",
+        "@prisma/client",
+        "bullmq",
+        "@nest-lab/.*",
+        "@opentelemetry/.*"
+      ],
+      "matchUpdateTypes": ["minor"],
+      "automerge": false
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "dependencies"]
+  },
+  "osvVulnerabilityAlerts": {
+    "enabled": true
+  }
+}
