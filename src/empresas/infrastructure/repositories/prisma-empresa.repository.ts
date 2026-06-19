@@ -1,3 +1,8 @@
+// BDD: features/empresas.feature
+// SDD: .openspec/changes/empresas/design.md
+// ATDD: test/empresas.e2e-spec.ts
+// TDD: src/empresas/infrastructure/repositories/prisma-empresa.repository.spec.ts
+
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { EmpresaRepository } from '../../domain/repositories/empresa.repository';

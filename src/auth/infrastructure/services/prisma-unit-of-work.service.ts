@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/infrastructure/services/prisma-unit-of-work.service.spec.ts
+
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UnitOfWork } from '../../domain/services/unit-of-work.service';

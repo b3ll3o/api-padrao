@@ -1,3 +1,8 @@
+// BDD: features/usuarios.feature
+// SDD: .openspec/changes/usuarios/design.md
+// ATDD: test/usuarios.e2e-spec.ts
+// TDD: src/usuarios/application/services/usuario-authorization.service.spec.ts
+
 import { Injectable } from '@nestjs/common';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import {

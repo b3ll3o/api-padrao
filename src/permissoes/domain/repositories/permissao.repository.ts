@@ -1,3 +1,8 @@
+// BDD: features/permissoes.feature
+// SDD: .openspec/changes/permissoes/design.md
+// ATDD: test/permissoes.e2e-spec.ts
+// TDD: src/permissoes/domain/repositories/permissao.repository.spec.ts
+
 import { Permissao } from '../entities/permissao.entity';
 import { CreatePermissaoDto } from '../../dto/create-permissao.dto';
 import { UpdatePermissaoDto } from '../../dto/update-permissao.dto';

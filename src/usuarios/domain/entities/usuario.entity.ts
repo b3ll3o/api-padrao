@@ -1,3 +1,8 @@
+// BDD: features/usuarios.feature
+// SDD: .openspec/changes/usuarios/design.md
+// ATDD: test/usuarios.e2e-spec.ts
+// TDD: src/usuarios/domain/entities/usuario.entity.spec.ts
+
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UsuarioEmpresa } from './usuario-empresa.entity';
 import { Exclude } from 'class-transformer';

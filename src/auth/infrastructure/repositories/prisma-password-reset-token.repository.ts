@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/infrastructure/repositories/prisma-password-reset-token.repository.spec.ts
+
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {

@@ -1,3 +1,8 @@
+// BDD: features/permissoes.feature
+// SDD: .openspec/changes/permissoes/design.md
+// ATDD: test/permissoes.e2e-spec.ts
+// TDD: src/permissoes/application/controllers/permissoes.controller.spec.ts
+
 import {
   Controller,
   Get,

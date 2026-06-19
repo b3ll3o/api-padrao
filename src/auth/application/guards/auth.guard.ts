@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/application/guards/auth.guard.spec.ts
+
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';

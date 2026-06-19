@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/infrastructure/services/empresa-context.service.spec.ts
+
 import { Injectable } from '@nestjs/common';
 import { contextStorage } from './context.storage';
 

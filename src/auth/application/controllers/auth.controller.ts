@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/application/controllers/auth.controller.spec.ts
+
 import { Controller, Post, Body, Req, HttpCode } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { PasswordRecoveryService } from '../services/password-recovery.service';

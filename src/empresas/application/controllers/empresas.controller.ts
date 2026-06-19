@@ -1,3 +1,8 @@
+// BDD: features/empresas.feature
+// SDD: .openspec/changes/empresas/design.md
+// ATDD: test/empresas.e2e-spec.ts
+// TDD: src/empresas/application/controllers/empresas.controller.spec.ts
+
 import {
   Controller,
   Get,

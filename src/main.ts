@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/main.spec.ts
+
 import './tracing';
 
 import { NestFactory } from '@nestjs/core';

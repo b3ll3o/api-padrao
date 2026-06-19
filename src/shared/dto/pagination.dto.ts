@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/dto/pagination.dto.spec.ts
+
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';

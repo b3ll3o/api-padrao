@@ -1,3 +1,8 @@
+// BDD: features/empresas.feature
+// SDD: .openspec/changes/empresas/design.md
+// ATDD: test/empresas.e2e-spec.ts
+// TDD: src/empresas/application/services/empresas.service.spec.ts
+
 import { Inject, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EmpresaRepository } from '../../domain/repositories/empresa.repository';

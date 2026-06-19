@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/dto/paginated-response.dto.spec.ts
+
 import { ApiProperty } from '@nestjs/swagger';
 
 export class PaginatedResponseDto<T> {

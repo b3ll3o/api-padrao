@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/domain/services/login-attempt-tracker.service.spec.ts
+
 /**
  * Porta (interface) para rastreio de tentativas de login falhas.
  *

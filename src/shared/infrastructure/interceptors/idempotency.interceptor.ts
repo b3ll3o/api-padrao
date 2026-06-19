@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/infrastructure/interceptors/idempotency.interceptor.spec.ts
+
 import {
   Inject,
   Injectable,

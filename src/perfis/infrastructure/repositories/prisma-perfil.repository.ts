@@ -1,3 +1,8 @@
+// BDD: features/perfis.feature
+// SDD: .openspec/changes/perfis/design.md
+// ATDD: test/perfis.e2e-spec.ts
+// TDD: src/perfis/infrastructure/repositories/prisma-perfil.repository.spec.ts
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PerfilRepository } from '../../domain/repositories/perfil.repository';
 import { Perfil } from '../../domain/entities/perfil.entity';

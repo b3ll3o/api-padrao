@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/application/decorators/usuario-logado.decorator.spec.ts
+
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 

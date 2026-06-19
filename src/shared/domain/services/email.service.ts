@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/domain/services/email.service.spec.ts
+
 /**
  * Símbolo de injeção de dependência para o port `EmailService`.
  * Permite que o container NestJS resolva o adapter concreto

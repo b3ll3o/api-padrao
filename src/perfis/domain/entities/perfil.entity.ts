@@ -1,3 +1,8 @@
+// BDD: features/perfis.feature
+// SDD: .openspec/changes/perfis/design.md
+// ATDD: test/perfis.e2e-spec.ts
+// TDD: src/perfis/domain/entities/perfil.entity.spec.ts
+
 import { Permissao } from 'src/permissoes/domain/entities/permissao.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseEntity } from '../../../shared/domain/entities/base.entity';

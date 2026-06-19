@@ -1,3 +1,8 @@
+// BDD: features/permissoes.feature
+// SDD: .openspec/changes/permissoes/design.md
+// ATDD: test/permissoes.e2e-spec.ts
+// TDD: src/permissoes/infrastructure/repositories/prisma-permissao.repository.spec.ts
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PermissaoRepository } from '../../domain/repositories/permissao.repository';
 import { Permissao } from '../../domain/entities/permissao.entity';

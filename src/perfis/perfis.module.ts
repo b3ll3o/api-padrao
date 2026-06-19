@@ -1,3 +1,8 @@
+// BDD: features/perfis.feature
+// SDD: .openspec/changes/perfis/design.md
+// ATDD: test/perfis.e2e-spec.ts
+// TDD: src/perfis/perfis.module.spec.ts
+
 import { Module, forwardRef } from '@nestjs/common';
 import { PerfisService } from './application/services/perfis.service';
 import { PerfisController } from './application/controllers/perfis.controller';

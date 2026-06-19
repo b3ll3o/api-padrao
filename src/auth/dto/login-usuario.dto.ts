@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/dto/login-usuario.dto.spec.ts
+
 import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
 
 export class LoginUsuarioDto {

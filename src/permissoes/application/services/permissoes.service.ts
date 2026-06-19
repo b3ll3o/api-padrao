@@ -1,3 +1,8 @@
+// BDD: features/permissoes.feature
+// SDD: .openspec/changes/permissoes/design.md
+// ATDD: test/permissoes.e2e-spec.ts
+// TDD: src/permissoes/application/services/permissoes.service.spec.ts
+
 import {
   ConflictException,
   Injectable,

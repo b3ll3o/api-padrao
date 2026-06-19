@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/app.module.spec.ts
+
 import {
   Module,
   ClassSerializerInterceptor,

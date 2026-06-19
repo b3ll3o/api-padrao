@@ -1,3 +1,8 @@
+// BDD: features/usuarios.feature
+// SDD: .openspec/changes/usuarios/design.md
+// ATDD: test/usuarios.e2e-spec.ts
+// TDD: src/usuarios/application/controllers/usuarios.controller.spec.ts
+
 import {
   Controller,
   Post,

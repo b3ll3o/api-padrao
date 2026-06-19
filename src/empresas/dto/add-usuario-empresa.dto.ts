@@ -1,3 +1,8 @@
+// BDD: features/empresas.feature
+// SDD: .openspec/changes/empresas/design.md
+// ATDD: test/empresas.e2e-spec.ts
+// TDD: src/empresas/dto/add-usuario-empresa.dto.spec.ts
+
 import { IsArray, IsInt, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 

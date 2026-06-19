@@ -1,3 +1,8 @@
+// BDD: features/permissoes.feature
+// SDD: .openspec/changes/permissoes/design.md
+// ATDD: test/permissoes.e2e-spec.ts
+// TDD: src/permissoes/permissoes.module.spec.ts
+
 import { Module, forwardRef } from '@nestjs/common';
 import { PermissoesService } from './application/services/permissoes.service';
 import { PermissoesController } from './application/controllers/permissoes.controller';

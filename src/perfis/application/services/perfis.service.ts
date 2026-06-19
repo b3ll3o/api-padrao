@@ -1,3 +1,8 @@
+// BDD: features/perfis.feature
+// SDD: .openspec/changes/perfis/design.md
+// ATDD: test/perfis.e2e-spec.ts
+// TDD: src/perfis/application/services/perfis.service.spec.ts
+
 import {
   ConflictException,
   Injectable,

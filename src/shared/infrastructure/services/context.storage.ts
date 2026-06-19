@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/infrastructure/services/context.storage.spec.ts
+
 import { AsyncLocalStorage } from 'async_hooks';
 
 export interface IRequestContext {

@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/domain/constants/auth.constants.spec.ts
+
 export const Permissoes = {
   // Usuários
   READ_USUARIOS: 'READ_USUARIOS',

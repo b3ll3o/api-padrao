@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/config/env.validation.spec.ts
+
 import * as Joi from 'joi';
 
 export const envValidationSchema = Joi.object({

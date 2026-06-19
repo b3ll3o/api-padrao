@@ -1,3 +1,8 @@
+// BDD: features/usuarios.feature
+// SDD: .openspec/changes/usuarios/design.md
+// ATDD: test/usuarios.e2e-spec.ts
+// TDD: src/usuarios/dto/create-usuario.dto.spec.ts
+
 import {
   IsEmail,
   IsString,

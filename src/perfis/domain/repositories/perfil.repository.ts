@@ -1,3 +1,8 @@
+// BDD: features/perfis.feature
+// SDD: .openspec/changes/perfis/design.md
+// ATDD: test/perfis.e2e-spec.ts
+// TDD: src/perfis/domain/repositories/perfil.repository.spec.ts
+
 import { Perfil } from '../entities/perfil.entity';
 import { CreatePerfilDto } from '../../dto/create-perfil.dto';
 import { UpdatePerfilDto } from '../../dto/update-perfil.dto';

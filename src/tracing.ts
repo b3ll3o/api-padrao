@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/tracing.spec.ts
+
 // src/tracing.ts
 
 import { NodeSDK } from '@opentelemetry/sdk-node';

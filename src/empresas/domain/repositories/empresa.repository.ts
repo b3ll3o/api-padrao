@@ -1,3 +1,8 @@
+// BDD: features/empresas.feature
+// SDD: .openspec/changes/empresas/design.md
+// ATDD: test/empresas.e2e-spec.ts
+// TDD: src/empresas/domain/repositories/empresa.repository.spec.ts
+
 import { Empresa } from '../entities/empresa.entity';
 import { CreateEmpresaDto } from '../../dto/create-empresa.dto';
 import { UpdateEmpresaDto } from '../../dto/update-empresa.dto';

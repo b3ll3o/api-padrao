@@ -1,3 +1,8 @@
+// BDD: features/usuarios.feature
+// SDD: .openspec/changes/usuarios/design.md
+// ATDD: test/usuarios.e2e-spec.ts
+// TDD: src/usuarios/dto/update-usuario.dto.spec.ts
+
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateUsuarioDto } from './create-usuario.dto';
 import { IsBoolean, IsOptional } from 'class-validator';

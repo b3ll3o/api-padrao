@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/prisma/prisma.service.spec.ts
+
 import {
   Injectable,
   OnModuleInit,

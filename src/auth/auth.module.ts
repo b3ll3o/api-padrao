@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/auth.module.spec.ts
+
 import { Module, forwardRef } from '@nestjs/common';
 import { AuthController } from './application/controllers/auth.controller';
 import { AuthService } from './application/services/auth.service';

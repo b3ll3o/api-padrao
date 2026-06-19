@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/application/guards/permissao.guard.spec.ts
+
 import {
   CanActivate,
   ExecutionContext,

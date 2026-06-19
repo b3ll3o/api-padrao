@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/infrastructure/health/health.controller.spec.ts
+
 import { Controller, Get } from '@nestjs/common';
 import {
   HealthCheckService,

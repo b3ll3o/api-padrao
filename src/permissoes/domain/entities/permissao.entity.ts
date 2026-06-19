@@ -1,3 +1,8 @@
+// BDD: features/permissoes.feature
+// SDD: .openspec/changes/permissoes/design.md
+// ATDD: test/permissoes.e2e-spec.ts
+// TDD: src/permissoes/domain/entities/permissao.entity.spec.ts
+
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseEntity } from '../../../shared/domain/entities/base.entity';
 

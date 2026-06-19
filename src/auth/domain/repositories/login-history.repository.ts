@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/domain/repositories/login-history.repository.spec.ts
+
 /**
  * Porta (interface) para registro do histórico de login.
  *

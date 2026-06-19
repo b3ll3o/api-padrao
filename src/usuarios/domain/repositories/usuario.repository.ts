@@ -1,3 +1,8 @@
+// BDD: features/usuarios.feature
+// SDD: .openspec/changes/usuarios/design.md
+// ATDD: test/usuarios.e2e-spec.ts
+// TDD: src/usuarios/domain/repositories/usuario.repository.spec.ts
+
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { Usuario } from '../entities/usuario.entity';

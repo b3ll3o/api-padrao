@@ -1,3 +1,8 @@
+// BDD: features/perfis.feature
+// SDD: .openspec/changes/perfis/design.md
+// ATDD: test/perfis.e2e-spec.ts
+// TDD: src/perfis/dto/create-perfil.dto.spec.ts
+
 import {
   IsString,
   IsNotEmpty,

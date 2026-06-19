@@ -1,3 +1,8 @@
+// BDD: features/usuarios.feature
+// SDD: .openspec/changes/usuarios/design.md
+// ATDD: test/usuarios.e2e-spec.ts
+// TDD: src/usuarios/usuarios.module.spec.ts
+
 import { Module, forwardRef } from '@nestjs/common';
 import { UsuariosService } from './application/services/usuarios.service';
 import { UsuariosController } from './application/controllers/usuarios.controller';

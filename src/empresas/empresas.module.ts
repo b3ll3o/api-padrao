@@ -1,3 +1,8 @@
+// BDD: features/empresas.feature
+// SDD: .openspec/changes/empresas/design.md
+// ATDD: test/empresas.e2e-spec.ts
+// TDD: src/empresas/empresas.module.spec.ts
+
 import { Module, forwardRef } from '@nestjs/common';
 import { EmpresasService } from './application/services/empresas.service';
 import { EmpresasController } from './application/controllers/empresas.controller';

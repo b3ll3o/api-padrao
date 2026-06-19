@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/domain/services/unit-of-work.service.spec.ts
+
 /**
  * Unit of Work — abstrai a transação atômica do banco.
  *

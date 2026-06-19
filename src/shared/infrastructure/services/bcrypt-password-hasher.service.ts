@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/infrastructure/services/bcrypt-password-hasher.service.spec.ts
+
 import { Injectable } from '@nestjs/common';
 import { PasswordHasher } from '../../domain/services/password-hasher.service';
 import * as bcrypt from 'bcrypt';

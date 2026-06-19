@@ -1,3 +1,8 @@
+// BDD: features/usuarios.feature
+// SDD: .openspec/changes/usuarios/design.md
+// ATDD: test/usuarios.e2e-spec.ts
+// TDD: src/usuarios/domain/entities/usuario-empresa.entity.spec.ts
+
 import { Empresa } from '../../../empresas/domain/entities/empresa.entity';
 import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
 

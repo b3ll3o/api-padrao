@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/prisma/prisma-extension.spec.ts
+
 import { Prisma } from '@prisma/client';
 import { contextStorage } from '../shared/infrastructure/services/context.storage';
 

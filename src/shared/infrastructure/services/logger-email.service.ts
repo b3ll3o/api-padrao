@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/infrastructure/services/logger-email.service.spec.ts
+
 import { Injectable, Logger } from '@nestjs/common';
 import {
   EmailMessage,

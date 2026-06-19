@@ -1,3 +1,8 @@
+// BDD: features/autenticacao.feature
+// SDD: .openspec/changes/auth/design.md
+// ATDD: test/auth.e2e-spec.ts
+// TDD: src/auth/domain/types/jwt-payload.spec.ts
+
 /**
  * Tipos compartilhados do payload JWT usado em `AuthService`,
  * `PermissaoGuard` e `AuditInterceptor` (camada de aplicação).

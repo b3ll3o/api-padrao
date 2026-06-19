@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/domain/entities/base.entity.spec.ts
+
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ISoftDelete } from './soft-delete.interface';
 

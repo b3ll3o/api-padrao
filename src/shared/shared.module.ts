@@ -1,3 +1,7 @@
+// BDD: N/A (cross-cutting / infraestrutura)
+// SDD: N/A
+// TDD: src/shared/shared.module.spec.ts
+
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PasswordHasher } from '../shared/domain/services/password-hasher.service';
