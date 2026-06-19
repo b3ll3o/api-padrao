@@ -38,19 +38,16 @@ describe('HealthController (e2e)', () => {
     await cleanDatabase(prisma);
   });
 
-  // ---- /health/live (apenas memória) ----
-  // Observação: o threshold de 150MB pode ser excedido em ambiente de
-  // teste (Jest + supertest + Prisma carregam memória). Aceitamos 200
-  // (ok) OU 503 (threshold excedido, mas endpoint respondendo).
-  // O que importa: o endpoint está público, roteado e responde.
+  // ---- /health/live (sinal "processo ativo") ----
+  // [HEALTH-001] Liveness não checa mais memória. Resposta esperada: 200
+  // enquanto o processo estiver rodando e o event loop não travado.
 
-  it('GET /health/live deve responder sem autenticação (rota pública)', async () => {
-    const response = await request(app.getHttpServer()).get('/health/live');
+  it('GET /health/live deve responder 200 sem autenticação (rota pública)', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/health/live')
+      .expect(200);
 
-    // 200 = healthy, 503 = memory threshold excedido, ambos válidos.
-    // O que NÃO pode acontecer: 401 (rota é pública).
-    expect([200, 503]).toContain(response.status);
-    expect(response.status).not.toBe(401);
+    expect(response.body).toHaveProperty('status', 'ok');
   });
 
   it('GET /health/live não deve exigir Authorization header (rota @Public())', async () => {

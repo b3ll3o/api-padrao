@@ -29,6 +29,8 @@ export default [
         crypto: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
+        setImmediate: 'readonly',
+        clearImmediate: 'readonly',
       },
       parserOptions: {
         project: './tsconfig.json',

@@ -1,10 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import {
   HealthCheckService,
-  HttpHealthIndicator,
   HealthCheck,
   PrismaHealthIndicator,
-  MemoryHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -16,13 +14,17 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 export class HealthController {
   constructor(
     private health: HealthCheckService,
-    private http: HttpHealthIndicator,
     private prismaIndicator: PrismaHealthIndicator,
     private prismaService: PrismaService,
-    private memory: MemoryHealthIndicator,
     private disk: DiskHealthIndicator,
   ) {}
 
+  // [HEALTH-001] Liveness deve ser um sinal "o processo está vivo?". Checar
+  // memória aqui faz com que o k8s mate pods **saudáveis** (150MB é baixo
+  // para uma API NestJS com Prisma em produção). Removido o checkHeap.
+  // A spec k8s define: liveness = processo responde; readiness = pode receber
+  // tráfego. Health check de memória é trabalho do Horizontal Pod Autoscaler
+  // ou do monitoring, não do livenessProbe.
   @Get('live')
   @Public()
   @HealthCheck()
@@ -30,10 +32,9 @@ export class HealthController {
     summary: 'Liveness probe - Verifica se o processo está ativo',
   })
   checkLiveness() {
-    // Verifica apenas recursos básicos do processo
-    return this.health.check([
-      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024), // Max 150MB
-    ]);
+    // Lista vazia: o @HealthCheck() apenas responde 200 enquanto o
+    // processo estiver rodando e o event loop não estiver travado.
+    return this.health.check([]);
   }
 
   @Get('ready')
@@ -45,19 +46,17 @@ export class HealthController {
   checkReadiness() {
     return this.health.check([
       () => this.prismaIndicator.pingCheck('database', this.prismaService),
-      // Verifica se há pelo menos 1GB de disco disponível na raiz
+      // Verifica se há pelo menos 10% de disco disponível na raiz
+      // (limite de 0.9 = usar no máximo 90% do disco)
       () =>
         this.disk.checkStorage('storage', { path: '/', thresholdPercent: 0.9 }),
     ]);
   }
 
-  @Get('network')
-  @Public()
-  @HealthCheck()
-  @ApiOperation({ summary: 'Verifica conectividade externa' })
-  checkNetwork() {
-    return this.health.check([
-      () => this.http.pingCheck('google', 'https://google.com'),
-    ]);
-  }
+  // [HEALTH-002] Removido `/health/network` que pingava Google. Em produção
+  // isso causa **cascading failure**: se a internet do provedor cair, o
+  // readinessProbe falha e o k8s tira todos os pods de rotação, mesmo
+  // estando o DB/Redis internos OK. Conectividade externa não é sinal
+  // de saúde do processo. O endpoint pode ser reintroduzido como
+  // ferramenta de diagnóstico manual (sem entrar na probe do k8s).
 }

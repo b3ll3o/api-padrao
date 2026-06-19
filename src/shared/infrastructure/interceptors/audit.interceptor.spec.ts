@@ -12,6 +12,11 @@ describe('AuditInterceptor', () => {
   let reflector: Reflector;
   let mockPrisma: { auditLog: { create: jest.Mock } };
 
+  // [PERF-002] Helper: aguarda o `setImmediate` (que desacopla a
+  // escrita do audit log do event loop da resposta) ser processado.
+  const flushImmediates = () =>
+    new Promise<void>((resolve) => setImmediate(resolve));
+
   const buildContext = (req: any): ExecutionContext =>
     ({
       switchToHttp: () => ({
@@ -50,19 +55,16 @@ describe('AuditInterceptor', () => {
     expect(interceptor).toBeInstanceOf(AuditInterceptor);
   });
 
-  it('NÃO deve logar quando não há @Auditar() no handler', (done) => {
+  it('NÃO deve logar quando não há @Auditar() no handler', async () => {
     // Sem metadata → passa direto
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
     const next: CallHandler = { handle: () => of({ id: 1 }) };
-    interceptor.intercept(buildContext({}), next).subscribe({
-      complete: () => {
-        expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
-        done();
-      },
-    });
+    interceptor.intercept(buildContext({}), next).subscribe();
+    await flushImmediates();
+    expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
   });
 
-  it('deve logar no Prisma após resposta bem-sucedida quando @Auditar() presente', (done) => {
+  it('deve logar no Prisma após resposta bem-sucedida quando @Auditar() presente', async () => {
     const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
 
@@ -77,26 +79,24 @@ describe('AuditInterceptor', () => {
     };
     const next: CallHandler = { handle: () => of({ id: 42 }) };
 
-    interceptor.intercept(buildContext(req), next).subscribe({
-      complete: () => {
-        expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
-          expect.objectContaining({
-            data: expect.objectContaining({
-              usuarioId: 1,
-              acao: 'CREATE',
-              recurso: 'usuario',
-              recursoId: '42', // data.id → string
-              ip: '127.0.0.1',
-              userAgent: 'jest',
-            }),
-          }),
-        );
-        done();
-      },
-    });
+    interceptor.intercept(buildContext(req), next).subscribe();
+    await flushImmediates();
+
+    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          usuarioId: 1,
+          acao: 'CREATE',
+          recurso: 'usuario',
+          recursoId: '42', // data.id → string
+          ip: '127.0.0.1',
+          userAgent: 'jest',
+        }),
+      }),
+    );
   });
 
-  it('deve sanitizar campos sensíveis no body (senha, password, token, secret)', (done) => {
+  it('deve sanitizar campos sensíveis no body (senha, password, token, secret)', async () => {
     const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
 
@@ -111,19 +111,47 @@ describe('AuditInterceptor', () => {
     };
     const next: CallHandler = { handle: () => of({ id: 1 }) };
 
-    interceptor.intercept(buildContext(req), next).subscribe({
-      complete: () => {
-        const call = mockPrisma.auditLog.create.mock.calls[0][0];
-        const detalhes = call.data.detalhes;
-        expect(detalhes.body.email).toBe('a@b.com');
-        expect(detalhes.body.senha).toBe('********');
-        expect(detalhes.body.refreshToken).toBe('********');
-        done();
-      },
-    });
+    interceptor.intercept(buildContext(req), next).subscribe();
+    await flushImmediates();
+
+    const call = mockPrisma.auditLog.create.mock.calls[0][0];
+    const detalhes = call.data.detalhes;
+    expect(detalhes.body.email).toBe('a@b.com');
+    expect(detalhes.body.senha).toBe('********');
+    expect(detalhes.body.refreshToken).toBe('********');
   });
 
-  it('deve usar params.id como recursoId quando data.id ausente', (done) => {
+  // [PERF-001] Match exato (Set lookup O(1)) em vez de substring. Campos
+  // como `tokenType` ou `userIdentifier` NÃO devem ser mascarados.
+  it('NÃO deve mascarar campos que apenas CONTÊM palavras sensíveis no nome (tokenType, userIdentifier)', async () => {
+    const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
+
+    const req = {
+      method: 'POST',
+      url: '/usuarios',
+      body: {
+        email: 'a@b.com',
+        tokenType: 'bearer',
+        userIdentifier: 'abc',
+      },
+      params: {},
+      ip: '127.0.0.1',
+      headers: {},
+      usuarioLogado: { sub: 1 },
+    };
+    const next: CallHandler = { handle: () => of({ id: 1 }) };
+
+    interceptor.intercept(buildContext(req), next).subscribe();
+    await flushImmediates();
+
+    const call = mockPrisma.auditLog.create.mock.calls[0][0];
+    const detalhes = call.data.detalhes;
+    expect(detalhes.body.tokenType).toBe('bearer');
+    expect(detalhes.body.userIdentifier).toBe('abc');
+  });
+
+  it('deve usar params.id como recursoId quando data.id ausente', async () => {
     const auditOptions = { acao: 'DELETE', recurso: 'usuario' };
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
 
@@ -138,19 +166,17 @@ describe('AuditInterceptor', () => {
     };
     const next: CallHandler = { handle: () => of({}) };
 
-    interceptor.intercept(buildContext(req), next).subscribe({
-      complete: () => {
-        expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
-          expect.objectContaining({
-            data: expect.objectContaining({ recursoId: '7' }),
-          }),
-        );
-        done();
-      },
-    });
+    interceptor.intercept(buildContext(req), next).subscribe();
+    await flushImmediates();
+
+    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ recursoId: '7' }),
+      }),
+    );
   });
 
-  it('NÃO deve propagar erro de auditoria (try/catch interno)', (done) => {
+  it('NÃO deve propagar erro de auditoria (catch interno)', async () => {
     const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
     mockPrisma.auditLog.create.mockRejectedValue(new Error('DB down'));
@@ -167,12 +193,14 @@ describe('AuditInterceptor', () => {
     const next: CallHandler = { handle: () => of({ id: 1 }) };
 
     // Não deve lançar — o catch interno silencia
-    interceptor.intercept(buildContext(req), next).subscribe({
-      complete: () => done(), // sucesso mesmo com audit falhando
-    });
+    interceptor.intercept(buildContext(req), next).subscribe();
+    // Aguarda o setImmediate e a rejeição do Promise serem processados
+    await flushImmediates();
+    // O create foi chamado (e falhou silenciosamente)
+    expect(mockPrisma.auditLog.create).toHaveBeenCalled();
   });
 
-  it('deve extrair usuarioId de request.user.userId (fallback)', (done) => {
+  it('deve extrair usuarioId de request.user.userId (fallback)', async () => {
     const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
 
@@ -187,15 +215,13 @@ describe('AuditInterceptor', () => {
     };
     const next: CallHandler = { handle: () => of({ id: 1 }) };
 
-    interceptor.intercept(buildContext(req), next).subscribe({
-      complete: () => {
-        expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
-          expect.objectContaining({
-            data: expect.objectContaining({ usuarioId: 99 }),
-          }),
-        );
-        done();
-      },
-    });
+    interceptor.intercept(buildContext(req), next).subscribe();
+    await flushImmediates();
+
+    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ usuarioId: 99 }),
+      }),
+    );
   });
 });

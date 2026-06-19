@@ -1,9 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   HealthCheckService,
-  HttpHealthIndicator,
   PrismaHealthIndicator,
-  MemoryHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
 import { Reflector } from '@nestjs/core';
@@ -18,9 +16,7 @@ describe('HealthController', () => {
   let reflector: Reflector;
 
   const mockHealth = { check: jest.fn() };
-  const mockHttp = { pingCheck: jest.fn() };
   const mockPrismaIndicator = { pingCheck: jest.fn() };
-  const mockMemory = { checkHeap: jest.fn() };
   const mockDisk = { checkStorage: jest.fn() };
   const mockPrisma = {};
 
@@ -29,9 +25,7 @@ describe('HealthController', () => {
       controllers: [HealthController],
       providers: [
         { provide: HealthCheckService, useValue: mockHealth },
-        { provide: HttpHealthIndicator, useValue: mockHttp },
         { provide: PrismaHealthIndicator, useValue: mockPrismaIndicator },
-        { provide: MemoryHealthIndicator, useValue: mockMemory },
         { provide: DiskHealthIndicator, useValue: mockDisk },
         { provide: PrismaService, useValue: mockPrisma },
       ],
@@ -50,17 +44,11 @@ describe('HealthController', () => {
       }
       return { status: 'ok', info: results, error: {}, details: results };
     });
-    mockMemory.checkHeap.mockReturnValue(() =>
-      Promise.resolve({ memory_heap: { status: 'up' } }),
-    );
     mockPrismaIndicator.pingCheck.mockReturnValue(() =>
       Promise.resolve({ database: { status: 'up' } }),
     );
     mockDisk.checkStorage.mockReturnValue(() =>
       Promise.resolve({ storage: { status: 'up' } }),
-    );
-    mockHttp.pingCheck.mockReturnValue(() =>
-      Promise.resolve({ google: { status: 'up' } }),
     );
   });
 
@@ -69,13 +57,12 @@ describe('HealthController', () => {
   });
 
   describe('checkLiveness', () => {
-    it('deve chamar health.check com check de heap de memória (limite 150MB)', async () => {
+    // [HEALTH-001] Liveness não checa mais memória — k8s iria matar
+    // pods saudáveis (150MB é baixo para NestJS+Prisma em prod).
+    it('deve chamar health.check com lista vazia (apenas sinaliza processo ativo)', async () => {
       const result = await controller.checkLiveness();
 
-      expect(mockMemory.checkHeap).toHaveBeenCalledWith(
-        'memory_heap',
-        150 * 1024 * 1024,
-      );
+      expect(mockHealth.check).toHaveBeenCalledWith([]);
       expect(result.status).toBe('ok');
     });
 
@@ -103,23 +90,6 @@ describe('HealthController', () => {
     it('deve ser @Public() (k8s readiness probe sem JWT)', () => {
       expect(
         reflector.get(IS_PUBLIC_KEY, HealthController.prototype.checkReadiness),
-      ).toBe(true);
-    });
-  });
-
-  describe('checkNetwork', () => {
-    it('deve chamar health.check com pingCheck HTTP para google.com', async () => {
-      await controller.checkNetwork();
-
-      expect(mockHttp.pingCheck).toHaveBeenCalledWith(
-        'google',
-        'https://google.com',
-      );
-    });
-
-    it('deve ser @Public()', () => {
-      expect(
-        reflector.get(IS_PUBLIC_KEY, HealthController.prototype.checkNetwork),
       ).toBe(true);
     });
   });

@@ -24,6 +24,18 @@ export class AuditInterceptor implements NestInterceptor {
     private prisma: PrismaService,
   ) {}
 
+  // [PERF-001] Conjunto EXATO de chaves sensíveis. Antes era match por
+  // substring (`key.includes('token')`), o que mascarava indevidamente
+  // campos legítimos como `tokenType`, `tokenVersion`, `userIdentifier`.
+  private static readonly SENSITIVE_KEYS = new Set([
+    'senha',
+    'password',
+    'token',
+    'secret',
+    'refreshtoken',
+    'accesstoken',
+  ]);
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const auditOptions = this.reflector.getAllAndOverride<AuditOptions>(
       AUDIT_KEY,
@@ -39,46 +51,54 @@ export class AuditInterceptor implements NestInterceptor {
     const { method, url, body, params, ip } = request;
     const userAgent = request.headers['user-agent'];
 
+    // [PERF-002] `setImmediate` descola a escrita do log do event loop da
+    // resposta HTTP. Sem isso, `await this.prisma.auditLog.create(...)`
+    // no `tap` mantém o request em vôo até o INSERT do log terminar —
+    // adiciona ~5-20ms em TODA request auditada (e.g. POST /usuarios).
+    // `setImmediate` é mais adequado que `setTimeout(0)` porque agenda
+    // no checkpoint do event loop, antes de timers e I/O.
     return next.handle().pipe(
-      tap(async (data: unknown) => {
-        try {
-          // [MED-002] `detalhes` é uma coluna JSON do Prisma — converter
-          // explicitamente para `Prisma.InputJsonValue` para satisfazer
-          // o tipo sem recorrer a `any`. `body: undefined` é
-          // intencionalmente aceito pelo `InputJsonValue` (chave
-          // opcional).
-          const detalhes: Prisma.InputJsonValue = {
+      tap((data: unknown) => {
+        // Snapshot imutável: nada aqui deve mudar entre o schedule e
+        // a execução do callback.
+        const payload: Prisma.AuditLogUncheckedCreateInput = {
+          usuarioId: (user?.userId || user?.sub) as number | undefined,
+          acao: auditOptions.acao,
+          recurso: auditOptions.recurso,
+          recursoId: params?.id || (data as { id?: unknown })?.id?.toString(),
+          detalhes: {
             method,
             url,
-            // Ocultamos senhas por segurança se estiverem no body
-            ...(body && { body: this.sanitizeBody(body) }),
-          };
-
-          await this.prisma.auditLog.create({
-            data: {
-              usuarioId: user?.userId || user?.sub,
-              acao: auditOptions.acao,
-              recurso: auditOptions.recurso,
-              recursoId:
-                params?.id || (data as { id?: unknown })?.id?.toString(),
-              detalhes,
-              ip,
-              userAgent,
-            },
+            // Ocultamos campos sensíveis por segurança se estiverem no body
+            ...(body && {
+              body: AuditInterceptor.sanitizeBody(
+                body as Record<string, unknown>,
+              ),
+            }),
+          } as Prisma.InputJsonValue,
+          ip,
+          userAgent,
+        };
+        setImmediate(() => {
+          this.prisma.auditLog.create({ data: payload }).catch(() => {
+            // [MED-002] Falha de auditoria NÃO propaga — auditoria é
+            // um efeito observacional, não parte do contrato da API.
+            this.logger.warn(
+              { event: 'audit.write_failed', acao: payload.acao },
+              'Falha ao salvar log de auditoria',
+            );
           });
-        } catch {
-          this.logger.warn('Falha ao salvar log de auditoria');
-        }
+        });
       }),
     );
   }
 
-  private sanitizeBody(body: Record<string, unknown>): Record<string, unknown> {
+  private static sanitizeBody(
+    body: Record<string, unknown>,
+  ): Record<string, unknown> {
     const sanitized: Record<string, unknown> = { ...body };
-    const sensitiveKeys = ['senha', 'password', 'token', 'secret'];
-
     for (const key of Object.keys(sanitized)) {
-      if (sensitiveKeys.some((k) => key.toLowerCase().includes(k))) {
+      if (AuditInterceptor.SENSITIVE_KEYS.has(key.toLowerCase())) {
         sanitized[key] = '********';
       }
     }
