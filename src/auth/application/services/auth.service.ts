@@ -9,6 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+import { createHash } from 'crypto';
 import { LoginUsuarioDto } from '../../dto/login-usuario.dto';
 import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
@@ -20,6 +21,15 @@ import {
   EmpresaJwtPayload,
   JwtAccessTokenPayload,
 } from '../../domain/types/jwt-payload';
+
+/**
+ * [SEC-001] SHA-256 do token bruto é a forma persistida no DB.
+ * O token bruto continua sendo retornado ao cliente (cookie/resposta),
+ * mas o `RefreshTokenRepository` armazena apenas o hash — defesa contra
+ * dump da tabela expor tokens válidos.
+ */
+const hashRefreshToken = (rawToken: string): string =>
+  createHash('sha256').update(rawToken).digest('hex');
 
 /**
  * `AuthService` (camada Application) — orquestra autenticação e refresh
@@ -162,9 +172,9 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
-    // Persiste refresh token via porta — antes era `prisma.refreshToken.create`
+    // [SEC-001] Persiste o HASH do token, não o token bruto.
     await this.refreshTokenRepository.create({
-      token: refreshTokenValue,
+      tokenHash: hashRefreshToken(refreshTokenValue),
       userId,
       expiresAt,
     });
@@ -176,10 +186,11 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string) {
-    // Inclui user + empresas + perfis + permissoes via porta — antes era
-    // `prisma.refreshToken.findUnique({ include: ... })` inline.
-    const tokenRecord =
-      await this.refreshTokenRepository.findByTokenWithUser(refreshToken);
+    // [SEC-001] Lookup pelo HASH — nunca pelo token bruto. Tokens em
+    // plaintext não existem no DB.
+    const tokenRecord = await this.refreshTokenRepository.findByTokenWithUser(
+      hashRefreshToken(refreshToken),
+    );
 
     if (!tokenRecord) {
       this.logger.warn(

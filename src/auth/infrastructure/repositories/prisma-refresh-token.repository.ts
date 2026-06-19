@@ -11,6 +11,10 @@ import {
  * A query `findByTokenWithUser` usa o mesmo `include` aninhado que existia
  * inline no `AuthService.refreshTokens` — centralizado aqui para que
  * `AuthService` não precise conhecer o schema do Prisma.
+ *
+ * [SEC-001] Persistimos apenas o **hash SHA-256** do token (`tokenHash`).
+ * O token bruto nunca toca o DB — defesa contra dump da tabela
+ * expor todos os refresh tokens ativos.
  */
 // BDD: features/autenticacao.feature:Funcionalidade: Autenticação
 @Injectable()
@@ -20,13 +24,13 @@ export class PrismaRefreshTokenRepository extends RefreshTokenRepository {
   }
 
   async create(data: {
-    token: string;
+    tokenHash: string;
     userId: number;
     expiresAt: Date;
   }): Promise<void> {
     await this.prisma.refreshToken.create({
       data: {
-        token: data.token,
+        tokenHash: data.tokenHash,
         userId: data.userId,
         expiresAt: data.expiresAt,
       },
@@ -34,10 +38,10 @@ export class PrismaRefreshTokenRepository extends RefreshTokenRepository {
   }
 
   async findByTokenWithUser(
-    token: string,
+    tokenHash: string,
   ): Promise<RefreshTokenWithUser | null> {
     const record = await this.prisma.refreshToken.findUnique({
-      where: { token },
+      where: { tokenHash },
       include: {
         user: {
           select: {
@@ -73,7 +77,7 @@ export class PrismaRefreshTokenRepository extends RefreshTokenRepository {
 
     return {
       id: record.id,
-      token: record.token,
+      tokenHash: record.tokenHash,
       userId: record.userId,
       expiresAt: record.expiresAt,
       revokedAt: record.revokedAt,

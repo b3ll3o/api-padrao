@@ -164,6 +164,14 @@ describe('UsuariosController (e2e)', () => {
       codigo: 'READ_USUARIO_EMPRESAS',
       descricao: 'Permissão para ler empresas de um usuário',
     });
+    // [SEC-002] Após remoção do @Public() do POST /usuarios, o admin
+    // precisa explicitamente desta permissão. Coberto em prod pelo
+    // seed do perfil ADMIN.
+    const createUsuarioPerm = await findOrCreatePermissao(prisma, {
+      nome: 'create:usuario',
+      codigo: 'CREATE_USUARIO',
+      descricao: 'Permissão para criar usuários',
+    });
 
     // Criar um usuário responsável para a empresa global
     const responsavel = await prisma.usuario.create({
@@ -193,6 +201,7 @@ describe('UsuariosController (e2e)', () => {
           { id: deleteUsuarioPerm.id },
           { id: updateUsuarioPerm.id },
           { id: readUsuarioEmpresasPerm.id },
+          { id: createUsuarioPerm.id },
         ],
       },
     });
@@ -258,6 +267,16 @@ describe('UsuariosController (e2e)', () => {
   });
 
   describe('POST /usuarios', () => {
+    // [SEC-002] Rota agora exige auth + CREATE_USUARIO. Helper envia
+    // o Bearer token do admin E o header `x-empresa-id` exigido pelo
+    // PermissaoGuard.
+    const authedPost = (url: string, body: object) =>
+      supertestRequest(app.getHttpServer())
+        .post(url)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
+        .send(body);
+
     // BDD: features/usuarios.feature:Cenário: Criar usuário com dados válidos
     it('deve criar um usuário e retornar 201', () => {
       const createUserDto = {
@@ -265,9 +284,7 @@ describe('UsuariosController (e2e)', () => {
         senha: 'Password123!',
       };
 
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
+      return authedPost('/usuarios', createUserDto)
         .expect(201)
         .then((res) => {
           expect(res.body).toEqual({
@@ -293,30 +310,21 @@ describe('UsuariosController (e2e)', () => {
       await prisma.usuario.create({ data: createUserDto });
 
       // Tentar criar o segundo usuário com o mesmo email
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
-        .expect(409);
+      return authedPost('/usuarios', createUserDto).expect(409);
     });
 
     // BDD: features/usuarios.feature:Cenário: Criar usuário com e-mail inválido
     it('deve retornar 400 se o email for inválido', () => {
       const createUserDto = { email: 'invalid-email', senha: 'Password123!' };
 
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
-        .expect(400);
+      return authedPost('/usuarios', createUserDto).expect(400);
     });
 
     // BDD: features/usuarios.feature:Cenário: Criar usuário com senha curta
     it('deve retornar 400 se a senha for muito curta', () => {
       const createUserDto = { email: 'test@example.com', senha: '123' };
 
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
-        .expect(400);
+      return authedPost('/usuarios', createUserDto).expect(400);
     });
 
     // BDD: features/usuarios.feature:Cenário: Criar usuário com senha fraca - sem maiúscula
@@ -326,18 +334,13 @@ describe('UsuariosController (e2e)', () => {
         senha: 'password',
       };
 
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
-        .expect(400);
+      return authedPost('/usuarios', createUserDto).expect(400);
     });
 
     // BDD: features/usuarios.feature:Cenário: Criar usuário com e-mail inválido (variação sem email)
     it('deve retornar 400 se o email estiver faltando', () => {
       const createUserDto = { senha: 'Password123!' };
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
+      return authedPost('/usuarios', createUserDto)
         .expect(400)
         .expect((res) => {
           expect(res.body.message).toContain('E-mail inválido'); // Changed expected message
@@ -347,9 +350,7 @@ describe('UsuariosController (e2e)', () => {
     // BDD: features/usuarios.feature:Cenário: Criar usuário com senha curta (variação sem senha)
     it('deve retornar 400 se a senha estiver faltando', () => {
       const createUserDto = { email: 'missing_password@example.com' };
-      return supertestRequest(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
+      return authedPost('/usuarios', createUserDto)
         .expect(400)
         .expect((res) => {
           expect(res.body.message).toContain('A senha não pode ser vazia');

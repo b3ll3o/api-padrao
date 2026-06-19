@@ -236,11 +236,15 @@ describe('AuthController (e2e) - Password Recovery', () => {
         },
       });
 
-      // Emite um refresh token manualmente (simulando login prévio)
+      // Emite um refresh token manualmente (simulando login prévio).
+      // [SEC-001] A coluna `tokenHash` armazena o SHA-256 do token,
+      // nunca o token bruto.
       const oldRefresh = await prisma.refreshToken.create({
         data: {
           userId: user.id,
-          token: 'old-refresh-token-1',
+          tokenHash: createHash('sha256')
+            .update('old-refresh-token-1')
+            .digest('hex'),
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           revokedAt: null,
         },
@@ -248,7 +252,9 @@ describe('AuthController (e2e) - Password Recovery', () => {
       const otherRefresh = await prisma.refreshToken.create({
         data: {
           userId: user.id,
-          token: 'old-refresh-token-2',
+          tokenHash: createHash('sha256')
+            .update('old-refresh-token-2')
+            .digest('hex'),
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           revokedAt: null,
         },

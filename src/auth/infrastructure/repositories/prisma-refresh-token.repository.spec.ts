@@ -27,12 +27,12 @@ describe('PrismaRefreshTokenRepository', () => {
   });
 
   describe('create', () => {
-    it('persiste o token com token/userId/expiresAt', async () => {
+    it('persiste o tokenHash com userId/expiresAt', async () => {
       prisma.refreshToken.create.mockResolvedValue({});
       const expiresAt = new Date('2026-12-31T00:00:00Z');
-      await repo.create({ token: 't-1', userId: 42, expiresAt });
+      await repo.create({ tokenHash: 'hash-1', userId: 42, expiresAt });
       expect(prisma.refreshToken.create).toHaveBeenCalledWith({
-        data: { token: 't-1', userId: 42, expiresAt },
+        data: { tokenHash: 'hash-1', userId: 42, expiresAt },
       });
     });
   });
@@ -41,7 +41,7 @@ describe('PrismaRefreshTokenRepository', () => {
     it('mapeia o resultado do Prisma para o formato do domínio', async () => {
       const record = {
         id: 'rt-1',
-        token: 't-1',
+        tokenHash: 'hash-1',
         userId: 1,
         expiresAt: new Date('2026-12-31T00:00:00Z'),
         revokedAt: null,
@@ -73,11 +73,11 @@ describe('PrismaRefreshTokenRepository', () => {
       };
       prisma.refreshToken.findUnique.mockResolvedValue(record);
 
-      const result = await repo.findByTokenWithUser('t-1');
+      const result = await repo.findByTokenWithUser('hash-1');
 
       expect(result).toEqual({
         id: 'rt-1',
-        token: 't-1',
+        tokenHash: 'hash-1',
         userId: 1,
         expiresAt: record.expiresAt,
         revokedAt: null,
@@ -108,7 +108,7 @@ describe('PrismaRefreshTokenRepository', () => {
         },
       });
       expect(prisma.refreshToken.findUnique).toHaveBeenCalledWith({
-        where: { token: 't-1' },
+        where: { tokenHash: 'hash-1' },
         include: expect.objectContaining({
           user: expect.objectContaining({
             select: expect.objectContaining({ id: true, email: true }),
@@ -117,7 +117,7 @@ describe('PrismaRefreshTokenRepository', () => {
       });
     });
 
-    it('retorna null quando o token não existe', async () => {
+    it('retorna null quando o hash não existe', async () => {
       prisma.refreshToken.findUnique.mockResolvedValue(null);
       await expect(repo.findByTokenWithUser('missing')).resolves.toBeNull();
     });

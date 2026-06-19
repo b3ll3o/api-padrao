@@ -18,7 +18,6 @@ import {
   ApiHeader,
 } from '@nestjs/swagger';
 import { TemPermissao } from '../../../auth/application/decorators/temPermissao.decorator';
-import { Public } from '../../../auth/application/decorators/public.decorator';
 import { Usuario } from 'src/usuarios/domain/entities/usuario.entity';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
@@ -44,8 +43,12 @@ export class UsuariosController {
     private readonly empresasService: EmpresasService,
   ) {}
 
-  @Public()
+  // [SEC-002] Removido `@Public()`: criação de usuários exige auth + permissão
+  // explícita (CREATE_USUARIO). Sem isso, qualquer cliente anônimo poderia
+  // popular a base (mass account creation / DoS) e ainda escapar do rate
+  // limit sensível aplicado às demais rotas autenticadas.
   @Post()
+  @TemPermissao(Permissoes.CREATE_USUARIO)
   @Auditar({ acao: 'CRIAR', recurso: 'USUARIO' })
   @ApiOperation({ summary: 'Cria um novo usuário' })
   @ApiResponse({ status: 201, description: 'Usuário criado com sucesso.' })

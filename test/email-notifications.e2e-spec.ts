@@ -149,6 +149,49 @@ describe('EmailNotifications (e2e) - SDD: design.md:REQ-EM-01..10, REQ-EM-N01..0
   });
 
   /**
+   * [SEC-002] Como POST /usuarios agora exige auth + permissão
+   * CREATE_USUARIO, criamos um admin com essa permissão e emitimos
+   * um JWT para uso nos testes. O `x-empresa-id` é obrigatório no
+   * PermissaoGuard.
+   */
+  async function criarAdminComPermissoes(
+    empresaId: string,
+    perfilId: number,
+    permissoesCodigos: string[],
+  ) {
+    const bcrypt = await import('bcrypt');
+    const adminUser = await prisma.usuario.create({
+      data: {
+        email: 'admin@empresa.com',
+        senha: await bcrypt.hash('AdminPass123!', 10),
+      },
+    });
+    await prisma.usuarioEmpresa.create({
+      data: {
+        usuarioId: adminUser.id,
+        empresaId,
+        perfis: { connect: [{ id: perfilId }] },
+      },
+    });
+    const jwtService = app.get(JwtService);
+    return jwtService.sign({
+      sub: adminUser.id,
+      email: adminUser.email,
+      empresas: [
+        {
+          id: empresaId,
+          perfis: [
+            {
+              codigo: 'ADMIN',
+              permissoes: permissoesCodigos.map((c) => ({ codigo: c })),
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  /**
    * Substitui o EMAIL_SERVICE registrado no container por um mock que
    * registra todas as chamadas em `emailSpy`. Usado para validar que
    * `EmailSenderService` delega corretamente ao port.
@@ -237,11 +280,41 @@ describe('EmailNotifications (e2e) - SDD: design.md:REQ-EM-01..10, REQ-EM-N01..0
   // REQ-EM-02 (welcome) + REQ-EM-07 (não bloqueia)
   // ============================================================
   describe('POST /usuarios', () => {
+    // [SEC-002] Helper: cria empresa + admin com CREATE_USUARIO e
+    // devolve headers (Authorization + x-empresa-id) para os testes
+    // chamarem POST /usuarios com sucesso.
+    async function adminAuthHeaders(): Promise<{
+      auth: string;
+      empresaId: string;
+    }> {
+      const { empresa, perfilAdmin } = await setupFixtures();
+      const permissao = await prisma.permissao.upsert({
+        where: { nome: 'create:usuario' },
+        update: {},
+        create: {
+          nome: 'create:usuario',
+          codigo: 'CREATE_USUARIO',
+          descricao: 'Permissão para criar usuários',
+        },
+      });
+      await prisma.perfil.update({
+        where: { id: perfilAdmin.id },
+        data: { permissoes: { connect: [{ id: permissao.id }] } },
+      });
+      const token = await criarAdminComPermissoes(empresa.id, perfilAdmin.id, [
+        'CREATE_USUARIO',
+      ]);
+      return { auth: `Bearer ${token}`, empresaId: empresa.id };
+    }
+
     // BDD: features/email-notifications.feature:Cenário: E-mail de boas-vindas enviado ao criar usuário
     // AC-EM-01
     it('AC-EM-01: deve disparar emailSender.send com template usuarios.welcome após criar usuário', async () => {
+      const { auth, empresaId } = await adminAuthHeaders();
       const response = await request(app.getHttpServer())
         .post('/usuarios')
+        .set('Authorization', auth)
+        .set('x-empresa-id', empresaId)
         .send({
           email: 'novo.usuario@empresa.com',
           senha: 'SenhaForte123!',
@@ -266,6 +339,7 @@ describe('EmailNotifications (e2e) - SDD: design.md:REQ-EM-01..10, REQ-EM-N01..0
     // BDD: features/email-notifications.feature:Cenário: Falha no envio NÃO bloqueia a request
     // AC-EM-06
     it('AC-EM-06: deve retornar 201 mesmo quando emailService.send() lança exceção', async () => {
+      const { auth, empresaId } = await adminAuthHeaders();
       // Forçar falha no adapter
       emailSpy.mockRejectedValue(new Error('SMTP down'));
 
@@ -276,6 +350,8 @@ describe('EmailNotifications (e2e) - SDD: design.md:REQ-EM-01..10, REQ-EM-N01..0
 
       const response = await request(app.getHttpServer())
         .post('/usuarios')
+        .set('Authorization', auth)
+        .set('x-empresa-id', empresaId)
         .send({ email: 'novo3@empresa.com', senha: 'SenhaForte123!' })
         .expect(201);
 

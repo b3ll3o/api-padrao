@@ -13,7 +13,11 @@
  */
 export interface RefreshTokenWithUser {
   id: string;
-  token: string;
+  // [SEC-001] `tokenHash` em vez de `token` bruto — o repositório
+  // armazena apenas o hash SHA-256 do token. O cliente continua
+  // recebendo o token bruto no login; o hash é apenas a forma de
+  // lookup no DB (defesa contra dump da tabela).
+  tokenHash: string;
   userId: number;
   expiresAt: Date;
   revokedAt: Date | null;
@@ -41,21 +45,22 @@ export interface RefreshTokenWithUser {
 export abstract class RefreshTokenRepository {
   /**
    * Persiste um novo refresh token opaco.
-   * @param data `{ token, userId, expiresAt }`
+   * @param data `{ tokenHash, userId, expiresAt }` — `tokenHash` é
+   *   SHA-256(token bruto) calculado pelo serviço chamador.
    */
   abstract create(data: {
-    token: string;
+    tokenHash: string;
     userId: number;
     expiresAt: Date;
   }): Promise<void>;
 
   /**
-   * Busca por valor bruto, **incluindo o `user` e suas `empresas.perfis.permissoes`**
-   * (necessário para re-emitir access token após rotação).
-   * Retorna `null` se o token não existir.
+   * Busca pelo **hash** do token (SHA-256), incluindo o `user` e suas
+   * `empresas.perfis.permissoes` (necessário para re-emitir access
+   * token após rotação). Retorna `null` se o hash não existir.
    */
   abstract findByTokenWithUser(
-    token: string,
+    tokenHash: string,
   ): Promise<RefreshTokenWithUser | null>;
 
   /** Revoga o token específico (rotação). */

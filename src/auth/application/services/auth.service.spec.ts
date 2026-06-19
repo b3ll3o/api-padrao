@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
 import { Usuario } from '../../../usuarios/domain/entities/usuario.entity';
 import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
@@ -12,6 +13,10 @@ import { ConfigService } from '@nestjs/config';
 import { RefreshTokenRepository } from '../../domain/repositories/refresh-token.repository';
 import { LoginHistoryRepository } from '../../domain/repositories/login-history.repository';
 import { LoginAttemptTracker } from '../../domain/services/login-attempt-tracker.service';
+
+/** [SEC-001] Helper — mesmo cálculo que `auth.service.ts` faz internamente. */
+const hashRefreshToken = (raw: string): string =>
+  createHash('sha256').update(raw).digest('hex');
 
 /**
  * Testes do AuthService.
@@ -369,9 +374,12 @@ describe('AuthService', () => {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 1);
 
+      // [SEC-001] O repositório recebe/retorna HASH, não o token bruto.
+      const oldToken = 'old-token';
+      const oldHash = hashRefreshToken(oldToken);
       mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
         id: '1',
-        token: 'old-token',
+        tokenHash: oldHash,
         userId: 1,
         expiresAt,
         revokedAt: null,
@@ -384,17 +392,21 @@ describe('AuthService', () => {
       mockRefreshTokenRepository.revoke.mockResolvedValue(undefined);
       mockRefreshTokenRepository.create.mockResolvedValue(undefined);
 
-      const result = await service.refreshTokens('old-token');
+      const result = await service.refreshTokens(oldToken);
 
       expect(result).toHaveProperty('access_token');
       expect(result).toHaveProperty('refresh_token');
+      expect(
+        mockRefreshTokenRepository.findByTokenWithUser,
+      ).toHaveBeenCalledWith(oldHash);
       expect(mockRefreshTokenRepository.revoke).toHaveBeenCalledWith('1');
     });
 
     it('deve lançar ForbiddenException e revogar tudo se o token já foi usado (detecção de reuso)', async () => {
+      const stolenToken = 'stolen-token';
       mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
         id: '1',
-        token: 'stolen-token',
+        tokenHash: hashRefreshToken(stolenToken),
         userId: 1,
         expiresAt: new Date(Date.now() + 1000 * 60 * 60),
         revokedAt: new Date(),
@@ -406,7 +418,7 @@ describe('AuthService', () => {
       });
       mockRefreshTokenRepository.revokeAllForUser.mockResolvedValue(undefined);
 
-      await expect(service.refreshTokens('stolen-token')).rejects.toThrow(
+      await expect(service.refreshTokens(stolenToken)).rejects.toThrow(
         ForbiddenException,
       );
       expect(mockRefreshTokenRepository.revokeAllForUser).toHaveBeenCalledWith(
@@ -424,16 +436,17 @@ describe('AuthService', () => {
     });
 
     it('deve lançar UnauthorizedException quando o token está expirado', async () => {
+      const expiredToken = 'expired-token';
       mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
         id: '1',
-        token: 'expired-token',
+        tokenHash: hashRefreshToken(expiredToken),
         userId: 1,
         expiresAt: new Date(Date.now() - 1000), // expirado
         revokedAt: null,
         user: { id: 1, email: 'x@x.com', empresas: [] },
       });
 
-      await expect(service.refreshTokens('expired-token')).rejects.toThrow(
+      await expect(service.refreshTokens(expiredToken)).rejects.toThrow(
         UnauthorizedException,
       );
       expect(mockRefreshTokenRepository.revoke).not.toHaveBeenCalled();
@@ -443,9 +456,10 @@ describe('AuthService', () => {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 1);
 
+      const oldToken = 'old-token';
       mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
         id: '1',
-        token: 'old-token',
+        tokenHash: hashRefreshToken(oldToken),
         userId: 1,
         expiresAt,
         revokedAt: null,
@@ -458,7 +472,7 @@ describe('AuthService', () => {
       mockRefreshTokenRepository.revoke.mockResolvedValue(undefined);
       mockRefreshTokenRepository.create.mockResolvedValue(undefined);
 
-      const result = await service.refreshTokens('old-token');
+      const result = await service.refreshTokens(oldToken);
 
       expect(result.access_token).toEqual(expect.any(String));
       expect(result.access_token.length).toBeGreaterThan(0);
@@ -470,9 +484,10 @@ describe('AuthService', () => {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 1);
 
+      const oldToken = 'old-token';
       mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
         id: '1',
-        token: 'old-token',
+        tokenHash: hashRefreshToken(oldToken),
         userId: 1,
         expiresAt,
         revokedAt: null,
@@ -485,7 +500,7 @@ describe('AuthService', () => {
       mockRefreshTokenRepository.revoke.mockResolvedValue(undefined);
       mockRefreshTokenRepository.create.mockResolvedValue(undefined);
 
-      const result = await service.refreshTokens('old-token');
+      const result = await service.refreshTokens(oldToken);
 
       expect(result.access_token).toEqual(expect.any(String));
       expect(result.access_token.length).toBeGreaterThan(0);
@@ -576,6 +591,23 @@ describe('AuthService', () => {
       const upper = after + expectedMs + 1000;
       expect(expiresAt.getTime()).toBeGreaterThanOrEqual(lower);
       expect(expiresAt.getTime()).toBeLessThanOrEqual(upper);
+    });
+
+    // [SEC-001] Persistimos o HASH, não o token bruto.
+    it('deve persistir SHA-256 do refresh token (nao o token bruto)', async () => {
+      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+
+      const result = await service.generateTokens(1, 'user@e.com', []);
+
+      const createCall = (
+        mockRefreshTokenRepository.create.mock.calls[0] as any[]
+      )[0];
+      // create recebe `tokenHash` (hex de 64 chars), nunca `token`.
+      expect(createCall.tokenHash).toEqual(
+        createHash('sha256').update(result.refresh_token).digest('hex'),
+      );
+      expect(createCall.tokenHash).not.toEqual(result.refresh_token);
+      expect(createCall).not.toHaveProperty('token');
     });
 
     it('deve passar expiresIn undefined ao jwtService.sign quando JWT_ACCESS_EXPIRES_IN nao esta configurado', async () => {

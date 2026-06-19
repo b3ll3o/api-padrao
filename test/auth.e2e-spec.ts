@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import * as bcrypt from 'bcrypt';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -9,6 +10,21 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { cleanDatabase } from './e2e-utils';
+
+// [SEC-002] POST /usuarios agora exige auth + CREATE_USUARIO. Para os
+// testes de AuthController criamos o usuário direto via Prisma — o
+// escopo aqui é o fluxo de login, não a criação de usuários.
+async function criarUsuario(
+  prisma: PrismaService,
+  data: { email: string; senha: string },
+) {
+  return prisma.usuario.create({
+    data: {
+      email: data.email,
+      senha: await bcrypt.hash(data.senha, 10),
+    },
+  });
+}
 
 describe('AuthController (e2e)', () => {
   let app: NestFastifyApplication;
@@ -61,10 +77,7 @@ describe('AuthController (e2e)', () => {
         senha: 'Password123!',
       };
 
-      await request(app.getHttpServer())
-        .post('/usuarios')
-        .send(createUserDto)
-        .expect(201);
+      await criarUsuario(prisma, createUserDto);
 
       const loginDto = {
         email: 'test@example.com',
@@ -176,10 +189,10 @@ describe('AuthController (e2e)', () => {
   describe('POST /auth/refresh', () => {
     // BDD: features/autenticacao.feature:Cenário: Renovar tokens com refresh token válido
     it('deve renovar access_token e refresh_token com refresh token válido', async () => {
-      await request(app.getHttpServer())
-        .post('/usuarios')
-        .send({ email: 'refresh@example.com', senha: 'Password123!' })
-        .expect(201);
+      await criarUsuario(prisma, {
+        email: 'refresh@example.com',
+        senha: 'Password123!',
+      });
 
       const loginRes = await request(app.getHttpServer())
         .post('/auth/login')
@@ -209,10 +222,10 @@ describe('AuthController (e2e)', () => {
 
     // BDD: features/autenticacao.feature:Cenário: Detecção de reuso de refresh token
     it('deve retornar 403 e revogar todos os tokens do usuário ao detectar reuso', async () => {
-      await request(app.getHttpServer())
-        .post('/usuarios')
-        .send({ email: 'reuse@example.com', senha: 'Password123!' })
-        .expect(201);
+      await criarUsuario(prisma, {
+        email: 'reuse@example.com',
+        senha: 'Password123!',
+      });
 
       const loginRes = await request(app.getHttpServer())
         .post('/auth/login')
@@ -238,12 +251,12 @@ describe('AuthController (e2e)', () => {
   describe('POST /auth/login (multi-tenant e lockout)', () => {
     // BDD: features/autenticacao.feature:Cenário: Login com múltiplas empresas
     it('deve incluir todas as empresas do usuário (com perfis e permissões) no JWT', async () => {
-      // Cria usuário via API
-      const userRes = await request(app.getHttpServer())
-        .post('/usuarios')
-        .send({ email: 'multi@example.com', senha: 'Password123!' })
-        .expect(201);
-      const usuarioId = userRes.body.id;
+      // Cria usuário direto via Prisma (escopo: login, não criação de usuário)
+      const user = await criarUsuario(prisma, {
+        email: 'multi@example.com',
+        senha: 'Password123!',
+      });
+      const usuarioId = user.id;
 
       // Setup multi-tenant direto via Prisma (a API de empresas exige
       // permissão CREATE_EMPRESA + token, fora do escopo deste teste)
@@ -312,10 +325,7 @@ describe('AuthController (e2e)', () => {
     // BDD: features/autenticacao.feature:Cenário: Bloqueio após N tentativas inválidas
     it('deve bloquear a conta após 5 tentativas inválidas (retornar 429)', async () => {
       const email = 'lockout@example.com';
-      await request(app.getHttpServer())
-        .post('/usuarios')
-        .send({ email, senha: 'Password123!' })
-        .expect(201);
+      await criarUsuario(prisma, { email, senha: 'Password123!' });
 
       // 5 tentativas inválidas — todas retornam 401
       for (let i = 0; i < 5; i++) {

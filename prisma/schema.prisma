@@ -73,7 +73,13 @@ model LoginHistory {
 
 model RefreshToken {
   id        String    @id @default(uuid())
-  token     String    @unique
+  // [SEC-001] `tokenHash` armazena SHA-256(token) em vez do token bruto.
+  // Persistir o token em plaintext é um data breach de uma decisão — um
+  // dump da tabela entrega todos os refresh tokens ativos e permite
+  // hijack de sessão. O cliente continua recebendo o token bruto no
+  // login; o hash é apenas a forma de lookup no DB.
+  // Segue o mesmo padrão de `PasswordResetToken.tokenHash`.
+  tokenHash String    @unique
   userId    Int
   user      Usuario   @relation(fields: [userId], references: [id])
   expiresAt DateTime

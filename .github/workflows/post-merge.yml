@@ -21,6 +21,10 @@ jobs:
   integration:
     name: Integration (validate)
     runs-on: ubuntu-latest
+    # [TIMEOUT-001] Cap em 45 min — `npm run validate` é a junção de
+    # lint+build+test+test:e2e. Histórico: ~12 min, com folga para
+    # picos de carga no runner compartilhado do GitHub.
+    timeout-minutes: 45
     permissions:
       contents: read
     services:
@@ -76,6 +80,8 @@ jobs:
   coverage:
     name: Coverage gate
     runs-on: ubuntu-latest
+    # [TIMEOUT-001] Cap em 30 min — coverage + e2e roda em sequência.
+    timeout-minutes: 30
     permissions:
       contents: read
     services:
@@ -132,6 +138,9 @@ jobs:
   dependency-audit:
     name: Dependency audit
     runs-on: ubuntu-latest
+    # [TIMEOUT-001] Cap em 15 min — `npm audit` + `npm outdated --long`
+    # (long pode varrer todo o registry).
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
