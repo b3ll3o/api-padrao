@@ -36,6 +36,7 @@ import { TenantThrottlerGuard } from './shared/infrastructure/throttling/tenant-
 import { CacheControlMiddleware } from './shared/infrastructure/middleware/cache-control.middleware';
 import { MetricsModule } from './shared/infrastructure/metrics/metrics.module';
 import { HttpMetricsInterceptor } from './shared/infrastructure/metrics/http-metrics.interceptor';
+import { QueuesModule } from './shared/infrastructure/queues/queues.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { HttpMetricsInterceptor } from './shared/infrastructure/metrics/http-met
     HealthModule,
     SharedModule,
     MetricsModule,
+    QueuesModule,
     // [MED-005] Throttler com storage Redis para escalar em multi-instância.
     // Antes: in-memory → atacante podia bater `limit×N` distribuindo
     // requests entre instâncias. Agora todos compartilham o mesmo
