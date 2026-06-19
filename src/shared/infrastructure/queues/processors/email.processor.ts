@@ -13,10 +13,13 @@
 // - Retry: falhas (SMTP down, timeout) são retentadas com backoff
 //   sem afetar a UX (que já recebeu 202 Accepted)
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { EMAIL_QUEUE } from '../queue.constants';
-import { EmailSenderService } from '../../../application/services/email-sender.service';
+import {
+  EmailSenderService,
+  EMAIL_SENDER_SERVICE,
+} from '../../../application/services/email-sender.service';
 
 export interface EmailJobData {
   templateId: string;
@@ -28,7 +31,10 @@ export interface EmailJobData {
 export class EmailProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailProcessor.name);
 
-  constructor(private readonly emailSender: EmailSenderService) {
+  constructor(
+    @Inject(EMAIL_SENDER_SERVICE)
+    private readonly emailSender: EmailSenderService,
+  ) {
     super();
   }
 
