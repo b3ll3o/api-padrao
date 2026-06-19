@@ -409,7 +409,6 @@ describe('EmpresasController (e2e)', () => {
         include: { perfis: true },
       });
 
-      expect(link).toBeDefined();
       expect(link?.perfis).toHaveLength(1);
       expect(link?.perfis[0].codigo).toBe('STAFF');
     });

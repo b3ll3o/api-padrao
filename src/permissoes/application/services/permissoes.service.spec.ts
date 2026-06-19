@@ -26,6 +26,7 @@ describe('PermissoesService', () => {
       restore: jest.fn(),
       findByNome: jest.fn(),
       findByNomeContaining: jest.fn(),
+      findManyByIds: jest.fn(),
     };
 
     mockAuthorizationService = {
@@ -618,6 +619,43 @@ describe('PermissoesService', () => {
         mockUserUsuarioLogado,
       );
       expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
+    });
+  });
+
+  // [PERF-004] findManyByIds — 1 round-trip em vez de N paralelos
+  describe('findManyByIds (batch validation)', () => {
+    it('deve retornar array vazio para input vazio', async () => {
+      const result = await service.findManyByIds([]);
+      expect(result).toEqual([]);
+      expect(mockPermissaoRepository.findManyByIds).not.toHaveBeenCalled();
+    });
+
+    it('deve fazer 1 query e retornar todas as permissões', async () => {
+      const perms = [
+        { id: 1, nome: 'A', codigo: 'A', descricao: '', deletedAt: null },
+        { id: 2, nome: 'B', codigo: 'B', descricao: '', deletedAt: null },
+      ];
+      (mockPermissaoRepository.findManyByIds as jest.Mock).mockResolvedValue(
+        perms,
+      );
+
+      const result = await service.findManyByIds([1, 2]);
+
+      expect(result).toHaveLength(2);
+      expect(mockPermissaoRepository.findManyByIds).toHaveBeenCalledTimes(1);
+      expect(mockPermissaoRepository.findManyByIds).toHaveBeenCalledWith([
+        1, 2,
+      ]);
+    });
+
+    it('deve lançar NotFoundException listando IDs ausentes', async () => {
+      (mockPermissaoRepository.findManyByIds as jest.Mock).mockResolvedValue([
+        { id: 1, nome: 'A', codigo: 'A', descricao: '', deletedAt: null },
+      ]);
+
+      await expect(service.findManyByIds([1, 999])).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

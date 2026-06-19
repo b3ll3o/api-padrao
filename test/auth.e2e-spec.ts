@@ -200,7 +200,8 @@ describe('AuthController (e2e)', () => {
         .expect(201);
 
       const oldRefreshToken = loginRes.body.refresh_token;
-      expect(oldRefreshToken).toBeDefined();
+      expect(typeof oldRefreshToken).toBe('string');
+      expect(oldRefreshToken.length).toBeGreaterThanOrEqual(32);
 
       const refreshRes = await request(app.getHttpServer())
         .post('/auth/refresh')

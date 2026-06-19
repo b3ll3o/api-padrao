@@ -136,8 +136,9 @@ describe('DefaultEmailSenderService (REQ-EM-07, REQ-EM-09, REQ-EM-10)', () => {
       .flat()
       .filter((c) => typeof c === 'object' && c !== null);
     const failedEvent = events.find((e: any) => e.event === 'email.failed');
-    expect(failedEvent).toBeDefined();
-    expect(failedEvent.error).toBe('erro string');
+    expect(failedEvent).toEqual(
+      expect.objectContaining({ error: 'erro string' }),
+    );
   });
 
   // REQ-EM-10

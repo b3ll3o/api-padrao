@@ -245,4 +245,21 @@ export class PrismaPermissaoRepository implements PermissaoRepository {
     });
     return [data.map((p: any) => this.toDomain(p)), total];
   }
+
+  async findManyByIds(ids: number[]): Promise<Permissao[]> {
+    if (ids.length === 0) return [];
+    const data = await this.prisma.extended.permissao.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        nome: true,
+        descricao: true,
+        codigo: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      },
+    });
+    return data.map((p: any) => this.toDomain(p));
+  }
 }

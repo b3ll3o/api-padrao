@@ -116,9 +116,9 @@ Body: Olá! descadastro. dpo@x`,
     );
     loader.loadAll();
     const template = loader.get('a');
-    expect(template).toBeDefined();
     expect(template?.templateId).toBe('a');
     expect(template?.subject).toBe('A-Subject');
+    expect(template?.body).toMatch(/dpo@/i);
   });
 
   it('get deve retornar undefined para templateId desconhecido', () => {

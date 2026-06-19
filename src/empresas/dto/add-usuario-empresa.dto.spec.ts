@@ -51,8 +51,6 @@ describe('AddUsuarioEmpresaDto', () => {
       perfilIds: [1, 'abc', 3],
     });
     expect(errors[0].property).toBe('perfilIds');
-    // erro de cada item é reportado no constraints
-    expect(errors[0].constraints).toBeDefined();
     // class-validator reporta o erro como "isInt" para o item inválido
     expect(Object.keys(errors[0].constraints ?? {})).toContain('isInt');
   });

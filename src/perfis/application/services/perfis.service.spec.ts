@@ -60,6 +60,7 @@ describe('PerfisService', () => {
 
     mockPermissoesService = {
       findOne: jest.fn(),
+      findManyByIds: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -108,14 +109,16 @@ describe('PerfisService', () => {
       (mockPerfilRepository.create as jest.Mock).mockResolvedValue(
         expectedPerfil,
       );
-      (mockPermissoesService.findOne as jest.Mock).mockResolvedValue({
-        id: 1,
-        nome: 'Permissao 1',
-        codigo: 'PERM_1',
-        descricao: 'Desc 1',
-        deletedAt: null,
-        ativo: true,
-      });
+      (mockPermissoesService.findManyByIds as jest.Mock).mockResolvedValue([
+        {
+          id: 1,
+          nome: 'Permissao 1',
+          codigo: 'PERM_1',
+          descricao: 'Desc 1',
+          deletedAt: null,
+          ativo: true,
+        },
+      ]);
 
       const result = await service.create(createPerfilDto);
 
@@ -126,7 +129,8 @@ describe('PerfisService', () => {
         createPerfilDto.empresaId,
       );
       expect(mockPerfilRepository.create).toHaveBeenCalledWith(createPerfilDto);
-      expect(mockPermissoesService.findOne).toHaveBeenCalledWith(1);
+      expect(mockPermissoesService.findManyByIds).toHaveBeenCalledWith([1]);
+      expect(mockPermissoesService.findOne).not.toHaveBeenCalled();
     });
 
     it('deve criar um perfil sem permissões', async () => {
@@ -196,14 +200,14 @@ describe('PerfisService', () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
         existingPerfil,
       );
-      (mockPermissoesService.findOne as jest.Mock).mockRejectedValue(
-        new NotFoundException('Permissão com ID 999 não encontrada'),
+      (mockPermissoesService.findManyByIds as jest.Mock).mockRejectedValue(
+        new NotFoundException('Permissões não encontradas: 999'),
       );
 
       await expect(
         service.update(1, updatePerfilDto, mockAdminUsuarioLogado),
       ).rejects.toThrow(NotFoundException);
-      expect(mockPermissoesService.findOne).toHaveBeenCalledWith(999);
+      expect(mockPermissoesService.findManyByIds).toHaveBeenCalledWith([999]);
       expect(mockPerfilRepository.update).not.toHaveBeenCalled();
     });
 
@@ -539,14 +543,16 @@ describe('PerfisService', () => {
       (mockPerfilRepository.update as jest.Mock).mockResolvedValue(
         expectedPerfil,
       );
-      (mockPermissoesService.findOne as jest.Mock).mockResolvedValue({
-        id: 1,
-        nome: 'Permissao 1',
-        codigo: 'PERM_1',
-        descricao: 'Desc 1',
-        deletedAt: null,
-        ativo: true,
-      });
+      (mockPermissoesService.findManyByIds as jest.Mock).mockResolvedValue([
+        {
+          id: 1,
+          nome: 'Permissao 1',
+          codigo: 'PERM_1',
+          descricao: 'Desc 1',
+          deletedAt: null,
+          ativo: true,
+        },
+      ]);
 
       const result = await service.update(
         1,
@@ -564,7 +570,7 @@ describe('PerfisService', () => {
         1,
         updatePerfilDto,
       );
-      expect(mockPermissoesService.findOne).toHaveBeenCalledWith(1);
+      expect(mockPermissoesService.findManyByIds).toHaveBeenCalledWith([1]);
     });
 
     it('deve atualizar um perfil sem permissões', async () => {
@@ -630,14 +636,14 @@ describe('PerfisService', () => {
       (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
         existingPerfil,
       );
-      (mockPermissoesService.findOne as jest.Mock).mockRejectedValue(
-        new NotFoundException('Permissão com ID 999 não encontrada'),
+      (mockPermissoesService.findManyByIds as jest.Mock).mockRejectedValue(
+        new NotFoundException('Permissões não encontradas: 999'),
       );
 
       await expect(
         service.update(1, updatePerfilDto, mockAdminUsuarioLogado),
       ).rejects.toThrow(NotFoundException);
-      expect(mockPermissoesService.findOne).toHaveBeenCalledWith(999);
+      expect(mockPermissoesService.findManyByIds).toHaveBeenCalledWith([999]);
       expect(mockPerfilRepository.update).not.toHaveBeenCalled();
     });
   });

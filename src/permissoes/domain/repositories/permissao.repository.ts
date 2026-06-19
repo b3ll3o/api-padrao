@@ -35,4 +35,8 @@ export abstract class PermissaoRepository {
     take: number,
     includeDeleted?: boolean,
   ): Promise<[Permissao[], number]>;
+  // [PERF-004] findManyByIds — 1 round-trip para validar N permissões
+  // (perfis.service.ts.create/update). Substitui N chamadas paralelas
+  // a findOne. Cache de 5min é responsabilidade do service.
+  abstract findManyByIds(ids: number[]): Promise<Permissao[]>;
 }

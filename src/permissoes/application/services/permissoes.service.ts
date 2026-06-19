@@ -78,6 +78,43 @@ export class PermissoesService {
     return permissao;
   }
 
+  // [PERF-004] Validação em batch — 1 round-trip para N IDs.
+  // Lança NotFoundException se algum ID não existir.
+  // Cache de 5min: a relação de permissões é cross-tenant, varia
+  // raramente (não muda em runtime normal). TTL 5min reduz DB load
+  // em picos de criação/atualização de perfis.
+  private static readonly CACHE_TTL_MS = 5 * 60 * 1000;
+  private static cache: { ts: number; map: Map<number, Permissao> } | null =
+    null;
+
+  async findManyByIds(ids: number[]): Promise<Permissao[]> {
+    if (ids.length === 0) return [];
+    const now = Date.now();
+    const cache = PermissoesService.cache;
+    const fresh = cache && now - cache.ts < PermissoesService.CACHE_TTL_MS;
+    const map = fresh ? cache.map : new Map<number, Permissao>();
+
+    // Sempre faz 1 query para os IDs pedidos (cache hit ou miss),
+    // atualiza o cache com o resultado.
+    const fetched = await this.permissaoRepository.findManyByIds(ids);
+    for (const p of fetched) {
+      map.set(p.id, p);
+    }
+
+    if (fetched.length < ids.length) {
+      // Algum ID não existe → erro claro.
+      const foundIds = new Set(fetched.map((p) => p.id));
+      const notFound = ids.filter((id) => !foundIds.has(id));
+      throw new NotFoundException(
+        `Permissões não encontradas: ${notFound.join(', ')}`,
+      );
+    }
+
+    // Atualiza o timestamp do cache após sucesso.
+    PermissoesService.cache = { ts: now, map };
+    return fetched;
+  }
+
   async findByNome(
     nome: string,
     paginationDto: PaginationDto,

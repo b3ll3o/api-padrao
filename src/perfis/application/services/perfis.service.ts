@@ -31,13 +31,9 @@ export class PerfisService {
       createPerfilDto.permissoesIds &&
       createPerfilDto.permissoesIds.length > 0
     ) {
-      // [ALT-005] Validação em paralelo (1 round-trip em vez de N sequenciais).
-      // `findOne` lança NotFoundException → Promise.all rejeita no primeiro ID inválido.
-      await Promise.all(
-        createPerfilDto.permissoesIds.map((id) =>
-          this.permissoesService.findOne(id),
-        ),
-      );
+      // [PERF-004] 1 round-trip em vez de N paralelos (era `Promise.all(findOne)`).
+      // Lança NotFoundException se algum ID não existir.
+      await this.permissoesService.findManyByIds(createPerfilDto.permissoesIds);
     }
     const existingPerfil = await this.perfilRepository.findByNome(
       createPerfilDto.nome,
@@ -127,12 +123,8 @@ export class PerfisService {
     empresaId?: string,
   ): Promise<Perfil> {
     if (updatePerfilDto.permissoesIds) {
-      // [ALT-005] Validação paralela (1 round-trip em vez de N).
-      await Promise.all(
-        updatePerfilDto.permissoesIds.map((permId) =>
-          this.permissoesService.findOne(permId),
-        ),
-      );
+      // [PERF-004] 1 round-trip em vez de N paralelos.
+      await this.permissoesService.findManyByIds(updatePerfilDto.permissoesIds);
     }
     const perfil = await this.perfilRepository.findOne(id, true, empresaId);
     if (!perfil) {
