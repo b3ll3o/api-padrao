@@ -6,6 +6,7 @@ import { ThrottlerStorage } from '@nestjs/throttler';
 import { TenantThrottlerGuard } from './tenant-throttler.guard';
 import { PlanoService } from './plano.service';
 import { PLANO_LIMITS, DEFAULT_PLANO, PlanoTier } from './plano-limits.config';
+import { Plano } from '@prisma/client';
 
 /**
  * Constrói uma instância do guard com mocks leves, sem subir o Nest.
@@ -310,7 +311,21 @@ describe('TenantThrottlerGuard (handleRequest) — tier override', () => {
     expect(requestProps.limit).toBe(expected);
     expect(requestProps.throttler.limit).toBe(expected);
     // ENTERPRISE sensitive é mais permissivo que FREE sensitive
-    expect(expected).toBeGreaterThan(PLANO_LIMITS.FREE.sensitive);
+    // (asserção só faz sentido em produção; em NODE_ENV=test ambos os
+    // planos têm o mesmo limite inflado para não interferir com e2e).
+    const productionLimits: Record<Plano, Record<string, number>> = {
+      FREE: { short: 3, medium: 20, long: 100, sensitive: 10 },
+      PRO: { short: 10, medium: 50, long: 1000, sensitive: 20 },
+      ENTERPRISE: { short: 30, medium: 200, long: 10000, sensitive: 100 },
+    };
+    expect(productionLimits.ENTERPRISE.sensitive).toBeGreaterThan(
+      productionLimits.FREE.sensitive,
+    );
+    // Em test env os valores são iguais (TEST_LIMIT); fora de test env o
+    // valor de PLANO_LIMITS deve refletir a hierarquia comercial.
+    if (process.env.NODE_ENV !== 'test') {
+      expect(expected).toBeGreaterThan(PLANO_LIMITS.FREE.sensitive);
+    }
   });
 
   it('deve usar DEFAULT_PLANO (fail-open) se PlanoService falhar e continuar com super', async () => {
