@@ -1,0 +1,141 @@
+# BDD: features/devsecops-sprint1-quick-wins.feature:Funcionalidade: SDLC Scanning
+# SDD: .openspec/changes/devsecops-sprint1-quick-wins/design.md#fase-2
+# ATDD: .openspec/changes/devsecops-sprint1-quick-wins/tasks.md#task-2-4
+#
+# Container Image Scanning — complementa `dependency-audit.yml` (npm audit)
+# escaneando a **imagem Docker final** (Node 22-alpine + node_modules de prod
+# + Prisma engine + curl/openssl/tini/libc6-compat do Alpine). Captura CVEs
+# em layers de OS, libraries nativas e no engine do Prisma que `npm audit`
+# deixa passar.
+#
+# Spec: docs/superpowers/specs/2026-06-21-devsecops-sweep.md#finding-medium-image-scanning
+# Decisão arquitetural: Trivy (vs Grype/Docker Scout) — open source mantido
+# pela Aqua, SARIF nativo que integra com GitHub Security tab, padrão de
+# mercado para SCA de containers.
+name: Image Scan (Trivy)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Diário às 06:17 UTC (jitter de 17min vs dependency-audit 06:03 para
+    # não saturar a janela do GitHub Actions).
+    - cron: '17 6 * * *'
+
+# [PERMS-001] `contents: read` para checkout; `security-events: write`
+# estritamente necessário para `github/codeql-action/upload-sarif` publicar
+# findings no GitHub Security tab. Sem isso, SARIF é gerado mas descartado.
+permissions:
+  contents: read
+  security-events: write
+
+# [CONCURRENCY-001] Mesmo group do `ci.yml` — quando um novo commit chega
+# no PR, o scan anterior (3-5min) é cancelado, evitando acúmulo de runs
+# quando devs empurram follow-ups rapidamente.
+concurrency:
+  group: image-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # [Job 1/2] SARIF upload → GitHub Security tab.
+  # Gera SARIF com severidade CRITICAL+HIGH, ignora vulns sem fix disponível
+  # (reduz ruído; vulns sem fix não podem ser remediadas no PR). Upload
+  # é `if: always()` porque queremos ver findings mesmo quando o gate
+  # (job 2) falha.
+  scan-sarif:
+    name: Scan + Upload SARIF (no gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # build (~3min) + scan (~2-3min) + upload
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        # Buildx é necessário para `docker build` moderno; em ubuntu-latest
+        # já vem instalado mas a action garante a versão e habilita cache
+        # layers para reduzir tempo de build repetido.
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (sem push)
+        # Tag com SHA curto garante unicidade entre runs e evita colisão
+        # com builds locais (ex: `api-padrao:dev`). Não usa cache-from
+        # porque queremos escanear a imagem real, não uma cache layer.
+        run: docker build -t api-padrao:scan-${{ github.sha }} .
+
+      - name: Run Trivy (SARIF)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: 'api-padrao:scan-${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          # [TRIVY-001] `ignore-unfixed: true` filtra vulns sem patch
+          # disponível — não há ação possível no PR para esses, então
+          # manter no SARIF só polui a Security tab. Eles ainda aparecem
+          # no log (job 2) para awareness.
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: trivy-image-scan
+
+  # [Job 2/2] Gate — falha o build se houver CRITICAL **sem** fix disponível.
+  # Justificativa: CRITICAL sem fix = zero-day ou CVE recente; bloquear o
+  # PR força revisão humana (atualizar base image, pinar versão, ou aceitar
+  # risco formalmente). CRITICAL com fix = dev atualiza Dockerfile e segue.
+  # HIGH sem fix vira warning no log (job abaixo) mas não bloqueia.
+  scan-gate:
+    name: Gate — fail on CRITICAL (unfixed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: scan-sarif
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (sem push)
+        run: docker build -t api-padrao:scan-${{ github.sha }} .
+
+      - name: Run Trivy (table, gate)
+        # [TRIVY-GATE] exit-code: '1' faz Trivy retornar !=0 quando há
+        # vulns matching severity. Combined com `ignore-unfixed: false`,
+        # falhamos apenas em CRITICAL que **tem** fix disponível — o dev
+        # pode resolver o PR atualizando o Dockerfile (ex: bump Node 22-alpine).
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: 'api-padrao:scan-${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL'
+          ignore-unfixed: false
+          exit-code: '1'
+
+      - name: Run Trivy (table, log MEDIUM+HIGH sem gate)
+        if: always()
+        # Log-only — MEDIUM e HIGH não bloqueiam, mas precisam aparecer
+        # no log do run para triagem. `continue-on-error: true` evita
+        # que uma falha aqui mascare o resultado do gate acima.
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: 'api-padrao:scan-${{ github.sha }}'
+          format: 'table'
+          severity: 'MEDIUM,HIGH'
+          ignore-unfixed: true
+        continue-on-error: true

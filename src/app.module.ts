@@ -41,6 +41,7 @@ import { CacheControlMiddleware } from './shared/infrastructure/middleware/cache
 import { MetricsModule } from './shared/infrastructure/metrics/metrics.module';
 import { HttpMetricsInterceptor } from './shared/infrastructure/metrics/http-metrics.interceptor';
 import { QueuesModule } from './shared/infrastructure/queues/queues.module';
+import { AuditLogModule } from './shared/infrastructure/audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -114,6 +115,7 @@ import { QueuesModule } from './shared/infrastructure/queues/queues.module';
     SharedModule,
     MetricsModule,
     QueuesModule,
+    AuditLogModule,
     // [MED-005] Throttler com storage Redis para escalar em multi-instância.
     // Antes: in-memory → atacante podia bater `limit×N` distribuindo
     // requests entre instâncias. Agora todos compartilham o mesmo
