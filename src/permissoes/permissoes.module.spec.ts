@@ -1,5 +1,6 @@
 // TDD: src/permissoes/permissoes.module.spec.ts
 // SDD: .openspec/changes/observabilidade/design.md:REQ-BOOT-001
+// REQ-PERM-001..051: módulo permissoes (entidade global, sem tenant)
 //
 // Testa APENAS que a classe PermissoesModule tem o decorator @Module
 // corretamente aplicado e expõe o que deveria. A compilação completa

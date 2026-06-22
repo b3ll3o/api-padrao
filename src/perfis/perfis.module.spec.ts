@@ -1,5 +1,6 @@
 // TDD: src/perfis/perfis.module.spec.ts
 // SDD: .openspec/changes/observabilidade/design.md:REQ-BOOT-001
+// REQ-PERFIL-001..013: módulo perfis (escopo multi-tenant por empresaId)
 import 'reflect-metadata';
 import { PerfisModule } from './perfis.module';
 

@@ -1,5 +1,6 @@
 // TDD: src/usuarios/usuarios.module.spec.ts
 // SDD: .openspec/changes/observabilidade/design.md:REQ-BOOT-001
+// REQ-USER-001..052: módulo usuarios (auto-cadastro + CRUD + auditoria)
 import 'reflect-metadata';
 import { UsuariosModule } from './usuarios.module';
 
