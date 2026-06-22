@@ -42,8 +42,9 @@ export class AppConfig {
     return this.configService.get<string>('JWT_ACCESS_EXPIRES_IN', '15m');
   }
 
+  // [L4] Reduzido de 7 para 2 (DevSecOps sweep 2026-06-21).
   get jwtRefreshExpiresDays(): number {
-    return this.configService.get<number>('JWT_REFRESH_EXPIRES_DAYS', 7);
+    return this.configService.get<number>('JWT_REFRESH_EXPIRES_DAYS', 2);
   }
 
   get redisHost(): string {

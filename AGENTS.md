@@ -526,6 +526,32 @@ Validadas em [src/config/env.validation.ts](./src/config/env.validation.ts) (Joi
 
 Para a stack Docker, ver [docker-compose.yml](./docker-compose.yml) — o serviço `api` lê `DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_DAYS`, `REDIS_HOST=redis`, `REDIS_PORT=6379`, `OTEL_EXPORTER_OTLP_ENDPOINT` e `OTEL_SERVICE_NAME`, e define `NODE_ENV=production`.
 
+### 10.1 Arquivos de ambiente (`.env*`)
+
+O projeto usa os seguintes arquivos de configuração de ambiente:
+
+| Arquivo | Commitado? | Propósito |
+|---------|------------|-----------|
+| `.env.example` | Sim | Template com placeholders. Copie para `.env` e preencha. |
+| `.env` | **Não** (em `.gitignore`) | Configuração local de dev. Nunca commitar. |
+| `.env.test` | Sim | Usado **APENAS em CI/test**. NUNCA usar em produção ou staging. `JWT_SECRET` prefixado com `test*` é intencional. |
+| `.env.production` | **Não** | Gerado via secret manager em prod (AWS SM, GCP SM, Vault). |
+
+**Validação de produção (pre-deploy checklist):**
+
+- [ ] `NODE_ENV !== 'test'` (garantir que `.env.test` NÃO está em uso)
+- [ ] `JWT_SECRET` ≥ 32 chars random (não derivado de exemplos)
+- [ ] `DATABASE_URL` aponta para Postgres gerenciado (não `localhost`)
+- [ ] `ALLOWED_ORIGINS` lista origens explícitas (não `*`)
+- [ ] `THROTTLER_*_LIMIT` e `PLANO_LIMITS` em valores comerciais (não inflados pelo `isTestEnv` em `plano-limits.config.ts`)
+
+> Foot-gun: o `JWT_SECRET` em `.env.test` é deliberadamente fraco
+> (`testSecretKeyForE2EOnlyPaddingForMinLength32`). Ele só é seguro
+> porque o guard `NODE_ENV === 'test'` em `plano-limits.config.ts` e
+> o `env.validation.ts` impedem que esse arquivo seja carregado em
+> produção. Ver [SEC-RATE-LIMIT] nos controllers `@Public()` para
+> a contraparte do rate-limit.
+
 ## 11. Testing
 
 - **Unitários** (`*.spec.ts`): co-localizados em `src/`. Jest `rootDir: src`. Use `npm run test -- <caminho>` para arquivo único, `npm run test -- -t "<texto>"` para filtro por nome.

@@ -16,7 +16,10 @@ export const envValidationSchema = Joi.object({
     'any.required': 'JWT_SECRET é obrigatório.',
   }),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
-  JWT_REFRESH_EXPIRES_DAYS: Joi.number().default(7),
+  // [L4] Reduzido de 7d para 2d (DevSecOps sweep 2026-06-21). Janela
+  // menor de exposição em caso de refresh token leak; access tokens
+  // continuam com 15min (acima). Override por env para prod se necessário.
+  JWT_REFRESH_EXPIRES_DAYS: Joi.number().default(2),
   REDIS_HOST: Joi.string().default('localhost'),
   REDIS_PORT: Joi.number().default(6379),
   // [DevSecOps-Sprint1] Body size limit (1 MiB default). Previne DoS por

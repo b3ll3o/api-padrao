@@ -29,7 +29,7 @@ describe('envValidationSchema', () => {
       NODE_ENV: 'development',
       PORT: '3001',
       JWT_ACCESS_EXPIRES_IN: '15m',
-      JWT_REFRESH_EXPIRES_DAYS: '7',
+      JWT_REFRESH_EXPIRES_DAYS: '2',
       REDIS_HOST: 'localhost',
       REDIS_PORT: '6379',
       CACHE_TTL: '600',
@@ -376,9 +376,16 @@ describe('envValidationSchema', () => {
       expect(value.JWT_ACCESS_EXPIRES_IN).toBe('15m');
     });
 
-    it('JWT_REFRESH_EXPIRES_DAYS default = 7', () => {
+    it('JWT_REFRESH_EXPIRES_DAYS default = 2 [L4 DevSecOps sweep 2026-06-21]', () => {
       const { value } = validateMinimal();
-      expect(value.JWT_REFRESH_EXPIRES_DAYS).toBe(7);
+      expect(value.JWT_REFRESH_EXPIRES_DAYS).toBe(2);
+    });
+
+    it('JWT_REFRESH_EXPIRES_DAYS aceita override explicito (ex.: 1 para hardening adicional)', () => {
+      const env = buildValidEnv({ JWT_REFRESH_EXPIRES_DAYS: '1' });
+      const { value, error } = envValidationSchema.validate(env);
+      expect(error).toBeUndefined();
+      expect(value.JWT_REFRESH_EXPIRES_DAYS).toBe(1);
     });
 
     it('REDIS_HOST default = "localhost"', () => {

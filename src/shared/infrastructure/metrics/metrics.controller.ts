@@ -29,6 +29,12 @@ export class MetricsController {
    * legítimos fazem polling a cada 15-60s e não devem ser bloqueados.
    * @Public() para que AuthGuard/PermissaoGuard não exijam JWT
    * (Prometheus scrapers não conhecem JWT).
+   *
+   * [SEC-RATE-LIMIT] Rota @Public() (Prometheus scraper sem JWT).
+   *   Rate-limit aplicado: TenantThrottlerGuard global (plano FREE fallback ip:<ip>).
+   *   Sem @Throttle explícito — scrapers legítimos fazem polling a cada 15-60s.
+   *   Se expor publicamente, restringir por firewall/IP allowlist (rede interna/ingress).
+   *   Em NODE_ENV=test, PLANO_LIMITS é inflado para 10_000 (não bloqueia e2e).
    */
   @Public()
   @Get()

@@ -1,0 +1,118 @@
+# Scheduled dependency audit — re-roda `npm audit` diariamente para detectar
+# novos CVEs publicados após o último push (o CI/post-merge só roda no push).
+# Spec: docs/superpowers/specs/2026-06-21-devsecops-sweep.md#finding-low-scheduled-audit
+name: Dependency Audit
+
+on:
+  schedule:
+    # Diário às 06:03 UTC (jitter de 3min para evitar horários de pico
+    # do GitHub Actions onde runners podem estar sobrecarregados).
+    - cron: '3 6 * * *'
+  workflow_dispatch: # permite rodar manual
+
+# permissions mínimas: cria issue com labels, não escreve em PRs nem faz push.
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    # [TIMEOUT-001] Cap em 10 min — `npm ci` (com cache) + `npm audit` é
+    # tipicamente <2 min. 10 min é folga para cold cache.
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install deps
+        run: npm ci --no-audit --no-fund --prefer-offline
+
+      - name: npm audit (prod only, moderate+)
+        id: audit
+        # --omit=dev evita ruído de vulns em deps de dev/build (jest, eslint,
+        # semgrep, etc — não rodam em produção).
+        # --audit-level=moderate balanceia signal/noise: pega high/critical
+        # mas também moderate (CVE real, ex: prototype pollution em lib).
+        # Exit code != 0 quando há vulns >= level; capturamos sem `set -e`
+        # para criar issue em vez de só falhar o job silenciosamente.
+        run: |
+          set +e
+          npm audit --omit=dev --audit-level=moderate
+          rc=$?
+          echo "AUDIT_RC=$rc"
+          if [ $rc -ne 0 ]; then
+            echo "AUDIT_FAILED=true" >> "$GITHUB_ENV"
+          fi
+        env:
+          NODE_ENV: production
+
+      - name: Create issue if vulns found
+        if: env.AUDIT_FAILED == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const output = execSync('npm audit --omit=dev --audit-level=moderate --json').toString();
+            const audit = JSON.parse(output);
+            const vulns = Object.entries(audit.vulnerabilities || {}).map(([pkg, v]) => ({
+              package: pkg,
+              severity: v.severity,
+              via: (v.via || []).map(x => typeof x === 'string' ? x : (x.title || x.name || '')).filter(Boolean).join(', '),
+              range: v.range || '',
+              fixAvailable: typeof v.fixAvailable === 'object'
+                ? (v.fixAvailable.name || JSON.stringify(v.fixAvailable))
+                : String(v.fixAvailable),
+            }));
+
+            const body = [
+              '## Vulnerabilidades encontradas pelo npm audit',
+              '',
+              '- Workflow: `' + context.workflow + '`',
+              '- SHA: `' + context.sha + '`',
+              '- Run: #' + context.runNumber,
+              '- Data UTC: `' + new Date().toISOString() + '`',
+              '',
+              '| Pacote | Severidade | Range | Via | Fix disponível |',
+              '|--------|-----------|-------|-----|----------------|',
+              vulns.map(v => '| `' + v.package + '` | ' + v.severity + ' | ' + v.range + ' | ' + v.via + ' | ' + v.fixAvailable + ' |').join('\n'),
+              '',
+              '## Próximos passos',
+              '',
+              '1. Avaliar impacto real (dev vs prod) — `--omit=dev` já filtra devDeps, mas vale conferir.',
+              '2. Aplicar `npm audit fix` para vulns com fix automático (verificar diff antes de commitar).',
+              '3. Para vulns sem fix automático, avaliar upgrade major ou substituir a dep.',
+              '4. Rodar `npm run test:e2e` após o fix para garantir que nada quebrou.',
+              '',
+              '<details><summary>Output completo (primeiros 3000 chars)</summary>',
+              '',
+              '```json',
+              output.substring(0, 3000),
+              '```',
+              '',
+              '</details>',
+              '',
+              '> 🤖 Issue criada automaticamente por `.github/workflows/dependency-audit.yml` (cron diário 06:03 UTC).',
+            ].join('\n');
+
+            const title = vulns.length === 1
+              ? '🔒 npm audit: 1 vulnerabilidade encontrada'
+              : '🔒 npm audit: ' + vulns.length + ' vulnerabilidades encontradas';
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['security', 'dependencies', 'automated'],
+            });

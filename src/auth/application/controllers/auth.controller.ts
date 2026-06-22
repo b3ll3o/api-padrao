@@ -46,6 +46,9 @@ export class AuthController {
     private readonly passwordRecoveryService: PasswordRecoveryService,
   ) {}
 
+  // [SEC-RATE-LIMIT] Rota @Public(). AuthGuard/PermissaoGuard bypassados.
+  //   Rate-limit aplicado: @Throttle sensitive (LOGIN_THROTTLE_LIMIT, default 5/60s).
+  //   Em NODE_ENV=test, limites são inflados para 10_000 (não bloqueia e2e).
   @Public()
   @Throttle({ sensitive: { limit: LOGIN_THROTTLE_LIMIT, ttl: 60000 } })
   @Post('login')
@@ -63,6 +66,10 @@ export class AuthController {
     );
   }
 
+  // [SEC-RATE-LIMIT] Rota @Public(). AuthGuard/PermissaoGuard bypassados.
+  //   Rate-limit aplicado: @Throttle sensitive (REFRESH_THROTTLE_LIMIT, default 10/60s).
+  //   TenantThrottlerGuard ainda age como fallback (ip: <ip>) se decorator for omitido.
+  //   Em NODE_ENV=test, limites são inflados para 10_000 (não bloqueia e2e).
   @Public()
   @Throttle({ sensitive: { limit: REFRESH_THROTTLE_LIMIT, ttl: 60000 } })
   @Post('refresh')
@@ -79,6 +86,10 @@ export class AuthController {
     return this.authService.refreshTokens(refreshTokenDto.refresh_token);
   }
 
+  // [SEC-RATE-LIMIT] Rota @Public(). AuthGuard/PermissaoGuard bypassados.
+  //   Rate-limit aplicado: @Throttle sensitive (FORGOT_PASSWORD_THROTTLE_LIMIT, default 5/60s).
+  //   Crítica para anti-enumeração de e-mails: limite baixo impede varredura.
+  //   Em NODE_ENV=test, limites são inflados para 10_000 (não bloqueia e2e).
   @Public()
   @Throttle({
     sensitive: { limit: FORGOT_PASSWORD_THROTTLE_LIMIT, ttl: 60000 },
@@ -96,6 +107,10 @@ export class AuthController {
     return this.passwordRecoveryService.forgotPassword(dto);
   }
 
+  // [SEC-RATE-LIMIT] Rota @Public(). AuthGuard/PermissaoGuard bypassados.
+  //   Rate-limit aplicado: @Throttle sensitive (RESET_PASSWORD_THROTTLE_LIMIT, default 10/60s).
+  //   Token de reset já tem TTL curto (ver password-recovery.service); rate-limit é camada extra.
+  //   Em NODE_ENV=test, limites são inflados para 10_000 (não bloqueia e2e).
   @Public()
   @Throttle({
     sensitive: { limit: RESET_PASSWORD_THROTTLE_LIMIT, ttl: 60000 },

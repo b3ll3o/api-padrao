@@ -85,16 +85,21 @@ export class AuthService {
       );
     }
 
-    const user =
-      await this.usuarioRepository.findByEmailWithPerfisAndPermissoes(
-        loginUsuarioDto.email,
-      );
+    // [ALT-006] Step 1: busca mínima apenas com credenciais (id, email,
+    // senha, ativo, deletedAt). NÃO carrega perfis/permissões aqui —
+    // a comparação de hash é o gargalo de CPU, mas não de dados.
+    const credentials = await this.usuarioRepository.findByEmailWithCredentials(
+      loginUsuarioDto.email,
+    );
 
     if (
-      !user ||
-      !user.senha ||
+      !credentials ||
+      !credentials.senha ||
       !loginUsuarioDto.senha ||
-      !(await this.passwordHasher.compare(loginUsuarioDto.senha, user.senha))
+      !(await this.passwordHasher.compare(
+        loginUsuarioDto.senha,
+        credentials.senha,
+      ))
     ) {
       // [ALT-003] Registra tentativa falha (incrementa contador com TTL).
       await this.loginAttemptTracker.recordFailure(loginUsuarioDto.email);
@@ -106,7 +111,7 @@ export class AuthService {
           email: loginUsuarioDto.email,
           ip,
           userAgent,
-          motivo: !user ? 'usuario_nao_encontrado' : 'senha_invalida',
+          motivo: !credentials ? 'usuario_nao_encontrado' : 'senha_invalida',
         },
         'Falha no login',
       );
@@ -118,7 +123,7 @@ export class AuthService {
 
     // Persiste histórico de login via porta (DIP) — antes era `prisma.loginHistory.create`
     await this.loginHistoryRepository.record({
-      userId: user.id,
+      userId: credentials.id,
       ip,
       userAgent,
     });
@@ -127,13 +132,34 @@ export class AuthService {
     this.logger.log(
       {
         event: 'auth.login.success',
-        userId: user.id,
-        email: user.email,
+        userId: credentials.id,
+        email: credentials.email,
         ip,
         userAgent,
       },
       'Login bem-sucedido',
     );
+
+    // [ALT-006] Step 2: APÓS validar hash, carrega perfis/permissões para
+    // montar o JWT. Esta query NÃO retorna `senha` (select explícito).
+    const user =
+      await this.usuarioRepository.findByEmailWithPerfisAndPermissoes(
+        loginUsuarioDto.email,
+      );
+
+    if (!user) {
+      // Edge case raro: usuário foi deletado entre o step 1 e o step 2.
+      // Consideramos falha de autenticação.
+      this.logger.error(
+        {
+          event: 'auth.login.race_condition',
+          userId: credentials.id,
+          email: credentials.email,
+        },
+        'Usuário desapareceu entre validação de credencial e carga de perfis',
+      );
+      throw new UnauthorizedException('Credenciais inválidas.');
+    }
 
     return this.generateTokens(user.id, user.email, user.empresas);
   }
@@ -173,7 +199,7 @@ export class AuthService {
 
     const refreshTokenValue = uuidv4();
     const expiresInDays =
-      this.configService.get<number>('JWT_REFRESH_EXPIRES_DAYS') ?? 7;
+      this.configService.get<number>('JWT_REFRESH_EXPIRES_DAYS') ?? 2;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 

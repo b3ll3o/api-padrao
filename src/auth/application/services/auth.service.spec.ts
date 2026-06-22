@@ -60,6 +60,7 @@ describe('AuthService', () => {
   };
 
   const mockUsuarioRepository = {
+    findByEmailWithCredentials: jest.fn(),
     findByEmailWithPerfisAndPermissoes: jest.fn(),
   };
 
@@ -74,7 +75,7 @@ describe('AuthService', () => {
   const mockConfigService = {
     get: jest.fn((key: string) => {
       if (key === 'JWT_ACCESS_EXPIRES_IN') return '60s';
-      if (key === 'JWT_REFRESH_EXPIRES_DAYS') return 7;
+      if (key === 'JWT_REFRESH_EXPIRES_DAYS') return 2;
       return null;
     }),
     getOrThrow: jest.fn((key: string) => {
@@ -164,8 +165,18 @@ describe('AuthService', () => {
       });
       const mockUser = makeUsuario({
         id: 1,
+        senha: 'hashedPassword',
         empresas: [mockUsuarioEmpresa],
       });
+      // [ALT-006] Step 1: credentials lookup (inclui senha).
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue({
+        id: 1,
+        email: mockUser.email,
+        senha: mockUser.senha as string,
+        ativo: true,
+        deletedAt: null,
+      });
+      // [ALT-006] Step 2: perfis lookup (NÃO inclui senha).
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         mockUser,
       );
@@ -180,6 +191,9 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('refresh_token');
       expect(result.access_token).toBe('mockAccessToken');
 
+      expect(
+        mockUsuarioRepository.findByEmailWithCredentials,
+      ).toHaveBeenCalledWith('test@example.com');
       expect(
         mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
       ).toHaveBeenCalledWith('test@example.com');
@@ -198,9 +212,7 @@ describe('AuthService', () => {
     });
 
     it('deve lançar UnauthorizedException se o usuário não existir', async () => {
-      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
-        null,
-      );
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue(null);
 
       const loginDto = {
         email: 'nonexistent@example.com',
@@ -211,20 +223,27 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
       expect(
-        mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
+        mockUsuarioRepository.findByEmailWithCredentials,
       ).toHaveBeenCalledWith('nonexistent@example.com');
       expect(mockJwtService.sign).not.toHaveBeenCalled();
       // [ALT-004] LoginHistory NÃO é gravado em falha
       expect(mockLoginHistoryRepository.record).not.toHaveBeenCalled();
       // [ALT-004] RefreshToken NÃO é criado em falha
       expect(mockRefreshTokenRepository.create).not.toHaveBeenCalled();
+      // [ALT-006] NÃO deve carregar perfis quando credenciais falham
+      expect(
+        mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
+      ).not.toHaveBeenCalled();
     });
 
     it('deve lançar UnauthorizedException se a senha for inválida', async () => {
-      const mockUser = makeUsuario({ id: 1, empresas: [] });
-      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
-        mockUser,
-      );
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        senha: 'hashedPassword',
+        ativo: true,
+        deletedAt: null,
+      });
       mockPasswordHasher.compare.mockResolvedValue(false);
 
       const loginDto = { email: 'test@example.com', senha: 'wrongPassword' };
@@ -233,18 +252,22 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
       expect(
-        mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
+        mockUsuarioRepository.findByEmailWithCredentials,
       ).toHaveBeenCalledWith('test@example.com');
 
       expect(mockPasswordHasher.compare).toHaveBeenCalledWith(
         'wrongPassword',
-        mockUser.senha,
+        'hashedPassword',
       );
       expect(mockJwtService.sign).not.toHaveBeenCalled();
       // [ALT-003] Falha registra tentativa no tracker
       expect(mockLoginAttemptTracker.recordFailure).toHaveBeenCalledWith(
         'test@example.com',
       );
+      // [ALT-006] NÃO deve carregar perfis quando senha é inválida
+      expect(
+        mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
+      ).not.toHaveBeenCalled();
     });
 
     // [ALT-003] Account lockout
@@ -258,18 +281,22 @@ describe('AuthService', () => {
       );
       // Não deve nem consultar o DB
       expect(
+        mockUsuarioRepository.findByEmailWithCredentials,
+      ).not.toHaveBeenCalled();
+      expect(
         mockUsuarioRepository.findByEmailWithPerfisAndPermissoes,
       ).not.toHaveBeenCalled();
     });
 
     // BDD: features/autenticacao.feature:Cenário: Login com senha nula no usuário
-    it('deve lançar UnauthorizedException se user.senha for null', async () => {
-      const mockUser = makeUsuario({ id: 1, empresas: [] });
-      // Sobrescreve senha para null
-      Object.assign(mockUser, { senha: null });
-      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
-        mockUser,
-      );
+    it('deve lançar UnauthorizedException se credentials.senha for null', async () => {
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        senha: null,
+        ativo: true,
+        deletedAt: null,
+      });
       mockPasswordHasher.compare.mockResolvedValue(false);
 
       const loginDto = { email: 'test@example.com', senha: 'qualquer' };
@@ -281,12 +308,14 @@ describe('AuthService', () => {
     });
 
     // BDD: features/autenticacao.feature:Cenário: Login com senha undefined no usuário
-    it('deve lançar UnauthorizedException se user.senha for undefined', async () => {
-      const mockUser = makeUsuario({ id: 1, empresas: [] });
-      Object.assign(mockUser, { senha: undefined });
-      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
-        mockUser,
-      );
+    it('deve lançar UnauthorizedException se credentials.senha for undefined', async () => {
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        senha: null,
+        ativo: true,
+        deletedAt: null,
+      });
 
       const loginDto = { email: 'test@example.com', senha: 'qualquer' };
 
@@ -297,10 +326,13 @@ describe('AuthService', () => {
 
     // BDD: features/autenticacao.feature:Cenário: Login com DTO de senha vazio
     it('deve lançar UnauthorizedException se dto.senha for vazio', async () => {
-      const mockUser = makeUsuario({ id: 1, empresas: [] });
-      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
-        mockUser,
-      );
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        senha: 'hashedPassword',
+        ativo: true,
+        deletedAt: null,
+      });
 
       // Forçamos bypass do DTO para testar a guarda do service
       const loginDto = {
@@ -315,19 +347,21 @@ describe('AuthService', () => {
     });
 
     // BDD: features/autenticacao.feature:Cenário: Ordem de chamadas em falha de login
-    it('deve chamar findByEmailWithPerfisAndPermissoes antes de recordFailure em falha', async () => {
-      const mockUser = makeUsuario({ id: 1, empresas: [] });
-      Object.assign(mockUser, { senha: null });
-      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
-        mockUser,
-      );
+    it('deve chamar findByEmailWithCredentials antes de recordFailure em falha', async () => {
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        senha: null,
+        ativo: true,
+        deletedAt: null,
+      });
 
       await expect(
         service.login({ email: 'test@example.com', senha: 'qualquer' }),
       ).rejects.toThrow(UnauthorizedException);
 
       const findOrder =
-        mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mock
+        mockUsuarioRepository.findByEmailWithCredentials.mock
           .invocationCallOrder[0];
       const recordOrder =
         mockLoginAttemptTracker.recordFailure.mock.invocationCallOrder[0];
@@ -336,7 +370,14 @@ describe('AuthService', () => {
 
     // BDD: features/autenticacao.feature:Cenário: Login bem-sucedido sem ip/userAgent
     it('deve chamar LoginHistory.record com undefined quando ip e userAgent não são fornecidos', async () => {
-      const mockUser = makeUsuario({ id: 1, empresas: [] });
+      const mockUser = makeUsuario({ id: 1, senha: 'hashedPassword' });
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue({
+        id: 1,
+        email: mockUser.email,
+        senha: mockUser.senha as string,
+        ativo: true,
+        deletedAt: null,
+      });
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         mockUser,
       );
@@ -355,7 +396,14 @@ describe('AuthService', () => {
 
     // [ALT-003] Login bem-sucedido reseta o tracker
     it('deve limpar o contador de falhas no tracker após login bem-sucedido', async () => {
-      const mockUser = makeUsuario({ id: 1, empresas: [] });
+      const mockUser = makeUsuario({ id: 1, senha: 'hashedPassword' });
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue({
+        id: 1,
+        email: mockUser.email,
+        senha: mockUser.senha as string,
+        ativo: true,
+        deletedAt: null,
+      });
       mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
         mockUser,
       );
@@ -366,6 +414,27 @@ describe('AuthService', () => {
       expect(mockLoginAttemptTracker.clearFailures).toHaveBeenCalledWith(
         'test@example.com',
       );
+    });
+
+    // [ALT-006] Edge case: race condition — usuário deletado entre step 1 e step 2
+    it('deve lançar UnauthorizedException se usuário sumir entre step 1 (credentials) e step 2 (perfis)', async () => {
+      mockUsuarioRepository.findByEmailWithCredentials.mockResolvedValue({
+        id: 1,
+        email: 'race@example.com',
+        senha: 'hashedPassword',
+        ativo: true,
+        deletedAt: null,
+      });
+      // Step 2 retorna null (usuário foi deletado entre as queries)
+      mockUsuarioRepository.findByEmailWithPerfisAndPermissoes.mockResolvedValue(
+        null,
+      );
+      mockPasswordHasher.compare.mockResolvedValue(true);
+
+      await expect(
+        service.login({ email: 'race@example.com', senha: 'senha' }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
   });
 
@@ -568,7 +637,7 @@ describe('AuthService', () => {
       ]);
     });
 
-    it('deve usar fallback de 7 dias quando JWT_REFRESH_EXPIRES_DAYS nao esta configurado', async () => {
+    it('deve usar fallback de 2 dias quando JWT_REFRESH_EXPIRES_DAYS nao esta configurado [L4]', async () => {
       // Reconfigura o mock para nao retornar JWT_REFRESH_EXPIRES_DAYS
       mockConfigService.get.mockImplementation((key: string) => {
         if (key === 'JWT_ACCESS_EXPIRES_IN') return '60s';
@@ -585,8 +654,8 @@ describe('AuthService', () => {
         mockRefreshTokenRepository.create.mock.calls[0] as any[]
       )[0];
       const expiresAt: Date = createCall.expiresAt;
-      // 7 dias = 7 * 24 * 60 * 60 * 1000 ms
-      const expectedMs = 7 * 24 * 60 * 60 * 1000;
+      // [L4] 2 dias = 2 * 24 * 60 * 60 * 1000 ms (reduzido de 7d, DevSecOps 2026-06-21)
+      const expectedMs = 2 * 24 * 60 * 60 * 1000;
       const lower = before + expectedMs - 1000;
       const upper = after + expectedMs + 1000;
       expect(expiresAt.getTime()).toBeGreaterThanOrEqual(lower);
@@ -613,7 +682,7 @@ describe('AuthService', () => {
     it('deve passar expiresIn undefined ao jwtService.sign quando JWT_ACCESS_EXPIRES_IN nao esta configurado', async () => {
       mockConfigService.get.mockImplementation((key: string) => {
         if (key === 'JWT_ACCESS_EXPIRES_IN') return undefined;
-        if (key === 'JWT_REFRESH_EXPIRES_DAYS') return 7;
+        if (key === 'JWT_REFRESH_EXPIRES_DAYS') return 2;
         return null as any;
       });
       mockRefreshTokenRepository.create.mockResolvedValue(undefined);

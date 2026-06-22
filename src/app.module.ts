@@ -56,6 +56,22 @@ import { QueuesModule } from './shared/infrastructure/queues/queues.module';
           process.env.NODE_ENV !== 'production'
             ? { target: 'pino-pretty' }
             : undefined,
+        // [DevSecOps LOW 2026-06-21] Redact paths sensíveis para evitar
+        // vazamento de authorization headers, cookies e campos de senha/token
+        // em logs estruturados (pinoHttp serializa req/res por padrão).
+        redact: {
+          paths: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.body.senha',
+            'req.body.password',
+            'req.body.token',
+            'req.body.refresh_token',
+            'req.body.passwordResetToken',
+            'res.headers["set-cookie"]',
+          ],
+          censor: '[REDACTED]',
+        },
       },
     }),
     CacheModule.registerAsync({

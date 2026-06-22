@@ -29,6 +29,10 @@ export class HealthController {
   // A spec k8s define: liveness = processo responde; readiness = pode receber
   // tráfego. Health check de memória é trabalho do Horizontal Pod Autoscaler
   // ou do monitoring, não do livenessProbe.
+  // [SEC-RATE-LIMIT] Rota @Public() (k8s liveness probe sem JWT).
+  //   Rate-limit aplicado: TenantThrottlerGuard global (plano FREE fallback ip:<ip>).
+  //   Não usa @Throttle explícito — probes k8s disparam a cada 5-10s.
+  //   Em NODE_ENV=test, PLANO_LIMITS é inflado para 10_000 (não bloqueia e2e).
   @Get('live')
   @Public()
   @HealthCheck()
@@ -41,6 +45,10 @@ export class HealthController {
     return this.health.check([]);
   }
 
+  // [SEC-RATE-LIMIT] Rota @Public() (k8s readiness probe sem JWT).
+  //   Rate-limit aplicado: TenantThrottlerGuard global (plano FREE fallback ip:<ip>).
+  //   Não usa @Throttle explícito — probes k8s disparam a cada 5-10s.
+  //   Em NODE_ENV=test, PLANO_LIMITS é inflado para 10_000 (não bloqueia e2e).
   @Get('ready')
   @Public()
   @HealthCheck()

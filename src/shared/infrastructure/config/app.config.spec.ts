@@ -86,8 +86,8 @@ describe('AppConfig', () => {
     it('jwtAccessExpiresIn retorna "15m" por padrão', () => {
       expect(appConfig.jwtAccessExpiresIn).toBe('15m');
     });
-    it('jwtRefreshExpiresDays retorna 7 por padrão', () => {
-      expect(appConfig.jwtRefreshExpiresDays).toBe(7);
+    it('jwtRefreshExpiresDays retorna 2 por padrão [L4 DevSecOps 2026-06-21]', () => {
+      expect(appConfig.jwtRefreshExpiresDays).toBe(2);
     });
   });
 
