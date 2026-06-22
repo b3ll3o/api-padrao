@@ -1,12 +1,14 @@
 // BDD: N/A (cross-cutting / infraestrutura)
 // SDD: .openspec/changes/observabilidade/cross-cutting.md:REQ-CC-IDEMPOTENT-001
 // TDD: src/shared/infrastructure/interceptors/idempotency.interceptor.spec.ts
-// [WIP] Status: PARCIALMENTE IMPLEMENTADO. REQ-CC-IDEMPOTENT-001
-// (observabilidade/cross-cutting.md) documenta 6 sub-REQs; 1.1 (extrai
-// X-Idempotency-Key), 1.2 (cache only 2xx), 1.4 (cache hit), e
-// 1.2b (atomicidade Redis SETNX) estão completos. Faltam:
-// 1.3 (TTL configurável), 1.5 (auditoria de replay), 1.6 (ativação).
-// Próximo sprint: devsecops-sprint-2.
+// Status atual (A4 — Idempotency 2026-06-22):
+//   1.1 (extrai X-Idempotency-Key) ✅
+//   1.2 (cache only 2xx) ✅
+//   1.2b (atomicidade Redis SETNX) ✅
+//   1.3 (TTL configurável via AppConfig) ✅
+//   1.4 (cache hit replay) ✅
+//   1.5 (auditoria de replay) ✅
+//   1.6 (ativação via @Idempotent() decorator) ✅
 
 import {
   BadRequestException,
@@ -18,11 +20,15 @@ import {
   Logger,
 } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Reflector } from '@nestjs/core';
 import { Observable, of, from } from 'rxjs';
 import { catchError, switchMap, tap } from 'rxjs/operators';
 import { Cache } from 'cache-manager';
 import type { RedisClientType } from '@redis/client';
 import { Request } from 'express';
+
+import { AppConfig } from '../config/app.config';
+import { IDEMPOTENT_KEY, IdempotentOptions } from './idempotent.decorator';
 
 /**
  * [SEC-007] Idempotency-Key — Em retries de rede (cliente recebe
@@ -39,19 +45,39 @@ import { Request } from 'express';
  * `SET key value NX EX <ttl>` (SETNX atômico do Redis) durante o
  * processamento. A 2ª request recebe 400 até a 1ª terminar.
  *
- * Aplicar em POSTs sensíveis (auth, billing, criação de recursos).
- * Se o header não for enviado, o interceptor é no-op (comportamento
- * padrão preservado).
+ * Ativação (REQ-CC-IDEMPOTENT-001.6): opt-in via decorator
+ * `@Idempotent()`. Endpoints sem decorator são no-op (sem custo
+ * de cache.get). Decorator aceita override de TTL por endpoint.
+ *
+ * TTL (REQ-CC-IDEMPOTENT-001.3): configurável via `AppConfig`
+ * (env IDEMPOTENCY_TTL_SECONDS, default 24h). Lock TTL separado
+ * (env IDEMPOTENCY_LOCK_TTL_SECONDS, default 60s).
+ *
+ * Auditoria de replay (REQ-CC-IDEMPOTENT-001.5): toda vez que uma
+ * response é servida do cache, emite log estruturado com
+ * `event: 'idempotency.replay'` (key, status, userId, originalTimestamp).
+ * Permite reconstruir auditoria de retries B2B sem acesso a logs
+ * de aplicação brutos.
  */
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
   private static readonly logger = new Logger(IdempotencyInterceptor.name);
-  private static readonly TTL_MS = 24 * 60 * 60 * 1000; // 24h
-  private static readonly LOCK_TTL_SECONDS = 60; // lock de processamento
   private static readonly KEY_PREFIX = 'idempotency:';
   private static readonly LOCK_PREFIX = 'idem:lock:';
 
-  constructor(@Inject(CACHE_MANAGER) private readonly cache: Cache) {}
+  constructor(
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly appConfig: AppConfig,
+    private readonly reflector: Reflector,
+  ) {}
+
+  private get RESULT_TTL_MS(): number {
+    return this.appConfig.idempotencyTtlSeconds * 1000;
+  }
+
+  private get LOCK_TTL_SECONDS(): number {
+    return this.appConfig.idempotencyLockTtlSeconds;
+  }
 
   /**
    * Acessa o cliente Redis subjacente ao `CacheManager`. O store
@@ -68,7 +94,27 @@ export class IdempotencyInterceptor implements NestInterceptor {
     return cacheAny.stores?.[0]?.client ?? cacheAny.store?.client ?? null;
   }
 
+  /**
+   * Extrai userId do JWT injetado pelo AuthGuard. Retorna undefined
+   * para rotas @Public() (request.user não é populado).
+   */
+  private getUserId(request: Request): string | number | undefined {
+    const user = (request as unknown as { user?: { sub?: string | number } })
+      .user;
+    return user?.sub;
+  }
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    // [REQ-CC-IDEMPOTENT-001.6] Opt-in: só ativa em endpoints com
+    // @Idempotent(). Endpoints sem decorator são no-op (zero overhead).
+    const idempotentMeta = this.reflector.getAllAndOverride<IdempotentOptions>(
+      IDEMPOTENT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (!idempotentMeta) {
+      return next.handle();
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse();
 
@@ -90,15 +136,49 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const lockKey = `${IdempotencyInterceptor.LOCK_PREFIX}${idempotencyKey}`;
     const redis = this.getRedisClient();
 
+    // Override de TTL por endpoint (decorator @Idempotent({ttlSeconds}))
+    const endpointTtlMs = idempotentMeta.ttlSeconds
+      ? idempotentMeta.ttlSeconds * 1000
+      : this.RESULT_TTL_MS;
+    const userId = this.getUserId(request);
+
     return from(
-      this.cache.get<{ status: number; body: unknown }>(cacheKey),
+      this.cache.get<{
+        status: number;
+        body: unknown;
+        timestamp: Date;
+        userId?: string | number;
+      }>(cacheKey),
     ).pipe(
       switchMap(async (cached) => {
         if (cached) {
-          IdempotencyInterceptor.logger.debug(
+          // [REQ-CC-IDEMPOTENT-001.5] Auditoria de replay — log estruturado
+          // com event canônico + dados suficientes para reconstruir auditoria
+          // (key, status, userId, originalTimestamp). Permite distinguir
+          // retries de rede (replay legítimo) de comportamento suspeito
+          // (mesma key com userIds diferentes → tampering).
+          IdempotencyInterceptor.logger.log(
+            {
+              event: 'idempotency.replay',
+              idempotencyKey,
+              status: cached.status,
+              userId: cached.userId ?? userId,
+              originalTimestamp:
+                cached.timestamp instanceof Date
+                  ? cached.timestamp.toISOString()
+                  : String(cached.timestamp),
+              currentUserId: userId,
+            },
             `Idempotency-Key ${idempotencyKey} replay (status ${cached.status})`,
           );
+
           response.setHeader('Idempotency-Replayed', 'true');
+          if (cached.timestamp instanceof Date) {
+            response.setHeader(
+              'Idempotency-Original-Timestamp',
+              cached.timestamp.toISOString(),
+            );
+          }
           response.status(cached.status);
           return { __replay: true as const, body: cached.body };
         }
@@ -110,7 +190,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
           try {
             const acquired = await redis.set(lockKey, 'processing', {
               NX: true,
-              EX: IdempotencyInterceptor.LOCK_TTL_SECONDS,
+              EX: this.LOCK_TTL_SECONDS,
             });
             if (acquired !== 'OK') {
               IdempotencyInterceptor.logger.warn({
@@ -150,7 +230,11 @@ export class IdempotencyInterceptor implements NestInterceptor {
             // retentados legitimamente (e.g. transient 5xx).
             if (status >= 200 && status < 300) {
               this.cache
-                .set(cacheKey, { status, body }, IdempotencyInterceptor.TTL_MS)
+                .set(
+                  cacheKey,
+                  { status, body, timestamp: new Date(), userId },
+                  endpointTtlMs,
+                )
                 .catch((err) => {
                   IdempotencyInterceptor.logger.warn(
                     { event: 'idempotency.cache_write_failed', err },
@@ -175,7 +259,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
           }),
           tap({
             next: () => {
-              // Sucesso: libera lock (TTL de 24h na response cacheada
+              // Sucesso: libera lock (TTL na response cacheada
               // cobre replay; lock só serve para serializar execução).
               if (redis) {
                 redis.del(lockKey).catch((delErr: Error) => {

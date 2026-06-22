@@ -90,4 +90,20 @@ export class AppConfig {
   get throttlerSensitiveLimit(): number {
     return this.configService.get<number>('THROTTLER_SENSITIVE_LIMIT', 10);
   }
+
+  // [REQ-CC-IDEMPOTENT-001.3] TTL configurável para cache de responses
+  // idempotentes. Default 24h (padrão Stripe/PayPal) — janela grande
+  // o suficiente para absorver retries de rede B2B (cliente recebe
+  // timeout mas servidor processou). Lock de processamento tem TTL
+  // separado (60s) — apenas serializa execução concorrente.
+  get idempotencyTtlSeconds(): number {
+    return this.configService.get<number>(
+      'IDEMPOTENCY_TTL_SECONDS',
+      24 * 60 * 60,
+    );
+  }
+
+  get idempotencyLockTtlSeconds(): number {
+    return this.configService.get<number>('IDEMPOTENCY_LOCK_TTL_SECONDS', 60);
+  }
 }

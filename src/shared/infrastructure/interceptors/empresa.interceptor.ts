@@ -29,10 +29,21 @@ export class EmpresaInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
+    const response = context.switchToHttp().getResponse();
     const user = request.user;
 
+    // [QuickWin 4a] x-request-id — propaga/cria request ID e devolve no
+    // response header. Permite tracing end-to-end (cliente <-> servidor
+    // <-> logs <-> OTel) sem o cliente precisar correlacionar manualmente.
+    // Reaproveita header recebido (gateway já atribuiu) ou gera UUID v4.
+    const requestId = (request.headers['x-request-id'] as string) || uuidv4();
+    request.headers['x-request-id'] = requestId;
+    if (!response.headersSent) {
+      response.setHeader('x-request-id', requestId);
+    }
+
     const contextData: IRequestContext = {
-      requestId: (request.headers['x-request-id'] as string) || uuidv4(),
+      requestId,
     };
 
     if (user) {

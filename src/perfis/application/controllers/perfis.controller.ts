@@ -31,6 +31,7 @@ import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto
 import { UsuarioLogado } from '../../../shared/application/decorators/usuario-logado.decorator';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { EmpresaId } from '../../../shared/application/decorators/empresa-id.decorator';
+import { Idempotent } from '../../../shared/infrastructure/interceptors/idempotent.decorator';
 
 @ApiTags('Perfis')
 @ApiBearerAuth('JWT-auth')
@@ -43,7 +44,11 @@ import { EmpresaId } from '../../../shared/application/decorators/empresa-id.dec
 export class PerfisController {
   constructor(private readonly perfisService: PerfisService) {}
 
+  // [REQ-CC-IDEMPOTENT-001.6] Idempotency opt-in: retry de rede não cria
+  // 2 perfis duplicados. 409 já protege contra duplicação por payload
+  // diferente; idempotency cobre o caso de retry legítimo.
   @TemPermissao('CREATE_PERFIL')
+  @Idempotent()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Criar um novo perfil' })

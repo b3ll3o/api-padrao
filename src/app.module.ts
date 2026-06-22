@@ -84,7 +84,13 @@ import { QueuesModule } from './shared/infrastructure/queues/queues.module';
             host: config.redisHost,
             port: config.redisPort,
           },
-          ttl: config.cacheTtl,
+          // [QuickWin 4b] TTL default convertido para ms.
+          // Cada `cache.set()` aceita TTL próprio (idempotency usa 24h,
+          // throttler usa segundos) — este é o fallback. Cardinalidade
+          // é controlada pelo `maxmemory-policy` do Redis server
+          // (recomendado `allkeys-lru`); o SDK `cache-manager-redis-yet`
+          // não expõe `max` como opção válida na versão atual.
+          ttl: config.cacheTtl * 1000,
         }),
       }),
     }),

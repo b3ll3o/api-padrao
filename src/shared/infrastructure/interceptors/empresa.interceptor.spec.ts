@@ -29,9 +29,11 @@ describe('EmpresaInterceptor', () => {
       headers: { 'x-empresa-id': 'header-uuid' },
       user: { sub: 1, empresaId: 'header-uuid' },
     };
+    const response = { setHeader: jest.fn(), headersSent: false };
     const executionContext = {
       switchToHttp: () => ({
         getRequest: () => request,
+        getResponse: () => response,
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
@@ -52,9 +54,11 @@ describe('EmpresaInterceptor', () => {
       headers: {},
       user: { sub: 1, empresaId: 'jwt-uuid' },
     };
+    const response = { setHeader: jest.fn(), headersSent: false };
     const executionContext = {
       switchToHttp: () => ({
         getRequest: () => request,
+        getResponse: () => response,
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
@@ -74,9 +78,11 @@ describe('EmpresaInterceptor', () => {
       headers: { 'x-empresa-id': 'tenant-a' },
       user: { sub: 1, empresaId: 'tenant-a' },
     };
+    const response = { setHeader: jest.fn(), headersSent: false };
     const executionContext = {
       switchToHttp: () => ({
         getRequest: () => request,
+        getResponse: () => response,
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
@@ -96,9 +102,11 @@ describe('EmpresaInterceptor', () => {
       headers: { 'x-empresa-id': 'tenant-b' },
       user: { sub: 1, empresaId: 'tenant-a' },
     };
+    const response = { setHeader: jest.fn(), headersSent: false };
     const executionContext = {
       switchToHttp: () => ({
         getRequest: () => request,
+        getResponse: () => response,
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
@@ -122,9 +130,11 @@ describe('EmpresaInterceptor', () => {
       headers: { 'x-empresa-id': 'tenant-b' },
       user: { sub: 1, empresaId: 'tenant-a' },
     };
+    const response = { setHeader: jest.fn(), headersSent: false };
     const executionContext = {
       switchToHttp: () => ({
         getRequest: () => request,
+        getResponse: () => response,
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
@@ -143,9 +153,11 @@ describe('EmpresaInterceptor', () => {
     const request = {
       headers: { 'x-empresa-id': 'header-uuid' },
     };
+    const response = { setHeader: jest.fn(), headersSent: false };
     const executionContext = {
       switchToHttp: () => ({
         getRequest: () => request,
+        getResponse: () => response,
       }),
     } as unknown as ExecutionContext;
     const next: CallHandler = {
@@ -157,6 +169,60 @@ describe('EmpresaInterceptor', () => {
 
     interceptor.intercept(executionContext, next).subscribe({
       complete: () => done(),
+    });
+  });
+
+  // ---- QuickWin 4a: x-request-id response header ----
+
+  it('[QuickWin 4a] propaga x-request-id do header para o response', (done) => {
+    const request = {
+      headers: { 'x-request-id': 'incoming-req-123', 'x-empresa-id': 't1' },
+      user: { sub: 1, empresaId: 't1' },
+    };
+    const response = { setHeader: jest.fn(), headersSent: false };
+    const executionContext = {
+      switchToHttp: () => ({
+        getRequest: () => request,
+        getResponse: () => response,
+      }),
+    } as unknown as ExecutionContext;
+    const next: CallHandler = { handle: () => of(null) };
+
+    interceptor.intercept(executionContext, next).subscribe({
+      complete: () => {
+        expect(response.setHeader).toHaveBeenCalledWith(
+          'x-request-id',
+          'incoming-req-123',
+        );
+        done();
+      },
+    });
+  });
+
+  it('[QuickWin 4a] gera UUID v4 quando x-request-id ausente', (done) => {
+    const request = {
+      headers: {},
+      user: undefined,
+    };
+    const response = { setHeader: jest.fn(), headersSent: false };
+    const executionContext = {
+      switchToHttp: () => ({
+        getRequest: () => request,
+        getResponse: () => response,
+      }),
+    } as unknown as ExecutionContext;
+    const next: CallHandler = { handle: () => of(null) };
+
+    interceptor.intercept(executionContext, next).subscribe({
+      complete: () => {
+        expect(response.setHeader).toHaveBeenCalledWith(
+          'x-request-id',
+          expect.stringMatching(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+          ),
+        );
+        done();
+      },
     });
   });
 });

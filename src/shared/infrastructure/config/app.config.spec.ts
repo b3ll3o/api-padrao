@@ -107,4 +107,23 @@ describe('AppConfig', () => {
       expect(cfg.jwtSecret).toBe('s3cr3t');
     });
   });
+
+  // ---- REQ-CC-IDEMPOTENT-001.3 — TTL configurável ----
+
+  describe('idempotency', () => {
+    it('idempotencyTtlSeconds retorna 86400 (24h) por padrão [A4 2026-06-22]', () => {
+      expect(appConfig.idempotencyTtlSeconds).toBe(86400);
+    });
+    it('idempotencyTtlSeconds retorna valor do env quando definido', async () => {
+      const cfg = await buildModule({ IDEMPOTENCY_TTL_SECONDS: 60 });
+      expect(cfg.idempotencyTtlSeconds).toBe(60);
+    });
+    it('idempotencyLockTtlSeconds retorna 60 por padrão', () => {
+      expect(appConfig.idempotencyLockTtlSeconds).toBe(60);
+    });
+    it('idempotencyLockTtlSeconds retorna valor do env quando definido', async () => {
+      const cfg = await buildModule({ IDEMPOTENCY_LOCK_TTL_SECONDS: 30 });
+      expect(cfg.idempotencyLockTtlSeconds).toBe(30);
+    });
+  });
 });

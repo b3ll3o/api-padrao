@@ -33,6 +33,7 @@ import { EmpresasService } from '../../../empresas/application/services/empresas
 import { Permissoes } from '../../../shared/domain/constants/auth.constants';
 import { Auditar } from '../../../shared/application/decorators/audit.decorator';
 import { Throttle } from '@nestjs/throttler';
+import { Idempotent } from '../../../shared/infrastructure/interceptors/idempotent.decorator';
 
 @ApiTags('Usuários')
 @ApiBearerAuth('JWT-auth')
@@ -52,7 +53,11 @@ export class UsuariosController {
   // explícita (CREATE_USUARIO). Sem isso, qualquer cliente anônimo poderia
   // popular a base (mass account creation / DoS) e ainda escapar do rate
   // limit sensível aplicado às demais rotas autenticadas.
+  // [REQ-CC-IDEMPOTENT-001.6] Idempotency opt-in: retry de rede não cria
+  // 2 usuários duplicados. Cache 24h é seguro (operação destrutiva seria
+  // bloqueada pelo 409 na primeira request; responses cacheadas são 2xx).
   @Post()
+  @Idempotent()
   @TemPermissao(Permissoes.CREATE_USUARIO)
   @Auditar({ acao: 'CRIAR', recurso: 'USUARIO' })
   @ApiOperation({ summary: 'Cria um novo usuário' })

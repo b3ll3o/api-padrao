@@ -41,6 +41,13 @@ export const envValidationSchema = Joi.object({
   THROTTLER_SENSITIVE_LIMIT_FORGOT: Joi.number().default(5),
   THROTTLER_SENSITIVE_LIMIT_REFRESH: Joi.number().default(10),
   THROTTLER_SENSITIVE_LIMIT_RESET: Joi.number().default(10),
+  // [REQ-CC-IDEMPOTENT-001.3] TTL configurável para cache de responses
+  // idempotentes (default 24h). Lock de processamento separado (60s).
+  // Min 60s para evitar window < 1 min em prod (curto demais para
+  // retries B2B reais); sem max (operacionalmente é armazenamento
+  // Redis, não janela de exposição de credenciais).
+  IDEMPOTENCY_TTL_SECONDS: Joi.number().integer().min(60).default(86400),
+  IDEMPOTENCY_LOCK_TTL_SECONDS: Joi.number().integer().min(10).default(60),
   // [Sprint1-HTTP] Trust proxy — usado pelo Fastify para confiar no
   // header X-Forwarded-For. Default 'loopback' (apenas o primeiro hop).
   // BDD: features/devsecops-sprint1-quick-wins.feature:Funcionalidade: HTTP Hardening
