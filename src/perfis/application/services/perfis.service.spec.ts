@@ -723,4 +723,47 @@ describe('PerfisService', () => {
       expect(mockPerfilRepository.remove).toHaveBeenCalledWith(1);
     });
   });
+
+  // REQ-PERF-014 — Cenário "Listar permissões por perfil" (features/perfis.feature)
+  describe('listPermissoesByPerfilId', () => {
+    it('deve retornar [] quando empresaId é undefined (fail-safe)', async () => {
+      const result = await service.listPermissoesByPerfilId('1');
+      expect(result).toEqual([]);
+      expect(mockPerfilRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('deve retornar códigos das permissões vinculadas ao perfil', async () => {
+      const perfilWithPerms = {
+        ...existingPerfil,
+        permissoes: [{ codigo: 'READ_USUARIOS' }, { codigo: 'WRITE_USUARIOS' }],
+      };
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+        perfilWithPerms,
+      );
+      const result = await service.listPermissoesByPerfilId(
+        '1',
+        'empresa-uuid-123',
+      );
+      expect(result).toEqual(['READ_USUARIOS', 'WRITE_USUARIOS']);
+    });
+
+    it('deve retornar [] se o perfil não tem permissões', async () => {
+      const perfilNoPerms = { ...existingPerfil, permissoes: [] };
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+        perfilNoPerms,
+      );
+      const result = await service.listPermissoesByPerfilId(
+        '1',
+        'empresa-uuid-123',
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('deve lançar NotFoundException se o perfil não existir', async () => {
+      (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(
+        service.listPermissoesByPerfilId('999', 'empresa-uuid-123'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

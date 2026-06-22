@@ -185,4 +185,31 @@ export class PerfisService {
     }
     return updatedPerfil;
   }
+
+  /**
+   * REQ-PERF-014 — Lista as permissões vinculadas a um perfil.
+   * Cenário BDD: features/perfis.feature "Listar permissões por perfil".
+   *
+   * @param id — ID do perfil (string, validado pelo Prisma)
+   * @param empresaId — Escopo multi-tenant (opcional, mas obrigatório em produção)
+   * @returns Array de códigos de permissão (ex: ["READ_USUARIOS", "WRITE_EMPRESAS"])
+   * @throws NotFoundException se o perfil não existir
+   */
+  async listPermissoesByPerfilId(
+    id: string,
+    empresaId?: string,
+  ): Promise<string[]> {
+    if (!empresaId) {
+      // Rota pública ou JWT sem empresa — fail-safe.
+      return [];
+    }
+
+    const perfil = await this.perfilRepository.findOne(+id, false, empresaId);
+    if (!perfil) {
+      throw new NotFoundException(`Perfil com ID ${id} não encontrado.`);
+    }
+
+    // perfil.permissoes é a lista de Permissão do aggregate; extrair codigo.
+    return (perfil.permissoes ?? []).map((p) => p.codigo);
+  }
 }

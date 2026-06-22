@@ -150,4 +150,27 @@ export class PerfisController {
       empresaId,
     );
   }
+
+  // REQ-PERF-014 — Cenário movido de permissoes.feature (escopo correto: perfis).
+  // Listar permissões vinculadas a um perfil (escopo multi-tenant).
+  @TemPermissao('READ_PERFIL_BY_ID')
+  @Get(':id/permissoes')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Listar permissões de um perfil',
+    description:
+      'Retorna todas as permissões vinculadas ao perfil, respeitando o escopo da empresa (x-empresa-id).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de permissões do perfil.',
+    type: 'array',
+  })
+  @ApiResponse({ status: 404, description: 'Perfil não encontrado.' })
+  async listPermissoes(
+    @Param('id') id: string,
+    @EmpresaId() empresaId?: string,
+  ): Promise<string[]> {
+    return this.perfisService.listPermissoesByPerfilId(id, empresaId);
+  }
 }

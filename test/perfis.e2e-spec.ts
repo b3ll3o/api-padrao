@@ -272,4 +272,65 @@ describe('PerfisController (e2e)', () => {
         .expect(200);
     });
   });
+
+  // BDD: features/perfis.feature:Cenário: Listar permissões por perfil (REQ-PERF-014)
+  describe('GET /perfis/:id/permissoes', () => {
+    it('deve retornar as permissões vinculadas ao perfil', async () => {
+      const perm1 = await prisma.permissao.create({
+        data: {
+          nome: 'read:test',
+          codigo: 'READ_TEST',
+          descricao: 'Read test',
+        },
+      });
+      const perm2 = await prisma.permissao.create({
+        data: {
+          nome: 'write:test',
+          codigo: 'WRITE_TEST',
+          descricao: 'Write test',
+        },
+      });
+      const perfil = await prisma.perfil.create({
+        data: {
+          nome: 'Perfil Com Perms',
+          codigo: 'COM_PERMS',
+          descricao: 'Perfil com permissões',
+          empresaId: globalEmpresaId,
+          permissoes: { connect: [{ id: perm1.id }, { id: perm2.id }] },
+        },
+      });
+
+      return request(app.getHttpServer())
+        .get(`/perfis/${perfil.id}/permissoes`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
+        .expect(200)
+        .expect((res) => {
+          expect(Array.isArray(res.body)).toBe(true);
+          expect(res.body).toEqual(
+            expect.arrayContaining(['READ_TEST', 'WRITE_TEST']),
+          );
+        });
+    });
+
+    it('deve retornar [] se o perfil não tem permissões', async () => {
+      const perfil = await prisma.perfil.create({
+        data: {
+          nome: 'Perfil Sem Perms',
+          codigo: 'SEM_PERMS',
+          descricao: 'Perfil sem permissões',
+          empresaId: globalEmpresaId,
+        },
+      });
+
+      return request(app.getHttpServer())
+        .get(`/perfis/${perfil.id}/permissoes`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('x-empresa-id', globalEmpresaId)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toEqual([]);
+        });
+    });
+  });
 });
