@@ -42,11 +42,11 @@ Cenário: Buscar permissão por ID
   Então o status da resposta deve ser 200
   E a resposta deve conter o id 1
 
-Cenário: Buscar permissão por código
-  Dado que existe permissão com código "READ_USUARIOS"
-  Quando eu enviar uma requisição GET para "/permissoes/codigo/READ_USUARIOS"
+Cenário: Buscar permissão por nome (contains, paginado)
+  Dado que existe permissão com nome "READ_USUARIOS"
+  Quando eu enviar uma requisição GET para "/permissoes/nome/READ_USUARIOS"
   Então o status da resposta deve ser 200
-  E a resposta deve conter o código "READ_USUARIOS"
+  E a resposta deve conter itens contendo "READ_USUARIOS"
 
 Cenário: Buscar permissão por ID inexistente
   Quando eu enviar uma requisição GET para "/permissoes/9999"
@@ -66,16 +66,16 @@ Cenário: Criar permissão sem nome
     | descricao | Permite criar empresas |
   Então o status da resposta deve ser 400
 
-Cenário: Permissão associada a perfil não pode ser removida
+Cenário: Soft-delete de permissão (PATCH ativo=false) — soft-delete via @nestjs/terminus
   Dado que existe permissão com ID 1
   E esta permissão está associada a um perfil
-  Quando eu enviar uma requisição DELETE para "/permissoes/1"
-  Então o status da resposta deve ser 409
-  E o corpo da resposta deve conter "associada a um perfil"
-
-Cenário: Listar permissões por perfil
-  Dado que existe perfil com ID 1
-  E o perfil tem permissões associadas
-  Quando eu enviar uma requisição GET para "/perfis/1/permissoes"
+  Quando eu enviar uma requisição PATCH para "/permissoes/1" com:
+    | ativo | false |
   Então o status da resposta deve ser 200
-  E a resposta deve conter a lista de permissões do perfil
+  E o campo "ativo" da resposta deve ser false
+  # Permissões associadas a perfis são soft-deletadas (não há DELETE físico)
+  # Implementação: src/permissoes/application/services/permissoes.service.ts:174
+  # REQ-PERM-018: soft-delete via PATCH /permissoes/:id {ativo: false}
+
+# Cenário P3 removido de permissoes.feature — pertence a perfis.feature
+# (Listar permissões por perfil está em /perfis/:id/permissoes, escopo de perfis)

@@ -91,3 +91,11 @@ Cenário: Buscar perfil por código na empresa
   Quando eu enviar uma requisição GET para "/perfis/codigo/ADMIN?empresaId=empresa-uuid-123"
   Então o status da resposta deve ser 200
   E a resposta deve conter o perfil com código "ADMIN"
+
+# REQ-PERF-014 — Cenário movido de permissoes.feature (escopo correto: perfis)
+Cenário: Listar permissões por perfil
+  Dado que existe perfil com ID 1
+  E o perfil tem permissões associadas
+  Quando eu enviar uma requisição GET para "/perfis/1/permissoes"
+  Então o status da resposta deve ser 200
+  E a resposta deve conter a lista de permissões do perfil
