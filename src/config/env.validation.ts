@@ -19,6 +19,13 @@ export const envValidationSchema = Joi.object({
   JWT_REFRESH_EXPIRES_DAYS: Joi.number().default(7),
   REDIS_HOST: Joi.string().default('localhost'),
   REDIS_PORT: Joi.number().default(6379),
+  // [DevSecOps-Sprint1] Body size limit (1 MiB default). Previne DoS por
+  // payloads enormes; override via BODY_LIMIT_BYTES env var.
+  // REQ-SEC-BODY-001 (devsecops-sprint-1/design.md).
+  BODY_LIMIT_BYTES: Joi.number()
+    .integer()
+    .min(1024)
+    .default(1024 * 1024),
   CACHE_TTL: Joi.number().default(600),
   THROTTLER_SHORT_TTL: Joi.number().default(1000),
   THROTTLER_SHORT_LIMIT: Joi.number().default(3),

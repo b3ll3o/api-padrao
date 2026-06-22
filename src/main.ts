@@ -32,9 +32,13 @@ const trustProxy: true | 'loopback' | number =
         })();
 
 async function bootstrap() {
+  // [DevSecOps-Sprint1] Body size limit (1 MiB default). Override via BODY_LIMIT_BYTES env.
+  // REQ-SEC-BODY-001 (devsecops-sprint-1/design.md).
+  const bodyLimit = parseInt(process.env.BODY_LIMIT_BYTES ?? '1048576', 10);
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ trustProxy }),
+    new FastifyAdapter({ trustProxy, bodyLimit }),
     { bufferLogs: true }, // Buffer logs until the logger is attached
   );
 
