@@ -89,6 +89,35 @@ model RefreshToken {
   @@index([userId])
 }
 
+// [H3] Fallback Prisma para `LoginAttemptTracker` (account lockout).
+//
+// A porta de domínio consulta Redis primeiro (rápido, com TTL nativo).
+// Quando o Redis está offline (`cache.get`/`set` lançam), o adapter cai
+// para esta tabela — escrita síncrona, sem fail-open. Cada linha registra
+// uma tentativa de login (falha OU sucesso) com timestamp preciso, e o
+// lockout é derivado contando `success = false` dentro da janela.
+//
+// Os índices cobrem os dois caminhos de query:
+// - `email + attemptedAt`: lockout por conta (mesmo email).
+// - `ip + attemptedAt`: defesa adicional por IP (futuro, brute-force
+//   distribuído entre vários emails).
+//
+// NÃO usar como auditoria primária — `AuditLog` continua sendo o log
+// canônico de eventos sensíveis; esta tabela é estado para o lockout.
+model LoginAttempt {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @db.VarChar(255)
+  ip            String?  @db.VarChar(45)
+  userAgent     String?  @db.VarChar(500)
+  success       Boolean  @default(false)
+  failureReason String?  @db.VarChar(50)
+  attemptedAt   DateTime @default(now()) @db.Timestamptz
+
+  @@index([email, attemptedAt])
+  @@index([ip, attemptedAt])
+  @@map("login_attempts")
+}
+
 model Perfil {
   id              Int              @id @default(autoincrement())
   nome            String
