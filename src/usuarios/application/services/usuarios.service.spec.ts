@@ -18,6 +18,7 @@ import {
   EMAIL_SENDER_SERVICE,
   EmailSenderService,
 } from '../../../shared/application/services/email-sender.service';
+import { RefreshTokenRepository } from '../../../auth/domain/repositories/refresh-token.repository';
 
 describe('UsuariosService', () => {
   let service: UsuariosService;
@@ -45,6 +46,14 @@ describe('UsuariosService', () => {
   };
   let mockConfigService: { get: jest.Mock };
   let mockEmailSender: jest.Mocked<EmailSenderService>;
+  // [H4] Mock da porta `RefreshTokenRepository` injetada em `UsuariosService`
+  // para revogar tokens ativos quando a senha é alterada.
+  let mockRefreshTokenRepository: {
+    create: jest.Mock;
+    findByTokenWithUser: jest.Mock;
+    revoke: jest.Mock;
+    revokeAllForUser: jest.Mock;
+  };
 
   beforeEach(async () => {
     mockUsuarioRepository = {
@@ -83,6 +92,13 @@ describe('UsuariosService', () => {
     mockEmailSender = {
       send: jest.fn().mockResolvedValue(undefined),
     };
+    // [H4] Mock da porta RefreshTokenRepository.
+    mockRefreshTokenRepository = {
+      create: jest.fn(),
+      findByTokenWithUser: jest.fn(),
+      revoke: jest.fn(),
+      revokeAllForUser: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -105,6 +121,11 @@ describe('UsuariosService', () => {
         },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: EMAIL_SENDER_SERVICE, useValue: mockEmailSender },
+        // [H4] Bind da porta RefreshTokenRepository.
+        {
+          provide: RefreshTokenRepository,
+          useValue: mockRefreshTokenRepository,
+        },
       ],
     }).compile();
 
@@ -320,6 +341,91 @@ describe('UsuariosService', () => {
         'empresa-1',
       );
       expect(mockPasswordHasher.hash).toHaveBeenCalledWith('NewP@ss1');
+    });
+
+    // [H4] DevSecOps 2026-06-21 — defesa em profundidade.
+    // Quando a senha é alterada via `update()`, TODOS os refresh tokens
+    // ativos do usuário devem ser revogados para evitar que um cookie
+    // exfiltrado permaneça válido até o TTL de 2 dias.
+    it('[H4] revoga todos os refresh tokens ativos quando a senha é alterada', async () => {
+      mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
+
+      await service.update(
+        1,
+        { senha: 'NewP@ss1' },
+        mockAdminUsuarioLogado,
+        'empresa-1',
+      );
+
+      expect(mockRefreshTokenRepository.revokeAllForUser).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockRefreshTokenRepository.revokeAllForUser).toHaveBeenCalledWith(
+        1,
+      );
+    });
+
+    // [H4] O caller (admin ou self-service) NÃO recebe um novo refresh
+    // token aqui — ele terá que logar novamente. Isso é parte da defesa:
+    // garantimos que tokens antigos NÃO continuam válidos.
+    it('[H4] NÃO chama revokeAllForUser quando apenas o email é alterado', async () => {
+      mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
+      mockUsuarioRepository.findByEmail.mockResolvedValue(null);
+
+      await service.update(
+        1,
+        { email: 'novo@example.com' },
+        mockAdminUsuarioLogado,
+        'empresa-1',
+      );
+
+      expect(
+        mockRefreshTokenRepository.revokeAllForUser,
+      ).not.toHaveBeenCalled();
+    });
+
+    // [H4] Soft-delete (ativo:false) NÃO deve revogar refresh tokens —
+    // é uma mudança ortogonal à senha. Mantém a invariante: apenas
+    // mudança de senha dispara revogação.
+    it('[H4] NÃO chama revokeAllForUser quando apenas soft-delete é feito', async () => {
+      mockUsuarioRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        deletedAt: null,
+      });
+      mockUsuarioRepository.remove.mockResolvedValue({
+        ...mockUser,
+        deletedAt: new Date(),
+      });
+
+      await service.update(
+        1,
+        { ativo: false },
+        mockAdminUsuarioLogado,
+        'empresa-1',
+      );
+
+      expect(
+        mockRefreshTokenRepository.revokeAllForUser,
+      ).not.toHaveBeenCalled();
+    });
+
+    // [H4] Se a revogação falhar, a operação de update também deve falhar
+    // (atomicidade — auditoria exige consistência entre senha alterada
+    // e tokens revogados).
+    it('[H4] propaga erro se revokeAllForUser falhar', async () => {
+      mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
+      mockRefreshTokenRepository.revokeAllForUser.mockRejectedValueOnce(
+        new Error('DB timeout'),
+      );
+
+      await expect(
+        service.update(
+          1,
+          { senha: 'NewP@ss1' },
+          mockAdminUsuarioLogado,
+          'empresa-1',
+        ),
+      ).rejects.toThrow('DB timeout');
     });
 
     it('lança ConflictException se o novo email pertence a outro usuário', async () => {

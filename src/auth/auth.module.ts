@@ -81,6 +81,14 @@ import { CacheLoginAttemptTracker } from './infrastructure/services/cache-login-
     },
   ],
   controllers: [AuthController],
-  exports: [AuthService, PasswordRecoveryService, AuthorizationService],
+  // [H4] Exporta `RefreshTokenRepository` para que `UsuariosService.update()`
+  // possa revogar refresh tokens quando a senha é alterada (defesa em
+  // profundidade — mesmo padrão de `PasswordRecoveryService.resetPassword()`).
+  exports: [
+    AuthService,
+    PasswordRecoveryService,
+    AuthorizationService,
+    RefreshTokenRepository,
+  ],
 })
 export class AuthModule {}

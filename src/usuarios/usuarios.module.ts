@@ -15,9 +15,19 @@ import {
 } from './application/services/usuario-authorization.service';
 import { SharedModule } from '../shared/shared.module';
 import { EmpresasModule } from '../empresas/empresas.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, SharedModule, forwardRef(() => EmpresasModule)],
+  // [H4] `forwardRef(() => AuthModule)` para que `UsuariosService.update()`
+  // possa injetar `RefreshTokenRepository` e revogar refresh tokens ativos
+  // sempre que a senha do usuário for alterada (defesa em profundidade —
+  // mesmo padrão de `PasswordRecoveryService.resetPassword()`).
+  imports: [
+    PrismaModule,
+    SharedModule,
+    forwardRef(() => EmpresasModule),
+    forwardRef(() => AuthModule),
+  ],
   controllers: [UsuariosController],
   providers: [
     UsuariosService,

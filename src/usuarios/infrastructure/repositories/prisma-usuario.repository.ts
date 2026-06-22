@@ -108,24 +108,88 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
   }
 
   async findByEmail(email: string): Promise<Usuario | null> {
+    // [ALT-006] `select` explícito: NUNCA retornar `senha` (hash bcrypt)
+    // em buscas genéricas por email (LGPD + segurança). Callers que
+    // precisam autenticar devem usar `findByEmailWithCredentials`.
     const usuario = await this.prisma.extended.usuario.findUnique({
       where: { email },
+      select: {
+        id: true,
+        email: true,
+        ativo: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     if (!usuario) return null;
     return this.mapToEntity(usuario)!;
   }
 
+  /**
+   * [ALT-006] Variante explícita de `findByEmail` que **inclui** o campo
+   * `senha`. Deve ser usada **APENAS** no fluxo de autenticação
+   * (comparação de hash bcrypt). Qualquer outro caller está vetado —
+   * a forma padrão é omitir `senha` (LGPD).
+   *
+   * @returns `{ id, email, senha, ativo, deletedAt }` ou `null`.
+   */
+  async findByEmailWithCredentials(email: string): Promise<{
+    id: number;
+    email: string;
+    senha: string | null;
+    ativo: boolean;
+    deletedAt: Date | null;
+  } | null> {
+    const usuario = await this.prisma.extended.usuario.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        senha: true,
+        ativo: true,
+        deletedAt: true,
+      },
+    });
+    if (!usuario) return null;
+    return usuario;
+  }
+
   async findByEmailWithPerfisAndPermissoes(
     email: string,
   ): Promise<Usuario | null> {
+    // [ALT-006] `select` explícito: NUNCA retornar `senha` (hash bcrypt)
+    // mesmo no lookup com perfis/permissões. O login usa
+    // `findByEmailWithCredentials` em separado para comparar hash.
     const usuario = await this.prisma.extended.usuario.findUnique({
       where: { email },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        ativo: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
         empresas: {
-          include: {
+          select: {
+            id: true,
+            empresaId: true,
+            usuarioId: true,
+            createdAt: true,
+            updatedAt: true,
             perfis: {
-              include: {
-                permissoes: true,
+              select: {
+                id: true,
+                codigo: true,
+                nome: true,
+                descricao: true,
+                ativo: true,
+                permissoes: {
+                  select: {
+                    id: true,
+                    codigo: true,
+                  },
+                },
               },
             },
           },

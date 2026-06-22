@@ -27,6 +27,7 @@ import {
   EMAIL_SENDER_SERVICE,
   EmailSenderService,
 } from '../../../shared/application/services/email-sender.service';
+import { RefreshTokenRepository } from '../../../auth/domain/repositories/refresh-token.repository';
 
 type UsuarioLogado = JwtPayload;
 
@@ -41,6 +42,9 @@ export class UsuariosService {
     private readonly configService: ConfigService,
     @Inject(EMAIL_SENDER_SERVICE)
     private readonly emailSenderService: EmailSenderService,
+    // [H4] Port para revogação em massa dos refresh tokens. Resolvida via
+    // `forwardRef(AuthModule)` em `UsuariosModule`.
+    private readonly refreshTokenRepository: RefreshTokenRepository,
   ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto) {
@@ -218,14 +222,32 @@ export class UsuariosService {
     }
 
     // Update password if provided
+    let passwordChanged = false;
     if (updateUsuarioDto.senha) {
       usuario.senha = await this.passwordHasher.hash(updateUsuarioDto.senha);
+      passwordChanged = true;
     }
 
     // Profiles update logic removed
 
     const updatedUsuario = await this.usuarioRepository.update(id, usuario);
     this.logger.log(`Usuário atualizado: ${updatedUsuario.email}`);
+
+    // [H4] DevSecOps 2026-06-21 — defesa em profundidade. Quando a senha
+    // é alterada (por self-service ou por admin), TODOS os refresh tokens
+    // ativos do usuário são revogados. Caso um cookie/refresh token tenha
+    // sido exfiltrado, o atacante perde o acesso imediatamente em vez de
+    // continuar válido até o TTL de 2 dias. Mesmo padrão aplicado em
+    // `PasswordRecoveryService.resetPassword()` (REQ-PR-006 / NFR-PR-005).
+    // `validateRefreshToken` (auth.service.ts:236) já rejeita tokens
+    // revogados com ForbiddenException.
+    if (passwordChanged) {
+      await this.refreshTokenRepository.revokeAllForUser(id);
+      this.logger.log(
+        { event: 'auth.password_changed', userId: id },
+        'Senha alterada — todos os refresh tokens revogados',
+      );
+    }
 
     // [email-notifications] Notifica o usuário quando ele for desativado
     // (transição ativo: true → false). Best-effort.

@@ -10,6 +10,21 @@ import { Usuario } from '../entities/usuario.entity';
 export abstract class UsuarioRepository {
   abstract create(data: Partial<Usuario>): Promise<Usuario>;
   abstract findByEmail(email: string): Promise<Usuario | null>;
+  /**
+   * Variante explícita de `findByEmail` que **inclui** o campo `senha`.
+   * Deve ser usada APENAS no fluxo de autenticação (comparação de hash
+   * bcrypt). Retorna `null` se o usuário não existir.
+   *
+   * [ALT-006] LGPD/segurança: callers que NÃO precisam comparar hash
+   * devem usar `findByEmail` (sem `senha`).
+   */
+  abstract findByEmailWithCredentials(email: string): Promise<{
+    id: number;
+    email: string;
+    senha: string | null;
+    ativo: boolean;
+    deletedAt: Date | null;
+  } | null>;
   abstract findByEmailWithPerfisAndPermissoes(
     email: string,
   ): Promise<Usuario | null>;
