@@ -28,10 +28,10 @@ services:
     container_name: pgadmin_container_dev
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@local.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
     ports:
-      - "8081:80"
+      - "127.0.0.1:8081:80"  # bind em localhost apenas — não expõe 0.0.0.0
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,6 +44,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    profiles: ['dev']  # só sobe com --profile dev
 
   otel-collector:
     image: docker.io/otel/opentelemetry-collector:0.111.0

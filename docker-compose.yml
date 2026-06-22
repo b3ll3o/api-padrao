@@ -27,32 +27,6 @@ services:
           cpus: '0.25'
           memory: 256M
 
-  pgadmin:
-    image: docker.io/dpage/pgadmin4:8.12
-    container_name: pgadmin_container
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-    ports:
-      - "8081:80"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - local-network
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin:Z
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:80/misc/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-
   api:
     build: 
       context: .
@@ -166,7 +140,6 @@ services:
 
 volumes:
   postgres_data:
-  pgadmin_data:
   redis_data:
 
 networks:
