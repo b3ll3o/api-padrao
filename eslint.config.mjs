@@ -29,8 +29,11 @@ export default [
         crypto: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
         setImmediate: 'readonly',
         clearImmediate: 'readonly',
+        global: 'readonly',
         NodeJS: 'readonly',
       },
       parserOptions: {

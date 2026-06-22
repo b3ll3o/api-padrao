@@ -6,11 +6,13 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { of, Observable } from 'rxjs';
 import { AuditInterceptor } from './audit.interceptor';
 import { AUDIT_QUEUE } from '../queues/queue.constants';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('AuditInterceptor', () => {
   let interceptor: AuditInterceptor;
   let reflector: Reflector;
   let mockAuditQueue: { add: jest.Mock };
+  let mockPrisma: { outboxEvent: { create: jest.Mock } };
 
   // Helper: aguarda microtasks pendentes (Promise do auditQueue.add) e
   // o `setImmediate` (se ainda houver no caminho assíncrono) serem
@@ -38,12 +40,18 @@ describe('AuditInterceptor', () => {
     mockAuditQueue = {
       add: jest.fn().mockResolvedValue({ id: 'job-1' }),
     };
+    mockPrisma = {
+      outboxEvent: {
+        create: jest.fn().mockResolvedValue({ id: 'outbox-1' }),
+      },
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditInterceptor,
         Reflector,
         { provide: getQueueToken(AUDIT_QUEUE), useValue: mockAuditQueue },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
@@ -342,5 +350,91 @@ describe('AuditInterceptor', () => {
     await flushImmediates();
 
     expect(mockAuditQueue.add).not.toHaveBeenCalled();
+    // [B1] Outbox também NÃO deve ser gravado em caso de erro.
+    expect(mockPrisma.outboxEvent.create).not.toHaveBeenCalled();
+  });
+
+  // [B1] Outbox: SEMPRE grava no outbox para durabilidade.
+  // Mesmo se o enqueue do BullMQ falhar, o evento está no DB.
+  it('[B1] deve gravar no outbox (outboxEvent.create) após resposta de sucesso', async () => {
+    const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
+
+    const req = {
+      method: 'POST',
+      url: '/usuarios',
+      body: { nome: 'Alice' },
+      params: {},
+      ip: '127.0.0.1',
+      headers: { 'user-agent': 'jest' },
+      usuarioLogado: { sub: 1 },
+    };
+    const next: CallHandler = { handle: () => of({ id: 99 }) };
+
+    interceptor.intercept(buildContext(req), next).subscribe();
+    await flushImmediates();
+
+    expect(mockPrisma.outboxEvent.create).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.outboxEvent.create).toHaveBeenCalledWith({
+      data: {
+        type: 'audit',
+        payload: expect.objectContaining({
+          acao: 'CREATE',
+          recurso: 'usuario',
+          recursoId: '99',
+          usuarioId: 1,
+        }),
+      },
+    });
+  });
+
+  // [B1] Outbox: falha ao gravar no DB NÃO propaga (degrada aberta).
+  it('[B1] NÃO deve propagar erro quando outbox.create falha (DB offline)', async () => {
+    const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
+    mockPrisma.outboxEvent.create.mockRejectedValue(new Error('DB offline'));
+
+    const req = {
+      method: 'POST',
+      url: '/usuarios',
+      body: {},
+      params: {},
+      ip: '127.0.0.1',
+      headers: {},
+      usuarioLogado: { sub: 1 },
+    };
+    const next: CallHandler = { handle: () => of({ id: 1 }) };
+
+    // Não deve lançar — auditoria é observacional.
+    expect(() =>
+      interceptor.intercept(buildContext(req), next).subscribe(),
+    ).not.toThrow();
+    await flushImmediates();
+    expect(mockPrisma.outboxEvent.create).toHaveBeenCalled();
+    // BullMQ add continua sendo tentado (caminho quente, independente).
+    expect(mockAuditQueue.add).toHaveBeenCalled();
+  });
+
+  // [B1] Outbox + best-effort enqueue: ambos rodam em paralelo.
+  it('[B1] outbox.create e auditQueue.add devem ser chamados independentemente', async () => {
+    const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
+
+    const req = {
+      method: 'POST',
+      url: '/usuarios',
+      body: {},
+      params: {},
+      ip: '127.0.0.1',
+      headers: {},
+      usuarioLogado: { sub: 1 },
+    };
+    const next: CallHandler = { handle: () => of({ id: 1 }) };
+
+    interceptor.intercept(buildContext(req), next).subscribe();
+    await flushImmediates();
+
+    expect(mockPrisma.outboxEvent.create).toHaveBeenCalledTimes(1);
+    expect(mockAuditQueue.add).toHaveBeenCalledTimes(1);
   });
 });

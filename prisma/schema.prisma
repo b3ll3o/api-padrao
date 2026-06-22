@@ -13,6 +13,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// [B1] Outbox pattern — tabela durável para eventos assíncronos.
+// Garante atomicidade entre o commit do DB e o enqueue em BullMQ:
+// se o processo crashar entre as duas etapas, o evento é reenviado
+// pelo poller. Ver src/shared/infrastructure/queues/processors/outbox.processor.ts.
+model OutboxEvent {
+  id           String    @id @default(uuid()) @db.Uuid
+  type         String    @db.VarChar(50)
+  payload      Json
+  createdAt    DateTime  @default(now()) @db.Timestamptz
+  publishedAt  DateTime? @db.Timestamptz
+  attempts     Int       @default(0)
+  lastError    String?
+  scheduledFor DateTime  @default(now()) @db.Timestamptz
+
+  @@index([publishedAt, scheduledFor])
+  @@index([type, publishedAt])
+  @@map("outbox_events")
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   usuarioId Int?

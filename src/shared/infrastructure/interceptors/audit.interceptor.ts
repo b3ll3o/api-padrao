@@ -18,7 +18,8 @@ import {
   AUDIT_KEY,
   AuditOptions,
 } from '../../application/decorators/audit.decorator';
-import { AUDIT_QUEUE } from '../queues/queue.constants';
+import { AUDIT_QUEUE, OUTBOX_TYPE } from '../queues/queue.constants';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -27,6 +28,7 @@ export class AuditInterceptor implements NestInterceptor {
   constructor(
     @InjectQueue(AUDIT_QUEUE) private readonly auditQueue: Queue,
     private reflector: Reflector,
+    private readonly prisma: PrismaService,
   ) {}
 
   // [PERF-001] Conjunto EXATO de chaves sensíveis. Antes era match por
@@ -94,21 +96,30 @@ export class AuditInterceptor implements NestInterceptor {
           userAgent,
         };
 
-        // [REQ-QUEUE-001] Enfileira no BullMQ — não-bloqueante e durável
-        // (Redis). Substitui a escrita síncrona direta no Prisma que
-        // estava acoplada ao event loop do request (PERF-002).
+        // [B1] Outbox pattern real.
         //
-        // Opções do job:
-        //   - attempts: 3 (override do DEFAULT_JOB_OPTIONS — auditoria é
-        //     crítica e toleramos retentativas extras antes de desistir)
-        //   - backoff: exponencial 1s → 2s → 4s
-        //   - removeOnComplete: 24h OU 1000 jobs (mantém rastro curto
-        //     para auditoria de jobs completos, evita crescimento
-        //     ilimitado do Redis)
-        //   - removeOnFail: 7 dias para inspeção via Bull Board
+        // Estratégia dual-write com fallback outbox:
+        //   1) Outbox SEMPRE (DB transactional — fonte da verdade).
+        //      Garante que se o processo crashar antes de qualquer
+        //      enqueue, o evento é reenviado pelo OutboxPollerService.
+        //   2) Best-effort enqueue no BullMQ para reduzir latência
+        //      do caminho quente (não precisa esperar o poll de 5s).
         //
-        // Degrada aberta: falha no enqueue (Redis down) NÃO quebra o
-        // request — apenas logamos warning. Auditoria é observacional.
+        // Falha em qualquer um dos passos NÃO propaga — auditoria é
+        // observacional. O outbox cobre o caso (1) e o catch do (2)
+        // cobre o caminho quente.
+        this.persistOutbox(jobData).catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err);
+          this.logger.warn(
+            {
+              event: 'audit.outbox_write_failed',
+              acao: jobData.acao,
+              error: message,
+            },
+            'Falha ao gravar outbox de auditoria (DB indisponível?)',
+          );
+        });
+
         this.auditQueue
           .add('audit-log', jobData, {
             attempts: 3,
@@ -120,6 +131,8 @@ export class AuditInterceptor implements NestInterceptor {
             const message = err instanceof Error ? err.message : String(err);
             // [MED-002] Falha de enqueue NÃO propaga — auditoria é
             // um efeito observacional, não parte do contrato da API.
+            // O outbox garante que o evento será reentregue mesmo que
+            // este caminho falhe (Redis down).
             this.logger.warn(
               {
                 event: 'audit.enqueue_failed',
@@ -131,6 +144,23 @@ export class AuditInterceptor implements NestInterceptor {
           });
       }),
     );
+  }
+
+  /**
+   * [B1] Grava o evento na tabela `outbox_events` (transactional com
+   * a operação de negócio quando o caller está dentro de um UnitOfWork;
+   * caso contrário, gravação direta — ainda assim durável).
+   *
+   * OutboxProcessor + OutboxPollerService garantem que o evento é
+   * eventualmente publicado na fila correta.
+   */
+  private async persistOutbox(payload: unknown): Promise<void> {
+    await this.prisma.outboxEvent.create({
+      data: {
+        type: OUTBOX_TYPE.AUDIT,
+        payload: payload as object,
+      },
+    });
   }
 
   private static sanitizeBody(

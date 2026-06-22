@@ -8,12 +8,15 @@ import { BullModule } from '@nestjs/bullmq';
 import {
   AUDIT_QUEUE,
   EMAIL_QUEUE,
+  OUTBOX_QUEUE,
   REFRESH_FLUSH_QUEUE,
   DEFAULT_JOB_OPTIONS,
 } from './queue.constants';
 import { EmailProcessor } from './processors/email.processor';
 import { AuditProcessor } from './processors/audit.processor';
 import { RefreshFlushProcessor } from './processors/refresh-flush.processor';
+import { OutboxProcessor } from './processors/outbox.processor';
+import { OutboxPollerService } from './processors/outbox-poller.service';
 import { PrismaModule } from '../../../prisma/prisma.module';
 import { SharedModule } from '../../shared.module';
 
@@ -30,6 +33,11 @@ import { SharedModule } from '../../shared.module';
  *   - removeOnComplete: true (libera Redis; ajustar para false se precisar
  *     de auditoria de jobs completos)
  *   - removeOnFail: false (mantém no Redis para inspeção via Bull Board)
+ *
+ * [B1] Outbox: a fila `outbox` é interna — o OutboxPollerService
+ * alimenta-a a partir da tabela `outbox_events`, e o OutboxProcessor
+ * roteia para a fila final. Produtores externos (AuditInterceptor etc.)
+ * gravam direto na tabela — não falam com Redis diretamente.
  */
 @Module({
   imports: [
@@ -39,9 +47,16 @@ import { SharedModule } from '../../shared.module';
       { name: EMAIL_QUEUE, defaultJobOptions: DEFAULT_JOB_OPTIONS },
       { name: AUDIT_QUEUE, defaultJobOptions: DEFAULT_JOB_OPTIONS },
       { name: REFRESH_FLUSH_QUEUE, defaultJobOptions: DEFAULT_JOB_OPTIONS },
+      { name: OUTBOX_QUEUE, defaultJobOptions: DEFAULT_JOB_OPTIONS },
     ),
   ],
-  providers: [EmailProcessor, AuditProcessor, RefreshFlushProcessor],
+  providers: [
+    EmailProcessor,
+    AuditProcessor,
+    RefreshFlushProcessor,
+    OutboxProcessor,
+    OutboxPollerService,
+  ],
   exports: [BullModule],
 })
 export class QueuesModule {}
