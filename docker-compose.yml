@@ -13,6 +13,19 @@ services:
       - postgres_data:/var/lib/postgresql/data:Z
     networks:
       - local-network
+    # [B3/Container-Hardening] PRECISA escrever em /var/lib/postgresql/data;
+    # read_only quebraria. Mantemos no-new-privileges + cap_drop mínimo.
+    read_only: false
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+      - FOWNER
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -57,6 +70,29 @@ services:
         condition: service_healthy
     networks:
       - local-network
+    # [B3/Container-Hardening] Sistema de arquivos raiz imutável.
+    # Apenas volumes montados + tmpfs permitem escrita. CIS Docker 5.21.
+    read_only: true
+    # [B3/Container-Hardening] Impede escalação de privilégios via setuid binaries.
+    # CIS Docker 5.25. Complementa USER appuser no Dockerfile.
+    security_opt:
+      - "no-new-privileges:true"
+    # [B3/Container-Hardening] Remove todas as capabilities Linux. CIS Docker 5.3.
+    cap_drop:
+      - ALL
+    # [B3/Container-Hardening] Capabilities mínimas para USER appuser.
+    # CHOWN: trocar ownership; DAC_OVERRIDE: ignorar permissões para bind/read;
+    # SETGID/SETUID: bind em portas <1024 se necessário + mudança de gid.
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    # [B3/Container-Hardening] tmpfs para paths temporários (BullMQ, caches).
+    # Necessário porque read_only=true bloqueia escrita em /tmp e demais paths.
+    tmpfs:
+      - /tmp:size=100M,mode=1777
+      - /app/.cache:size=50M,mode=0755
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health/live"]
       interval: 30s
@@ -87,6 +123,15 @@ services:
     depends_on:
       jaeger:
         condition: service_healthy
+    # [B3/Container-Hardening] OTel collector não precisa escrever no FS raiz;
+    # somente /tmp para buffers. CIS Docker 5.21/5.25/5.3.
+    read_only: true
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=50M,mode=1777
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:13133/"]
       interval: 10s
@@ -108,6 +153,13 @@ services:
       - "4317:4317"   # OTLP gRPC receiver
     networks:
       - local-network
+    # [B3/Container-Hardening] Jaeger all-in-one escreve em /tmp (badger); não
+    # podemos aplicar read_only sem quebra. Mantemos no-new-privileges + cap_drop.
+    read_only: false
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:16686"]
       interval: 10s
@@ -128,6 +180,13 @@ services:
       - local-network
     volumes:
       - redis_data:/data
+    # [B3/Container-Hardening] Redis persiste em /data (AOF/RDB); read_only
+    # quebraria. Mantemos no-new-privileges + cap_drop mínimo.
+    read_only: false
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

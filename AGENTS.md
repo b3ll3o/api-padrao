@@ -16,10 +16,11 @@
 - [6. Workflow de Desenvolvimento (DDD → BDD → SDD → ATDD → TDD)](#6-workflow-de-desenvolvimento-ddd--bdd--sdd--atdd--tdd)
 - [7. Catálogo de Módulos](#7-catálogo-de-módulos)
 - [8. Pré-commit e Validação de Alterações](#8-pré-commit-e-validação-de-alterações)
-- [9. Infra e Observabilidade](#9-infra-e-observabilidade)
-- [10. Variáveis de Ambiente](#10-variáveis-de-ambiente)
-- [11. Testing](#11-testing)
-- [12. Entry Points Úteis](#12-entry-points-úteis)
+- [9. Container Security Scanning](#9-container-security-scanning)
+- [10. Infra e Observabilidade](#10-infra-e-observabilidade)
+- [11. Variáveis de Ambiente](#11-variáveis-de-ambiente)
+- [12. Testing](#12-testing)
+- [13. Entry Points Úteis](#13-entry-points-úteis)
 - [Apêndice A. Documentos do Repositório](#apêndice-a-documentos-do-repositório)
 
 ---
@@ -494,7 +495,57 @@ Se qualquer passo falhar, corrija e reinicie a partir do passo 1. **Só faça co
 > - Debug de teste que falha: [`.agent/workflows/debug-test-failure.md`](./.agent/workflows/debug-test-failure.md)
 > - Pipeline SDD+ATDD: [`.agent/workflows/sdd-workflow.md`](./.agent/workflows/sdd-workflow.md)
 
-## 9. Infra e Observabilidade
+## 9. Container Security Scanning
+
+A imagem Docker final (`Dockerfile` → stage `runner`, Node 22-alpine + node_modules de produção + Prisma engine + curl/openssl/tini/libc6-compat) é escaneada por **[`.github/workflows/image-scan.yml`](./.github/workflows/image-scan.yml)** com **Trivy** (Aqua Security).
+
+**Por que escanear a imagem e não só `npm audit`?**
+
+- `dependency-audit.yml` audita packages npm declarados em `package.json`. Não vê:
+  - CVEs no layer de OS Alpine (musl, busybox, openssl).
+  - Libraries nativas (Prisma engine binary, tini, curl).
+  - CVEs em transitive deps que entram via build-only steps.
+- A imagem final inclui tudo isso. Trivy cataloga packages via SBOM e cruza com a base de CVEs do [Aqua vuln-list](https://github.com/aquasecurity/vuln-list).
+
+**Triggers** (4, alinhados com `dependency-audit.yml` + `ci.yml`):
+
+| Trigger             | Uso                                               |
+| ------------------- | ------------------------------------------------- |
+| `push` em `main`    | Verificação pós-merge (imagem de produção).       |
+| `pull_request`      | Gate em PRs.                                      |
+| `workflow_dispatch` | Re-run manual sob demanda.                        |
+| `schedule`          | Diário 06:17 UTC (jitter vs `dependency-audit` 06:03). |
+
+**Jobs** (2, paralelos via `concurrency`):
+
+1. **`scan-sarif`** — build da imagem, scan SARIF, upload para **GitHub Security tab** (categoria `trivy-image-scan`). Severidade: `CRITICAL,HIGH`, `ignore-unfixed: true`. **Não falha**.
+2. **`scan-gate`** — depende de `scan-sarif`, falha o build se `CRITICAL` com fix disponível. Justificativa: zero-day ou CVE recente = bloquear PR até revisão humana (atualizar base image, pinar versão, ou aceitar risco formalmente). `HIGH` e `MEDIUM` aparecem no log do run mas **não bloqueiam**.
+
+**Relação com `dependency-audit.yml`** (complementares, não redundantes):
+
+|                 | `dependency-audit.yml`                | `image-scan.yml`                                |
+| --------------- | ------------------------------------- | ----------------------------------------------- |
+| Escopo          | `package.json` + `package-lock.json`  | Imagem Docker final                             |
+| Ferramenta      | `npm audit`                           | Trivy (Aqua Security)                           |
+| Granularidade   | CVE por package npm                   | CVE por package OS + npm + binary               |
+| Gate            | `moderate+` em prod                   | `CRITICAL` com fix                              |
+| Severidade      | Cria issue (não bloqueia PR)          | Bloqueia PR via job `scan-gate`                 |
+| Schedule        | Diário 06:03 UTC                      | Diário 06:17 UTC                                |
+
+**Como rodar local** (debug):
+
+```bash
+# 1. Build
+docker build -t api-padrao:scan-local .
+
+# 2. Scan (requer Trivy instalado: https://aquasecurity.github.io/trivy/latest/getting-started/installation/)
+trivy image --severity CRITICAL,HIGH --ignore-unfixed api-padrao:scan-local
+trivy image --severity CRITICAL --exit-code 1 api-padrao:scan-local
+```
+
+**Não confundir** com `[.github/workflows/ci.yml](./.github/workflows/ci.yml)` (Semgrep SAST + Gitleaks + build/test) e `[.github/workflows/post-merge.yml](./.github/workflows/post-merge.yml)` — cada workflow cobre um vetor distinto.
+
+## 10. Infra e Observabilidade
 
 Detalhamento em [src/shared/README_infra.md](./src/shared/README_infra.md). Resumo:
 
@@ -503,7 +554,7 @@ Detalhamento em [src/shared/README_infra.md](./src/shared/README_infra.md). Resu
 - **Jaeger UI**: `http://localhost:16686` para inspecionar traces.
 - **OTEL Collector** ([otel-collector-config.yaml](./otel-collector-config.yaml)): recebe OTLP (HTTP/gRPC) e exporta para Jaeger via gRPC.
 
-## 10. Variáveis de Ambiente
+## 11. Variáveis de Ambiente
 
 Validadas em [src/config/env.validation.ts](./src/config/env.validation.ts) (Joi). Defaults aplicados quando a variável é omitida.
 
@@ -552,7 +603,7 @@ O projeto usa os seguintes arquivos de configuração de ambiente:
 > produção. Ver [SEC-RATE-LIMIT] nos controllers `@Public()` para
 > a contraparte do rate-limit.
 
-## 11. Testing
+## 12. Testing
 
 - **Unitários** (`*.spec.ts`): co-localizados em `src/`. Jest `rootDir: src`. Use `npm run test -- <caminho>` para arquivo único, `npm run test -- -t "<texto>"` para filtro por nome.
 - **E2E** (`*.e2e-spec.ts`): em `test/`. Config em [test/jest-e2e.json](./test/jest-e2e.json) (`maxWorkers: 1` para serializar). Setup global em [test/setup-e2e.ts](./test/setup-e2e.ts) carrega `.env.test`. Helpers compartilhados em [test/e2e-utils.ts](./test/e2e-utils.ts) — **reaproveite-os** em vez de rolar fixtures novas.
@@ -561,7 +612,7 @@ O projeto usa os seguintes arquivos de configuração de ambiente:
 - **Pré-condição para E2E**: banco de teste migrado (`npm run test:migrate`) e infra rodando (`docker compose up -d postgres redis`).
 - **Regra de cobertura mínima** (jest.config em [package.json](./package.json) → `jest.coverageThreshold`): **statements, branches, functions e lines devem ser >= 80%** para o build de validação passar. Novas features devem vir acompanhadas de testes que cubram os caminhos felizes e os branches de erro relevantes (NotFound, Conflict, Forbidden, P2025/P2002 do Prisma, validação de DTOs). Ao tocar em arquivo com cobertura baixa, suba o percentual local — se o global ficar abaixo do limite, `npm run test:cov` falha.
 
-## 12. Entry Points Úteis
+## 13. Entry Points Úteis
 
 - [src/main.ts](./src/main.ts) — bootstrap: Fastify, Helmet, CORS, ValidationPipe, Swagger, Pino logger.
 - [src/app.module.ts](./src/app.module.ts) — DI composition, guards/interceptors globais, Redis cache + Bull, Throttler config.
@@ -573,6 +624,63 @@ O projeto usa os seguintes arquivos de configuração de ambiente:
 - [src/prisma/prisma.service.ts](./src/prisma/prisma.service.ts) — Prisma client + extensão de soft delete.
 - [src/shared/infrastructure/filters/all-exceptions.filter.ts](./src/shared/infrastructure/filters/all-exceptions.filter.ts) — formato de erro padrão.
 - [prisma/schema.prisma](./prisma/schema.prisma) — fonte de verdade do modelo de dados.
+
+---
+
+## Container Hardening (CIS Docker Benchmark)
+
+Containers em `docker-compose.yml` (e `.dev.yml` por parity) seguem o CIS Docker Benchmark v1.6+
+para reduzir superfície de ataque. Controles aplicados por container:
+
+| Container | `read_only` | `security_opt` | `cap_drop` | `cap_add` | `tmpfs` | Justificativa |
+|-----------|-------------|----------------|------------|-----------|---------|---------------|
+| api | true | `no-new-privileges` | ALL | CHOWN, DAC_OVERRIDE, SETGID, SETUID | /tmp (100M), /app/.cache (50M) | App não precisa escrever em FS raiz; BullMQ/caches usam tmpfs. |
+| otel-collector | true | `no-new-privileges` | ALL | — | /tmp (50M) | Collector só precisa de /tmp para buffers efêmeros. |
+| postgres | false | `no-new-privileges` | ALL | CHOWN, DAC_OVERRIDE, SETUID, SETGID, FOWNER | — | Persistência em `/var/lib/postgresql/data` exige escrita; FOWNER para postgres user. |
+| redis | false | `no-new-privileges` | ALL | — | — | Persistência AOF/RDB em `/data` exige escrita. |
+| jaeger | false | `no-new-privileges` | ALL | — | — | Badger store escreve em `/tmp`; read_only quebraria. |
+
+### O que cada controle garante
+
+- `read_only: true` (CIS 5.21) — sistema de arquivos raiz imutável. Escrita só em volumes montados ou tmpfs.
+  Impede ransomware/persistence em container.
+- `security_opt: no-new-privileges:true` (CIS 5.25) — bloqueia escalação via `setuid`/`setgid` binaries e
+  capabilities adquiridas. Complementa `USER appuser` do Dockerfile.
+- `cap_drop: [ALL]` (CIS 5.3) — remove todas as 41 capabilities padrão do container.
+- `cap_add: [mínimo]` — apenas as capabilities estritamente necessárias. Para `appuser` rodando Node,
+  CHOWN/DAC_OVERRIDE/SETGID/SETUID são suficientes.
+- `tmpfs: [...]` — paths de scratch em memória (RAM-backed). Necessários quando `read_only=true`,
+  pois o Node/BullMQ esperam escrever em `/tmp` e caches em paths internos.
+
+### Como adicionar um novo container
+
+1. Definir se precisa de escrita em FS raiz (volume de persistência?). Se **sim** → `read_only: false`.
+2. Se **não** → `read_only: true` + listar `tmpfs` para cada path gravável (logs, caches, scratch).
+3. Sempre aplicar `security_opt: [no-new-privileges:true]` e `cap_drop: [ALL]`.
+4. Adicionar `cap_add` apenas com capabilities auditadas (justificar cada uma).
+5. Validar: `docker compose config` + smoke test subindo o stack e exercitando fluxos que escrevem
+   (login, upload, queue job, etc).
+
+### Validar hardening ativo em runtime
+
+```bash
+# Inspecionar capabilities + readonly em runtime
+docker inspect api_container | jq '.[0].HostConfig.ReadonlyRootfs, .[0].HostConfig.SecurityOpt, .[0].HostConfig.CapAdd, .[0].HostConfig.CapDrop'
+
+# Tentar escrita em FS raiz (deve falhar com read_only)
+docker exec api_container sh -c 'touch /should_fail' || echo "OK: read_only active"
+
+# Tentar escalar privilégios (deve falhar com no-new-privileges)
+docker exec api_container sh -c 'su -c "whoami"' || echo "OK: no-new-privileges active"
+```
+
+### Não conformidades aceitas
+
+- **Postgres / Redis / Jaeger com `read_only: false`**: justificado por necessidade de persistência.
+  Mitigações adicionais: filesystem montado com `Z` (SELinux relabel), volumes dedicados,
+  sem exposição de porta fora do `local-network` quando possível.
+- **No AppArmor/SELinux profile custom**: herdado do Docker daemon default. Profile customizado é
+  backlog futuro (M8 no DevSecOps sweep 2026-06-21).
 
 ---
 

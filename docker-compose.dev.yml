@@ -13,6 +13,18 @@ services:
       - postgres_data_dev:/var/lib/postgresql/data:Z
     networks:
       - local-network
+    # [B3/Container-Hardening] dev parity com docker-compose.yml.
+    read_only: false
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+      - FOWNER
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -62,6 +74,14 @@ services:
     depends_on:
       jaeger:
         condition: service_healthy
+    # [B3/Container-Hardening] dev parity.
+    read_only: true
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=50M,mode=1777
 
   jaeger:
     image: docker.io/jaegertracing/all-in-one:1.62.0
@@ -74,6 +94,12 @@ services:
       - "4317:4317"
     networks:
       - local-network
+    # [B3/Container-Hardening] dev parity.
+    read_only: false
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:16686"]
       interval: 10s
