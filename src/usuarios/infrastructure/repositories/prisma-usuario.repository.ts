@@ -3,7 +3,9 @@
 // ATDD: test/usuarios.e2e-spec.ts
 // TDD: src/usuarios/infrastructure/repositories/prisma-usuario.repository.spec.ts
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Usuario } from '../../domain/entities/usuario.entity';
 import { UsuarioRepository } from '../../domain/repositories/usuario.repository';
@@ -14,7 +16,21 @@ import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
 
 @Injectable()
 export class PrismaUsuarioRepository implements UsuarioRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(PrismaUsuarioRepository.name);
+
+  // [A5] DevSecOps 2026-06-21 — Cache 60s no hot-path de login.
+  // Cada login chama `findByEmailWithPerfisAndPermissoes` com 3 níveis de
+  // `include` aninhado (usuario → empresas → perfis → permissoes). Sob alta
+  // concorrência isso vira um gargalo. Cacheamos o resultado em Redis por
+  // 60s, a mesma janela de staleness aceita pelo JwtStrategy para
+  // `ativo`/`deletedAt` (cf. `jwt.strategy.ts`).
+  private static readonly CACHE_TTL_MS = 60_000;
+  private static readonly CACHE_PREFIX = 'auth:user-profiles:';
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
   async create(data: Partial<Usuario>): Promise<Usuario> {
     const { email, senha } = data;
@@ -158,6 +174,55 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
   async findByEmailWithPerfisAndPermissoes(
     email: string,
   ): Promise<Usuario | null> {
+    // [A5] Cache 60s no hot-path de login. Chave por `userId` (não `email`)
+    // para evitar PII em chaves Redis e minimizar pressão no índice.
+    //
+    // Fluxo:
+    // 1. Resolve `userId` via `findByEmail` (já é `select` mínimo, sem
+    //    `senha`). Este lookup é barato — single index hit.
+    // 2. Cache hit → retorna o payload serializado, sem tocar no Prisma.
+    // 3. Cache miss → executa a query pesada (3 níveis de `include`) e
+    //    popula o cache por 60s.
+    // 4. Cache errors são logados como warn e degradam graciosamente
+    //    (mesmo padrão do `PlanoService`).
+    let userId: number;
+    try {
+      const basic = await this.findByEmail(email);
+      if (!basic) return null;
+      userId = basic.id;
+    } catch (err) {
+      this.logger.error({
+        event: 'auth.user_cache.lookup_failed',
+        error: (err as Error).message,
+      });
+      // Degrada graciosamente — sem `userId`, cache é impossível.
+      // Cai no fluxo de miss.
+      userId = NaN;
+    }
+
+    const cacheKey = `${PrismaUsuarioRepository.CACHE_PREFIX}${userId}`;
+
+    // 2. Cache hit?
+    if (!Number.isNaN(userId)) {
+      try {
+        const cached = await this.cache.get<Usuario>(cacheKey);
+        if (cached) {
+          this.logger.debug({
+            event: 'auth.user_cache.hit',
+            userId,
+          });
+          return cached;
+        }
+      } catch (err) {
+        this.logger.warn({
+          event: 'auth.user_cache.get_failed',
+          userId,
+          error: (err as Error).message,
+        });
+      }
+    }
+
+    // 3. Cache miss: query pesada (mesma `select` do refactor H2/ALT-006).
     // [ALT-006] `select` explícito: NUNCA retornar `senha` (hash bcrypt)
     // mesmo no lookup com perfis/permissões. O login usa
     // `findByEmailWithCredentials` em separado para comparar hash.
@@ -198,7 +263,55 @@ export class PrismaUsuarioRepository implements UsuarioRepository {
     });
     if (!usuario) return null;
 
-    return this.mapToEntity(usuario)!;
+    const entity = this.mapToEntity(usuario)!;
+
+    // 4. Cacheia o payload (best-effort).
+    if (!Number.isNaN(userId)) {
+      try {
+        await this.cache.set(
+          cacheKey,
+          entity,
+          PrismaUsuarioRepository.CACHE_TTL_MS,
+        );
+      } catch (err) {
+        this.logger.warn({
+          event: 'auth.user_cache.set_failed',
+          userId,
+          error: (err as Error).message,
+        });
+      }
+    }
+
+    return entity;
+  }
+
+  /**
+   * [A5] Invalida o cache Redis (TTL 60s) do payload de
+   * perfis+permissões para um usuário. Best-effort: erros do Redis são
+   * logados mas não propagados — a fonte de verdade é o Postgres e o
+   * TTL de 60s garante consistência eventual.
+   *
+   * Chamado por:
+   *  - `UsuariosService.update()` (mudança de ativo/email/senha)
+   *  - `PerfisService.update()` (mudança de permissoesIds em perfil
+   *    aplicado a este usuário)
+   */
+  async invalidateUserCache(userId: number): Promise<void> {
+    if (!Number.isFinite(userId)) return;
+    const cacheKey = `${PrismaUsuarioRepository.CACHE_PREFIX}${userId}`;
+    try {
+      await this.cache.del(cacheKey);
+      this.logger.debug({
+        event: 'auth.user_cache.invalidated',
+        userId,
+      });
+    } catch (err) {
+      this.logger.warn({
+        event: 'auth.user_cache.del_failed',
+        userId,
+        error: (err as Error).message,
+      });
+    }
   }
 
   async update(id: number, data: Partial<Usuario>): Promise<Usuario> {

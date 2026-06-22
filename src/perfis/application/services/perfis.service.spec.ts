@@ -10,11 +10,18 @@ import {
 } from '@nestjs/common';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { PermissoesService } from '../../../permissoes/application/services/permissoes.service';
+// [A5] Mock da porta `UsuarioRepository` para verificar invalidação de
+// cache de perfis+permissões quando `permissoesIds` muda.
+import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
 
 describe('PerfisService', () => {
   let service: PerfisService;
   let mockPerfilRepository: Partial<PerfilRepository>;
   let mockPermissoesService: Partial<PermissoesService>;
+  // [A5]
+  let mockUsuarioRepository: {
+    invalidateUserCache: jest.Mock;
+  };
 
   const existingPerfil = {
     id: 1,
@@ -56,11 +63,19 @@ describe('PerfisService', () => {
       findByNomeContaining: jest.fn(),
       restore: jest.fn(),
       remove: jest.fn(),
+      // [A5]
+      findManyByIds: jest.fn(),
+      findUserIdsByPerfilId: jest.fn().mockResolvedValue([]),
     };
 
     mockPermissoesService = {
       findOne: jest.fn(),
       findManyByIds: jest.fn(),
+    };
+
+    // [A5]
+    mockUsuarioRepository = {
+      invalidateUserCache: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -73,6 +88,10 @@ describe('PerfisService', () => {
         {
           provide: PermissoesService,
           useValue: mockPermissoesService,
+        },
+        {
+          provide: UsuarioRepository, // [A5]
+          useValue: mockUsuarioRepository,
         },
         {
           provide: PrismaService, // Keep PrismaService mock if it's used indirectly
@@ -721,6 +740,96 @@ describe('PerfisService', () => {
         service.update(1, updateDto, mockAdminUsuarioLogado),
       ).rejects.toThrow(NotFoundException);
       expect(mockPerfilRepository.remove).toHaveBeenCalledWith(1);
+    });
+
+    // [A5] DevSecOps 2026-06-21 — invalidação de cache de perfis+permissoes
+    // dos usuários afetados quando `permissoesIds` muda.
+    describe('[A5] invalidação de cache ao mudar permissoesIds', () => {
+      const updateDto: UpdatePerfilDto = {
+        permissoesIds: [1, 2, 3],
+      };
+
+      beforeEach(() => {
+        // Setup comum: perfil encontrado, sem mudar `ativo`
+        (mockPerfilRepository.findOne as jest.Mock).mockResolvedValue(
+          existingPerfil,
+        );
+        (mockPermissoesService.findManyByIds as jest.Mock).mockResolvedValue([
+          { id: 1 },
+          { id: 2 },
+          { id: 3 },
+        ]);
+        (mockPerfilRepository.update as jest.Mock).mockResolvedValue({
+          ...existingPerfil,
+        });
+      });
+
+      it('deve invalidar cache dos usuários que possuem este perfil', async () => {
+        (
+          mockPerfilRepository.findUserIdsByPerfilId as jest.Mock
+        ).mockResolvedValueOnce([10, 20, 30]);
+
+        await service.update(1, updateDto, mockAdminUsuarioLogado);
+
+        expect(mockPerfilRepository.findUserIdsByPerfilId).toHaveBeenCalledWith(
+          1,
+        );
+        expect(mockUsuarioRepository.invalidateUserCache).toHaveBeenCalledTimes(
+          3,
+        );
+        expect(
+          mockUsuarioRepository.invalidateUserCache,
+        ).toHaveBeenNthCalledWith(1, 10);
+        expect(
+          mockUsuarioRepository.invalidateUserCache,
+        ).toHaveBeenNthCalledWith(2, 20);
+        expect(
+          mockUsuarioRepository.invalidateUserCache,
+        ).toHaveBeenNthCalledWith(3, 30);
+      });
+
+      it('deve ser no-op quando nenhum usuário está vinculado', async () => {
+        (
+          mockPerfilRepository.findUserIdsByPerfilId as jest.Mock
+        ).mockResolvedValueOnce([]);
+
+        await service.update(1, updateDto, mockAdminUsuarioLogado);
+
+        expect(
+          mockUsuarioRepository.invalidateUserCache,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('NÃO deve invalidar cache se permissoesIds não foi enviado', async () => {
+        await service.update(
+          1,
+          { nome: 'Novo Nome' } as UpdatePerfilDto,
+          mockAdminUsuarioLogado,
+        );
+
+        expect(
+          mockPerfilRepository.findUserIdsByPerfilId,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockUsuarioRepository.invalidateUserCache,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('deve tolerar erro do Redis (best-effort: falha propaga se throw)', async () => {
+        // Documenta contrato atual: erro em invalidateUserCache é
+        // propagado para o caller (não silencioso). Mesmo padrão do
+        // PrismaUsuarioRepository — del/get/set são try/catch lá dentro.
+        (
+          mockPerfilRepository.findUserIdsByPerfilId as jest.Mock
+        ).mockResolvedValueOnce([10]);
+        mockUsuarioRepository.invalidateUserCache.mockRejectedValueOnce(
+          new Error('Redis offline'),
+        );
+
+        await expect(
+          service.update(1, updateDto, mockAdminUsuarioLogado),
+        ).rejects.toThrow('Redis offline');
+      });
     });
   });
 

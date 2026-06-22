@@ -28,6 +28,15 @@ export abstract class UsuarioRepository {
   abstract findByEmailWithPerfisAndPermissoes(
     email: string,
   ): Promise<Usuario | null>;
+  /**
+   * [A5] Invalida o cache Redis (TTL 60s) do payload de perfis+permissões
+   * para um usuário. Deve ser chamado por callers que alteram estado que
+   * afeta a autorização (ativo, senha, perfis, permissões).
+   *
+   * Best-effort: erros do Redis são logados mas não propagados — a fonte
+   * de verdade é o Postgres.
+   */
+  abstract invalidateUserCache(userId: number): Promise<void>;
   abstract findOne(
     id: number,
     includeDeleted?: boolean,

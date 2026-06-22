@@ -358,4 +358,24 @@ export class PrismaPerfilRepository implements PerfilRepository {
     });
     return data.map((p: any) => this.toDomain(p));
   }
+
+  // [A5] DevSecOps 2026-06-21 — Lista os `usuarioId` que possuem o perfil
+  // via pivot `UsuarioEmpresa` (relação N-N Perfil ↔ UsuarioEmpresa).
+  // 1 round-trip + dedup em JS (mesma eficiência, evita armadilha do
+  // `distinct` quando há join implícito via tabela `_PerfilToUsuarioEmpresa`).
+  async findUserIdsByPerfilId(perfilId: number): Promise<number[]> {
+    const rows = await this.prisma.extended.usuarioEmpresa.findMany({
+      where: { perfis: { some: { id: perfilId } } },
+      select: { usuarioId: true },
+    });
+    const seen = new Set<number>();
+    const out: number[] = [];
+    for (const r of rows) {
+      if (!seen.has(r.usuarioId)) {
+        seen.add(r.usuarioId);
+        out.push(r.usuarioId);
+      }
+    }
+    return out;
+  }
 }

@@ -40,4 +40,15 @@ export abstract class PerfilRepository {
   ): Promise<[Perfil[], number]>;
   // [email-notifications] Batch lookup em 1 round-trip (substitui N findOne).
   abstract findManyByIds(ids: number[]): Promise<Perfil[]>;
+  /**
+   * [A5] DevSecOps 2026-06-21 — Lista os `usuarioId` que possuem o perfil
+   * (direta ou indiretamente, via pivot `UsuarioEmpresa`). Usado por
+   * `PerfisService.update()` para invalidar o cache de
+   * perfis+permissões de todos os usuários afetados quando as
+   * permissões do perfil mudam.
+   *
+   * Retorna `number[]` (apenas IDs), porque o objetivo é só invalidação
+   * — sem precisar hidratar entidades inteiras.
+   */
+  abstract findUserIdsByPerfilId(perfilId: number): Promise<number[]>;
 }

@@ -1,10 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { PrismaUsuarioRepository } from './prisma-usuario.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Usuario } from '../../domain/entities/usuario.entity';
 
 describe('PrismaUsuarioRepository', () => {
   let repository: PrismaUsuarioRepository;
+  let mockCache: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
 
   const mockUsuarioModel = {
     create: jest.fn(),
@@ -24,12 +27,22 @@ describe('PrismaUsuarioRepository', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    // [A5] Mock minimal do CACHE_MANAGER — `get`, `set`, `del` apenas.
+    mockCache = {
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn(),
+    };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PrismaUsuarioRepository,
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: mockCache,
         },
       ],
     }).compile();
@@ -174,25 +187,32 @@ describe('PrismaUsuarioRepository', () => {
     // lookup com perfis/permissões. Login usa `findByEmailWithCredentials`
     // em separado para comparar hash.
     it('[ALT-006] deve usar `select` que OMITE o campo `senha` (LGPD)', async () => {
-      mockUsuarioModel.findUnique.mockResolvedValue({
-        id: 1,
-        email: 'a@b.c',
-        ativo: true,
-        deletedAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        empresas: [],
-      });
+      mockUsuarioModel.findUnique
+        // [A5] 1ª chamada: lookup mínimo via `findByEmail` (sem `empresas`).
+        .mockResolvedValueOnce({
+          id: 1,
+          email: 'a@b.c',
+          ativo: true,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        // 2ª chamada: query pesada com `empresas` → alvo do assert.
+        .mockResolvedValueOnce({
+          id: 1,
+          email: 'a@b.c',
+          ativo: true,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          empresas: [],
+        });
 
       await repository.findByEmailWithPerfisAndPermissoes('a@b.c');
 
-      expect(mockUsuarioModel.findUnique).toHaveBeenCalledWith({
-        where: { email: 'a@b.c' },
-        select: expect.objectContaining({
-          empresas: expect.any(Object),
-        }),
-      });
-      const callArgs = mockUsuarioModel.findUnique.mock.calls[0][0];
+      // 2 chamadas: lookup mínimo (sem empresas) + query pesada (com empresas)
+      expect(mockUsuarioModel.findUnique).toHaveBeenCalledTimes(2);
+      const callArgs = mockUsuarioModel.findUnique.mock.calls[1][0];
       // CRÍTICO: o select do usuário NÃO contém `senha`
       expect(callArgs.select).not.toHaveProperty('senha');
       // O select aninhado de permissoes NÃO expõe segredos
@@ -242,6 +262,189 @@ describe('PrismaUsuarioRepository', () => {
       expect(result!.empresas).toHaveLength(1);
       expect(result!.empresas![0].perfis![0].codigo).toBe('ADMIN');
       expect(result!.empresas![0].perfis![0].permissoes).toHaveLength(1);
+    });
+
+    // [A5] DevSecOps 2026-06-21 — cache 60s no hot-path de login.
+    describe('[A5] cache de perfis+permissões', () => {
+      const cachedPayload = {
+        ...mockPrismaUser,
+        empresas: [
+          {
+            id: 1,
+            empresaId: 'emp-1',
+            usuarioId: 1,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            perfis: [
+              {
+                id: 1,
+                codigo: 'ADMIN',
+                nome: 'Admin',
+                descricao: 'Admin role',
+                ativo: true,
+                permissoes: [{ id: 1, codigo: 'READ' }],
+              },
+            ],
+          },
+        ],
+      };
+
+      const cacheKey = 'auth:user-profiles:1';
+
+      it('cache miss: executa query pesada e popula o cache com TTL 60s', async () => {
+        // findByEmail (lookup mínimo) → cache miss → query pesada → cache.set
+        mockUsuarioModel.findUnique
+          .mockResolvedValueOnce({
+            id: 1,
+            email: 'test@test.com',
+            ativo: true,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .mockResolvedValueOnce(cachedPayload);
+        mockCache.get.mockResolvedValue(undefined);
+
+        const result =
+          await repository.findByEmailWithPerfisAndPermissoes('test@test.com');
+
+        expect(result).not.toBeNull();
+        expect(mockCache.get).toHaveBeenCalledWith(cacheKey);
+        expect(mockUsuarioModel.findUnique).toHaveBeenCalledTimes(2);
+        // Deve gravar no cache com TTL 60_000
+        expect(mockCache.set).toHaveBeenCalledWith(
+          cacheKey,
+          expect.any(Object),
+          60_000,
+        );
+      });
+
+      it('cache hit: NÃO executa a query pesada; retorna o payload cacheado', async () => {
+        const fakeCached: any = {
+          id: 1,
+          email: 'test@test.com',
+          ativo: true,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          empresas: cachedPayload.empresas,
+        };
+        mockUsuarioModel.findUnique.mockResolvedValueOnce({
+          id: 1,
+          email: 'test@test.com',
+          ativo: true,
+          deletedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        mockCache.get.mockResolvedValueOnce(fakeCached);
+
+        const result =
+          await repository.findByEmailWithPerfisAndPermissoes('test@test.com');
+
+        expect(result).toBe(fakeCached);
+        // Apenas o findByEmail mínimo (1ª chamada); a query pesada NÃO roda
+        expect(mockUsuarioModel.findUnique).toHaveBeenCalledTimes(1);
+        expect(mockCache.set).not.toHaveBeenCalled();
+      });
+
+      it('cache TTL expirado: reexecuta a query e repopula o cache', async () => {
+        mockUsuarioModel.findUnique
+          .mockResolvedValueOnce({
+            id: 1,
+            email: 'test@test.com',
+            ativo: true,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .mockResolvedValueOnce(cachedPayload);
+        // 1ª chamada: cache hit
+        mockCache.get.mockResolvedValueOnce(undefined);
+        // Após miss + repopulação, próxima chamada volta a ser miss (TTL expirou)
+        mockCache.get.mockResolvedValueOnce(undefined);
+
+        await repository.findByEmailWithPerfisAndPermissoes('test@test.com');
+        await repository.findByEmailWithPerfisAndPermissoes('test@test.com');
+
+        // 2 lookup mínimo + 2 queries pesadas = 4 chamadas totais
+        expect(mockUsuarioModel.findUnique).toHaveBeenCalledTimes(4);
+        expect(mockCache.set).toHaveBeenCalledTimes(2);
+      });
+
+      it('cache.get() lança erro: degrada graciosamente (miss + query pesada)', async () => {
+        mockUsuarioModel.findUnique
+          .mockResolvedValueOnce({
+            id: 1,
+            email: 'test@test.com',
+            ativo: true,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .mockResolvedValueOnce(cachedPayload);
+        mockCache.get.mockRejectedValueOnce(new Error('Redis offline'));
+
+        const result =
+          await repository.findByEmailWithPerfisAndPermissoes('test@test.com');
+
+        expect(result).not.toBeNull();
+        // Mesma sequência: lookup mínimo + query pesada
+        expect(mockUsuarioModel.findUnique).toHaveBeenCalledTimes(2);
+      });
+
+      it('invalidateUserCache remove a chave auth:user-profiles:<id>', async () => {
+        await repository.invalidateUserCache(42);
+
+        expect(mockCache.del).toHaveBeenCalledWith('auth:user-profiles:42');
+      });
+
+      it('invalidateUserCache tolera erro do Redis (best-effort)', async () => {
+        mockCache.del.mockRejectedValueOnce(new Error('Redis offline'));
+
+        await expect(
+          repository.invalidateUserCache(42),
+        ).resolves.toBeUndefined();
+      });
+
+      it('invalidateUserCache ignora userId inválido (NaN, Infinity)', async () => {
+        await repository.invalidateUserCache(NaN);
+        await repository.invalidateUserCache(Infinity);
+
+        expect(mockCache.del).not.toHaveBeenCalled();
+      });
+
+      it('cache.set() lança erro: payload ainda é retornado (best-effort)', async () => {
+        mockUsuarioModel.findUnique
+          .mockResolvedValueOnce({
+            id: 1,
+            email: 'test@test.com',
+            ativo: true,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .mockResolvedValueOnce(cachedPayload);
+        mockCache.get.mockResolvedValueOnce(undefined);
+        mockCache.set.mockRejectedValueOnce(new Error('Redis offline'));
+
+        const result =
+          await repository.findByEmailWithPerfisAndPermissoes('test@test.com');
+
+        expect(result).not.toBeNull();
+        expect(result!.id).toBe(1);
+      });
+
+      it('usuario inexistente em findByEmail: retorna null sem tocar no cache', async () => {
+        mockUsuarioModel.findUnique.mockResolvedValueOnce(null);
+
+        const result =
+          await repository.findByEmailWithPerfisAndPermissoes('ghost@x.com');
+
+        expect(result).toBeNull();
+        expect(mockCache.get).not.toHaveBeenCalled();
+        expect(mockCache.set).not.toHaveBeenCalled();
+      });
     });
   });
 

@@ -5,6 +5,7 @@
 
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -19,6 +20,7 @@ import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { PaginatedResponseDto } from '../../../shared/dto/paginated-response.dto';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 import { Roles } from 'src/shared/domain/constants/auth.constants';
+import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
 
 type UsuarioLogado = JwtPayload;
 
@@ -29,6 +31,10 @@ export class PerfisService {
   constructor(
     private readonly perfilRepository: PerfilRepository,
     private readonly permissoesService: PermissoesService,
+    // [A5] Injetado para invalidar cache de perfis+permissões (TTL 60s)
+    // dos usuários afetados quando este perfil muda.
+    @Inject(UsuarioRepository)
+    private readonly usuarioRepository: UsuarioRepository,
   ) {}
 
   async create(createPerfilDto: CreatePerfilDto): Promise<Perfil> {
@@ -183,6 +189,28 @@ export class PerfisService {
         `Perfil com ID ${id} não encontrado após atualização.`,
       );
     }
+
+    // [A5] DevSecOps 2026-06-21 — quando as permissões de um perfil mudam,
+    // todos os usuários vinculados a esse perfil precisam ter o cache
+    // Redis (TTL 60s) do payload `findByEmailWithPerfisAndPermissoes`
+    // invalidado. Best-effort: erros são logados mas não propagados.
+    if (updatePerfilDto.permissoesIds) {
+      const userIds = await this.perfilRepository.findUserIdsByPerfilId(id);
+      for (const userId of userIds) {
+        await this.usuarioRepository.invalidateUserCache(userId);
+      }
+      if (userIds.length > 0) {
+        this.logger.log(
+          {
+            event: 'auth.user_cache.invalidated_bulk',
+            perfilId: id,
+            affectedUsers: userIds.length,
+          },
+          'Cache de perfis/permissões invalidado após mudança de permissoesIds',
+        );
+      }
+    }
+
     return updatedPerfil;
   }
 
