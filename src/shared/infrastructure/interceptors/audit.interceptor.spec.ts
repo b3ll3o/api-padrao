@@ -1,19 +1,20 @@
+// TDD: AGENTS.md §4 — AuditInterceptor é global; se parar de logar, perdemos auditoria sem aviso.
 import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { ExecutionContext, CallHandler } from '@nestjs/common';
-import { of } from 'rxjs';
+import { getQueueToken } from '@nestjs/bullmq';
+import { of, Observable } from 'rxjs';
 import { AuditInterceptor } from './audit.interceptor';
-import { PrismaService } from '../../../prisma/prisma.service';
-
-// TDD: AGENTS.md §4 — AuditInterceptor é global; se parar de logar, perdemos auditoria sem aviso.
+import { AUDIT_QUEUE } from '../queues/queue.constants';
 
 describe('AuditInterceptor', () => {
   let interceptor: AuditInterceptor;
   let reflector: Reflector;
-  let mockPrisma: { auditLog: { create: jest.Mock } };
+  let mockAuditQueue: { add: jest.Mock };
 
-  // [PERF-002] Helper: aguarda o `setImmediate` (que desacopla a
-  // escrita do audit log do event loop da resposta) ser processado.
+  // Helper: aguarda microtasks pendentes (Promise do auditQueue.add) e
+  // o `setImmediate` (se ainda houver no caminho assíncrono) serem
+  // processados. Mantemos por compat com versão síncrona anterior.
   const flushImmediates = () =>
     new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -34,15 +35,15 @@ describe('AuditInterceptor', () => {
     }) as unknown as ExecutionContext;
 
   beforeEach(async () => {
-    mockPrisma = {
-      auditLog: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+    mockAuditQueue = {
+      add: jest.fn().mockResolvedValue({ id: 'job-1' }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditInterceptor,
         Reflector,
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: getQueueToken(AUDIT_QUEUE), useValue: mockAuditQueue },
       ],
     }).compile();
 
@@ -55,16 +56,16 @@ describe('AuditInterceptor', () => {
     expect(interceptor).toBeInstanceOf(AuditInterceptor);
   });
 
-  it('NÃO deve logar quando não há @Auditar() no handler', async () => {
+  it('NÃO deve enfileirar quando não há @Auditar() no handler', async () => {
     // Sem metadata → passa direto
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
     const next: CallHandler = { handle: () => of({ id: 1 }) };
     interceptor.intercept(buildContext({}), next).subscribe();
     await flushImmediates();
-    expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
+    expect(mockAuditQueue.add).not.toHaveBeenCalled();
   });
 
-  it('deve logar no Prisma após resposta bem-sucedida quando @Auditar() presente', async () => {
+  it('deve enfileirar na fila AUDIT após resposta bem-sucedida quando @Auditar() presente', async () => {
     const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
 
@@ -82,16 +83,21 @@ describe('AuditInterceptor', () => {
     interceptor.intercept(buildContext(req), next).subscribe();
     await flushImmediates();
 
-    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+    expect(mockAuditQueue.add).toHaveBeenCalledWith(
+      'audit-log',
       expect.objectContaining({
-        data: expect.objectContaining({
-          usuarioId: 1,
-          acao: 'CREATE',
-          recurso: 'usuario',
-          recursoId: '42', // data.id → string
-          ip: '127.0.0.1',
-          userAgent: 'jest',
-        }),
+        usuarioId: 1,
+        acao: 'CREATE',
+        recurso: 'usuario',
+        recursoId: '42', // data.id → string
+        ip: '127.0.0.1',
+        userAgent: 'jest',
+      }),
+      expect.objectContaining({
+        attempts: 3,
+        backoff: expect.objectContaining({ type: 'exponential' }),
+        removeOnComplete: expect.objectContaining({ age: 86400 }),
+        removeOnFail: expect.objectContaining({ age: 604800 }),
       }),
     );
   });
@@ -114,8 +120,8 @@ describe('AuditInterceptor', () => {
     interceptor.intercept(buildContext(req), next).subscribe();
     await flushImmediates();
 
-    const call = mockPrisma.auditLog.create.mock.calls[0][0];
-    const detalhes = call.data.detalhes;
+    const jobData = mockAuditQueue.add.mock.calls[0][1];
+    const detalhes = jobData.detalhes;
     // [SEC-LGPD-001] email agora é PII — DEVE ser mascarado.
     expect(detalhes.body.email).toBe('********');
     expect(detalhes.body.senha).toBe('********');
@@ -146,8 +152,8 @@ describe('AuditInterceptor', () => {
     interceptor.intercept(buildContext(req), next).subscribe();
     await flushImmediates();
 
-    const call = mockPrisma.auditLog.create.mock.calls[0][0];
-    const detalhes = call.data.detalhes;
+    const jobData = mockAuditQueue.add.mock.calls[0][1];
+    const detalhes = jobData.detalhes;
     expect(detalhes.body.tokenType).toBe('bearer');
     expect(detalhes.body.userIdentifier).toBe('abc');
   });
@@ -183,8 +189,8 @@ describe('AuditInterceptor', () => {
     interceptor.intercept(buildContext(req), next).subscribe();
     await flushImmediates();
 
-    const call = mockPrisma.auditLog.create.mock.calls[0][0];
-    const body = call.data.detalhes.body;
+    const jobData = mockAuditQueue.add.mock.calls[0][1];
+    const body = jobData.detalhes.body;
     expect(body.cpf).toBe('********');
     expect(body.cnpj).toBe('********');
     expect(body.telefone).toBe('********');
@@ -215,17 +221,18 @@ describe('AuditInterceptor', () => {
     interceptor.intercept(buildContext(req), next).subscribe();
     await flushImmediates();
 
-    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ recursoId: '7' }),
-      }),
+    expect(mockAuditQueue.add).toHaveBeenCalledWith(
+      'audit-log',
+      expect.objectContaining({ recursoId: '7' }),
+      expect.any(Object),
     );
   });
 
-  it('NÃO deve propagar erro de auditoria (catch interno)', async () => {
+  // [REQ-QUEUE-001] Falha de enqueue (Redis down) NÃO propaga — degrada aberta.
+  it('NÃO deve propagar erro do enqueue (catch interno)', async () => {
     const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
-    mockPrisma.auditLog.create.mockRejectedValue(new Error('DB down'));
+    mockAuditQueue.add.mockRejectedValue(new Error('Redis down'));
 
     const req = {
       method: 'POST',
@@ -239,11 +246,13 @@ describe('AuditInterceptor', () => {
     const next: CallHandler = { handle: () => of({ id: 1 }) };
 
     // Não deve lançar — o catch interno silencia
-    interceptor.intercept(buildContext(req), next).subscribe();
+    expect(() =>
+      interceptor.intercept(buildContext(req), next).subscribe(),
+    ).not.toThrow();
     // Aguarda o setImmediate e a rejeição do Promise serem processados
     await flushImmediates();
-    // O create foi chamado (e falhou silenciosamente)
-    expect(mockPrisma.auditLog.create).toHaveBeenCalled();
+    // O add foi chamado (e falhou silenciosamente)
+    expect(mockAuditQueue.add).toHaveBeenCalled();
   });
 
   it('deve extrair usuarioId de request.user.userId (fallback)', async () => {
@@ -264,10 +273,74 @@ describe('AuditInterceptor', () => {
     interceptor.intercept(buildContext(req), next).subscribe();
     await flushImmediates();
 
-    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+    expect(mockAuditQueue.add).toHaveBeenCalledWith(
+      'audit-log',
+      expect.objectContaining({ usuarioId: 99 }),
+      expect.any(Object),
+    );
+  });
+
+  // [REQ-QUEUE-001] Garante que a opção `attempts` está alinhada com a
+  // estratégia de retry (3 tentativas antes de desistir/DLQ).
+  it('deve enfileirar com attempts=3 e backoff exponencial', async () => {
+    const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
+
+    const req = {
+      method: 'POST',
+      url: '/usuarios',
+      body: {},
+      params: {},
+      ip: '127.0.0.1',
+      headers: {},
+      usuarioLogado: { sub: 1 },
+    };
+    const next: CallHandler = { handle: () => of({ id: 1 }) };
+
+    interceptor.intercept(buildContext(req), next).subscribe();
+    await flushImmediates();
+
+    expect(mockAuditQueue.add).toHaveBeenCalledWith(
+      'audit-log',
+      expect.any(Object),
       expect.objectContaining({
-        data: expect.objectContaining({ usuarioId: 99 }),
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
       }),
     );
+  });
+
+  // [REQ-QUEUE-001] Job NÃO é enfileirado se o handler lançar
+  // (tap só roda em respostas de sucesso do observable).
+  it('NÃO deve enfileirar se o handler lançar erro (rxjs tap roda só em next)', async () => {
+    const auditOptions = { acao: 'CREATE', recurso: 'usuario' };
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(auditOptions);
+
+    const req = {
+      method: 'POST',
+      url: '/usuarios',
+      body: {},
+      params: {},
+      ip: '127.0.0.1',
+      headers: {},
+      usuarioLogado: { sub: 1 },
+    };
+    const error = new Error('boom');
+    // Observable emitindo erro: tap NÃO é chamado (tap só roda em next).
+    const next: CallHandler = {
+      handle: () =>
+        new Observable((sub: { error: (e: unknown) => void }) => {
+          sub.error(error);
+        }),
+    };
+
+    interceptor.intercept(buildContext(req), next).subscribe({
+      error: () => {
+        // silencioso
+      },
+    });
+    await flushImmediates();
+
+    expect(mockAuditQueue.add).not.toHaveBeenCalled();
   });
 });

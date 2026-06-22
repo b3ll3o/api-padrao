@@ -5,7 +5,11 @@
 //
 // Interceptor que mede RATE/ERRORS/DURATION (RED) por request HTTP.
 // Implementação do padrão Prometheus: instrumenta TODOS os endpoints
-// automaticamente (exceto /metrics e /health que geram ruído).
+// automaticamente (exceto /metrics e /health/* que geram ruído dos
+// healthchecks do k8s/LB — disparados a cada 10-30s).
+// [REQ-CC-METRICS-EXCLUDE-001.1.c (MUST)] Excluir os paths reais
+// `/health/live` e `/health/ready` (do @nestjs/terminus via HealthController)
+// e não `/health` (path antigo, não usado).
 //
 // Labels:
 //   method: GET, POST, PUT, DELETE, PATCH
@@ -25,9 +29,18 @@ import {
 import { Observable, tap } from 'rxjs';
 import { MetricsRegistry } from './registry';
 
-// Endpoints que não devem ser medidos (health, metrics em si —
-// geram tráfego sintético e poluem séries temporais)
-const EXCLUDED_PATHS = new Set(['/health', '/metrics', '/']);
+// Endpoints que não devem ser medidos. /health/live e /health/ready são os
+// paths reais do HealthController (@nestjs/terminus); healthchecks disparam
+// a cada 10-30s pelo k8s/LB e poluem `http_requests_total`. /metrics é a
+// própria saída do Prometheus (medir o medidor = ruído). / é o healthcheck
+// de carga trivial.
+// [REQ-CC-METRICS-EXCLUDE-001.1.c (MUST)]
+const EXCLUDED_PATHS = new Set<string>([
+  '/health/live',
+  '/health/ready',
+  '/metrics',
+  '/',
+]);
 
 @Injectable()
 export class HttpMetricsInterceptor implements NestInterceptor {

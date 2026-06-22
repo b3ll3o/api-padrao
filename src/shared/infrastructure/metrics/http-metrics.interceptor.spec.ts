@@ -97,8 +97,10 @@ describe('HttpMetricsInterceptor', () => {
     ).toBe(0);
   });
 
-  it('NÃO instrumenta /health, /metrics e / (são excluídos)', async () => {
-    for (const path of ['/health', '/metrics', '/']) {
+  it('NÃO instrumenta /health/live e /health/ready (paths reais do HealthController)', async () => {
+    // [REQ-CC-METRICS-EXCLUDE-001.1.c (MUST)] Healthchecks disparam a cada
+    // 10-30s pelo k8s/LB; instrumentá-los polui http_requests_total.
+    for (const path of ['/health/live', '/health/ready']) {
       const req = { method: 'GET', url: path };
       await lastValueFrom(
         interceptor.intercept(buildContext(req), {
@@ -110,8 +112,80 @@ describe('HttpMetricsInterceptor', () => {
     expect(registry.httpRequests.getValue()).toBe(0);
   });
 
+  it('NÃO instrumenta /metrics (saída do Prometheus — medir o medidor é ruído)', async () => {
+    const req = { method: 'GET', url: '/metrics' };
+    await lastValueFrom(
+      interceptor.intercept(buildContext(req), {
+        handle: () => of('x'),
+      } as any),
+    );
+    expect(registry.httpRequests.getValue()).toBe(0);
+  });
+
+  it('NÃO instrumenta / (healthcheck trivial de carga)', async () => {
+    const req = { method: 'GET', url: '/' };
+    await lastValueFrom(
+      interceptor.intercept(buildContext(req), {
+        handle: () => of('x'),
+      } as any),
+    );
+    expect(registry.httpRequests.getValue()).toBe(0);
+  });
+
+  it('INSTRUMENTA endpoints de aplicação (sanity check pós-refactor)', async () => {
+    // Garante que o refactor da EXCLUDED_PATHS não excluiu por engano
+    // rotas reais de negócio (não-health, não-metrics).
+    const req = {
+      method: 'GET',
+      url: '/api/v1/usuarios',
+      route: { path: '/api/v1/usuarios' },
+    };
+    const res = { statusCode: 200 };
+    await lastValueFrom(
+      interceptor.intercept(buildContext(req, res), {
+        handle: () => of('ok'),
+      } as any),
+    );
+    expect(
+      registry.httpRequests.getValue({
+        method: 'GET',
+        route: '/api/v1/usuarios',
+        status: '200',
+      }),
+    ).toBe(1);
+  });
+
+  it('INSTRUMENTA paths NÃO listados em EXCLUDED_PATHS (regressão)', async () => {
+    // Mesmo sem route.path definido (ex.: 404 não roteado), o interceptor
+    // deve instrumentar usando pathOnly como fallback.
+    for (const path of ['/api/users', '/api/v1/pedidos/123']) {
+      const req = { method: 'GET', url: path };
+      await lastValueFrom(
+        interceptor.intercept(buildContext(req), {
+          handle: () => of('x'),
+        } as any),
+      );
+    }
+    // Verifica cada slot individualmente (getValue não agrega entre labels)
+    expect(
+      registry.httpRequests.getValue({
+        method: 'GET',
+        route: '/api/users',
+        status: '200',
+      }),
+    ).toBe(1);
+    expect(
+      registry.httpRequests.getValue({
+        method: 'GET',
+        route: '/api/v1/pedidos/123',
+        status: '200',
+      }),
+    ).toBe(1);
+  });
+
   it('strip query string antes de classificar como excluído', async () => {
-    const req = { method: 'GET', url: '/health?check=db' };
+    // [REQ-CC-METRICS-EXCLUDE-001.1.c] Usa um dos paths reais excluídos.
+    const req = { method: 'GET', url: '/health/live?check=db' };
     await lastValueFrom(
       interceptor.intercept(buildContext(req), {
         handle: () => of('x'),

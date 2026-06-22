@@ -55,16 +55,19 @@ describe('TenantThrottlerGuard (getTracker)', () => {
     expect(tracker).toBe('tenant:empresa-uuid-2');
   });
 
-  it('deve usar header x-empresa-id como fallback quando não há JWT', async () => {
+  it('deve IGNORAR header x-empresa-id em rota pública (SECURITY-FIX M2)', async () => {
     const guard = buildGuard(planoService);
+    // SECURITY-FIX M2: sem JWT (rota pública), NÃO confiar no header
+    // client-controlled. Apenas IP é usado como chave.
     const tracker = await (guard as any).getTracker({
       headers: { 'x-empresa-id': 'empresa-uuid-3' },
       ip: '127.0.0.1',
     });
-    expect(tracker).toBe('tenant:empresa-uuid-3');
+    expect(tracker).toBe('ip:127.0.0.1');
+    expect(tracker).not.toBe('tenant:empresa-uuid-3');
   });
 
-  it('deve preferir request.user.empresaId sobre o header x-empresa-id', async () => {
+  it('deve preferir request.user.empresaId sobre o header x-empresa-id (defesa em profundidade)', async () => {
     const guard = buildGuard(planoService);
     const tracker = await (guard as any).getTracker({
       user: { empresaId: 'empresa-jwt' },
@@ -74,12 +77,42 @@ describe('TenantThrottlerGuard (getTracker)', () => {
     expect(tracker).toBe('tenant:empresa-jwt');
   });
 
-  it('deve cair para IP quando não há empresaId (rota pública)', async () => {
+  it('deve preferir request.user.empresaId mesmo quando header tem valor diferente (SECURITY-FIX M2)', async () => {
+    const guard = buildGuard(planoService);
+    // Atacante tenta forçar throttling contra outra empresa via header
+    // — não pode sobrescrever o tenant do JWT já validado.
+    const tracker = await (guard as any).getTracker({
+      user: { empresaId: 'empresa-jwt-real' },
+      headers: { 'x-empresa-id': 'empresa-vitima' },
+      ip: '10.0.0.1',
+    });
+    expect(tracker).toBe('tenant:empresa-jwt-real');
+  });
+
+  it('deve usar request.user.empresas[0].id e IGNORAR header x-empresa-id', async () => {
+    const guard = buildGuard(planoService);
+    const tracker = await (guard as any).getTracker({
+      user: { empresas: [{ id: 'empresa-jwt-2' }] },
+      headers: { 'x-empresa-id': 'empresa-spoof' },
+      ip: '10.0.0.2',
+    });
+    expect(tracker).toBe('tenant:empresa-jwt-2');
+  });
+
+  it('deve cair para IP quando não há JWT nem empresaId (rota pública)', async () => {
     const guard = buildGuard(planoService);
     const tracker = await (guard as any).getTracker({
       ip: '203.0.113.5',
     });
     expect(tracker).toBe('ip:203.0.113.5');
+  });
+
+  it('deve usar ip:unknown quando não há JWT, não há IP e header presente (rota pública degradada)', async () => {
+    const guard = buildGuard(planoService);
+    const tracker = await (guard as any).getTracker({
+      headers: { 'x-empresa-id': 'qualquer-coisa' },
+    });
+    expect(tracker).toBe('ip:unknown');
   });
 
   it('deve usar "ip:unknown" quando tracker é undefined', async () => {
@@ -127,10 +160,12 @@ describe('TenantThrottlerGuard (extractEmpresaId)', () => {
     expect(guard.extractEmpresaId(req)).toBe('multi-empresa');
   });
 
-  it('extrai do header x-empresa-id (priority 3)', () => {
+  it('IGNORA header x-empresa-id quando não há JWT (SECURITY-FIX M2)', () => {
     const guard = buildGuard({} as any);
+    // SECURITY-FIX M2: header client-controlled não é fonte de tenant
+    // em rotas públicas. Deve retornar undefined.
     const req = { headers: { 'x-empresa-id': 'header-empresa' } };
-    expect(guard.extractEmpresaId(req)).toBe('header-empresa');
+    expect(guard.extractEmpresaId(req)).toBeUndefined();
   });
 
   it('retorna undefined quando não há nenhum identificador', () => {

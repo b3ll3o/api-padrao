@@ -1,5 +1,5 @@
-// BDD: N/A (cross-cutting / infraestrutura)
-// SDD: N/A
+// BDD: features/auditoria.feature:Cenário: Eventos de auditoria processados assincronamente
+// SDD: .openspec/changes/observabilidade/design.md:REQ-QUEUE-001..005
 // TDD: src/shared/infrastructure/interceptors/audit.interceptor.spec.ts
 
 import {
@@ -10,22 +10,23 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../../prisma/prisma.service';
 import {
   AUDIT_KEY,
   AuditOptions,
 } from '../../application/decorators/audit.decorator';
+import { AUDIT_QUEUE } from '../queues/queue.constants';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
   private readonly logger = new Logger(AuditInterceptor.name);
 
   constructor(
+    @InjectQueue(AUDIT_QUEUE) private readonly auditQueue: Queue,
     private reflector: Reflector,
-    private prisma: PrismaService,
   ) {}
 
   // [PERF-001] Conjunto EXATO de chaves sensíveis. Antes era match por
@@ -68,21 +69,17 @@ export class AuditInterceptor implements NestInterceptor {
     const { method, url, body, params, ip } = request;
     const userAgent = request.headers['user-agent'];
 
-    // [PERF-002] `setImmediate` descola a escrita do log do event loop da
-    // resposta HTTP. Sem isso, `await this.prisma.auditLog.create(...)`
-    // no `tap` mantém o request em vôo até o INSERT do log terminar —
-    // adiciona ~5-20ms em TODA request auditada (e.g. POST /usuarios).
-    // `setImmediate` é mais adequado que `setTimeout(0)` porque agenda
-    // no checkpoint do event loop, antes de timers e I/O.
     return next.handle().pipe(
       tap((data: unknown) => {
-        // Snapshot imutável: nada aqui deve mudar entre o schedule e
-        // a execução do callback.
-        const payload: Prisma.AuditLogUncheckedCreateInput = {
-          usuarioId: (user?.userId || user?.sub) as number | undefined,
+        // Payload alinhado com `AuditJobData` (audit.processor.ts).
+        const recursoId =
+          params?.id || (data as { id?: unknown })?.id?.toString();
+
+        const jobData = {
           acao: auditOptions.acao,
+          usuarioId: (user?.userId || user?.sub) as number | undefined,
           recurso: auditOptions.recurso,
-          recursoId: params?.id || (data as { id?: unknown })?.id?.toString(),
+          recursoId,
           detalhes: {
             method,
             url,
@@ -92,20 +89,46 @@ export class AuditInterceptor implements NestInterceptor {
                 body as Record<string, unknown>,
               ),
             }),
-          } as Prisma.InputJsonValue,
+          },
           ip,
           userAgent,
         };
-        setImmediate(() => {
-          this.prisma.auditLog.create({ data: payload }).catch(() => {
-            // [MED-002] Falha de auditoria NÃO propaga — auditoria é
+
+        // [REQ-QUEUE-001] Enfileira no BullMQ — não-bloqueante e durável
+        // (Redis). Substitui a escrita síncrona direta no Prisma que
+        // estava acoplada ao event loop do request (PERF-002).
+        //
+        // Opções do job:
+        //   - attempts: 3 (override do DEFAULT_JOB_OPTIONS — auditoria é
+        //     crítica e toleramos retentativas extras antes de desistir)
+        //   - backoff: exponencial 1s → 2s → 4s
+        //   - removeOnComplete: 24h OU 1000 jobs (mantém rastro curto
+        //     para auditoria de jobs completos, evita crescimento
+        //     ilimitado do Redis)
+        //   - removeOnFail: 7 dias para inspeção via Bull Board
+        //
+        // Degrada aberta: falha no enqueue (Redis down) NÃO quebra o
+        // request — apenas logamos warning. Auditoria é observacional.
+        this.auditQueue
+          .add('audit-log', jobData, {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 1000 },
+            removeOnComplete: { age: 86400, count: 1000 },
+            removeOnFail: { age: 604800 },
+          })
+          .catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            // [MED-002] Falha de enqueue NÃO propaga — auditoria é
             // um efeito observacional, não parte do contrato da API.
             this.logger.warn(
-              { event: 'audit.write_failed', acao: payload.acao },
-              'Falha ao salvar log de auditoria',
+              {
+                event: 'audit.enqueue_failed',
+                acao: jobData.acao,
+                error: message,
+              },
+              'Falha ao enfileirar log de auditoria (Redis indisponível?)',
             );
           });
-        });
       }),
     );
   }

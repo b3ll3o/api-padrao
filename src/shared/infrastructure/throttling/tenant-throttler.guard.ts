@@ -28,23 +28,30 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
   }
 
   /**
-   * Tenant-aware tracker: usa `empresaId` (do JWT ou do header `x-empresa-id`)
-   * como chave de throttling. Se não houver tenant identificado, cai para IP
-   * (comportamento padrão, preserva compatibilidade com rotas públicas).
+   * Tenant-aware tracker: usa `empresaId` (exclusivamente do JWT validado
+   * pelo `AuthGuard`) como chave de throttling. Se não houver tenant
+   * identificado (rota pública sem JWT), cai para IP (preserva throttling
+   * por origem e compatibilidade com health checks, métricas etc.).
    *
-   * Ordem de prioridade (NFR-TR-004 — server-side only, NUNCA aceita plano de
-   * header client-controlled):
-   * 1. `request.user.empresaId` (do JWT, set pelo JwtStrategy ou EmpresaInterceptor)
-   * 2. `request.user.empresas?.[0]?.id` (multi-tenant JWT)
-   * 3. `request.headers['x-empresa-id']` (header — confiável pois vem do gateway
-   *    de autenticação, não do cliente)
-   * 4. Fallback: `ip:unknown` (comportamento padrão)
+   * Ordem de prioridade (NFR-TR-004 — server-side only, NUNCA aceita
+   * identificador de tenant de header client-controlled):
+   * 1. `request.user.empresaId` (do JWT, set pelo JwtStrategy.validate)
+   * 2. `request.user.empresas?.[0]?.id` (multi-tenant JWT — JwtStrategy
+   *    popula `empresas[]` a partir do payload; o primeiro é o tenant ativo)
+   * 3. Fallback: `ip:<ip>` (rota pública — `@Public()` decorada ou health/
+   *    metrics endpoints; sem JWT, NÃO confiamos em `x-empresa-id`).
+   *
+   * [SECURITY-FIX M2 — DevSecOps sweep 2026-06-21] O header `x-empresa-id`
+   * foi REMOVIDO da resolução de tenant. Em rotas públicas (que não passam
+   * pelo `AuthGuard`), um atacante poderia falsificar o header para (a)
+   * fazer throttling cair sobre outra empresa (atrito legítimo) ou (b)
+   * evadir limites distribuindo requests entre headers forjados. Agora o
+   * tenant só é identificado a partir de `request.user`, que é populado
+   * exclusivamente pelo `JwtStrategy.validate` após validação da assinatura
+   * do JWT (fonte server-side confiável).
    */
   protected async getTracker(req: Record<string, any>): Promise<string> {
-    const empresaId =
-      req?.user?.empresaId ??
-      req?.user?.empresas?.[0]?.id ??
-      req?.headers?.['x-empresa-id'];
+    const empresaId = req?.user?.empresaId ?? req?.user?.empresas?.[0]?.id;
 
     if (empresaId && typeof empresaId === 'string' && empresaId.length > 0) {
       return `tenant:${empresaId}`;
@@ -55,16 +62,20 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
   }
 
   /**
-   * Extrai o `empresaId` do request, na mesma ordem de prioridade do
-   * `getTracker`. Retorna `undefined` se nenhum for encontrado.
+   * Extrai o `empresaId` do request. Retorna `undefined` se nenhum for
+   * encontrado.
+   *
+   * Apenas JWT validado é aceito como fonte (`request.user.*`). Headers
+   * client-controlled (`x-empresa-id`) são IGNORADOS para evitar que um
+   * atacante em rota pública falsifique o tenant e contorne/encaminhe
+   * rate limiting. Ver `getTracker` para o rationale completo
+   * (SECURITY-FIX M2 — DevSecOps sweep 2026-06-21).
+   *
    * Extraído para permitir testes unitários sem mockar todo o ciclo
    * do `handleRequest` (que delega ao super e exige storage real).
    */
   extractEmpresaId(req: Record<string, any>): string | undefined {
-    const candidate =
-      req?.user?.empresaId ??
-      req?.user?.empresas?.[0]?.id ??
-      req?.headers?.['x-empresa-id'];
+    const candidate = req?.user?.empresaId ?? req?.user?.empresas?.[0]?.id;
     if (typeof candidate === 'string' && candidate.length > 0) {
       return candidate;
     }
