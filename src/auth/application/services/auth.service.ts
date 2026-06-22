@@ -15,12 +15,14 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { LoginUsuarioDto } from '../../dto/login-usuario.dto';
 import { UsuarioRepository } from '../../../usuarios/domain/repositories/usuario.repository';
 import { PasswordHasher } from 'src/shared/domain/services/password-hasher.service';
 import { RefreshTokenRepository } from '../../domain/repositories/refresh-token.repository';
 import { LoginHistoryRepository } from '../../domain/repositories/login-history.repository';
 import { LoginAttemptTracker } from '../../domain/services/login-attempt-tracker.service';
+import { UnitOfWork } from '../../domain/services/unit-of-work.service';
 import {
   EmpresaAuthPayload,
   EmpresaJwtPayload,
@@ -61,6 +63,10 @@ export class AuthService {
     private refreshTokenRepository: RefreshTokenRepository,
     private loginHistoryRepository: LoginHistoryRepository,
     private loginAttemptTracker: LoginAttemptTracker,
+    // [A2] UnitOfWork (porta) — encapsula transação atômica para evitar
+    // race condition no refresh: 2 chamadas simultâneas com o mesmo token
+    // precisam ser serializadas (revoke + create em única transação).
+    private unitOfWork: UnitOfWork,
   ) {}
 
   async login(
@@ -219,50 +225,156 @@ export class AuthService {
   async refreshTokens(refreshToken: string) {
     // [SEC-001] Lookup pelo HASH — nunca pelo token bruto. Tokens em
     // plaintext não existem no DB.
-    const tokenRecord = await this.refreshTokenRepository.findByTokenWithUser(
-      hashRefreshToken(refreshToken),
-    );
+    const tokenHash = hashRefreshToken(refreshToken);
 
-    if (!tokenRecord) {
-      this.logger.warn(
-        { event: 'auth.refresh.invalid', motivo: 'token_nao_encontrado' },
-        'Refresh token inválido',
-      );
-      throw new UnauthorizedException('Refresh token inválido.');
-    }
-
-    // Detecção de Reuso de Token (Ataque Detectado)
-    if (tokenRecord.revokedAt) {
-      // Se um token já revogado for usado, revogamos TODOS os tokens do usuário
-      // por precaução. A defesa em profundidade é parte do protocolo OAuth.
-      await this.refreshTokenRepository.revokeAllForUser(tokenRecord.userId);
-      this.logger.error(
-        {
-          event: 'auth.refresh.reuse_detected',
-          userId: tokenRecord.userId,
+    // [A2] Atomicidade: revoke + create em única transação.
+    // Cenário de race: 2 refreshes simultâneos com o mesmo token (cliente
+    // com retry agressivo). Sem transação, ambos leem válido, ambos chamam
+    // `revoke` e ambos chamam `generateTokens()` que cria 2 refresh tokens
+    // novos — bypass da rotação, conta pode ser comprometida.
+    // A transação força lock row-level no Postgres: a 2ª chamada concorrente
+    // só lê o estado DEPOIS do commit da 1ª, vendo `revokedAt != null`
+    // e disparando a detecção de reuso (defesa em profundidade).
+    const result = await this.unitOfWork.execute<
+      Prisma.TransactionClient,
+      { access_token: string; refresh_token: string }
+    >(async (tx) => {
+      // 1. Busca token DENTRO da transação (força lock row-level)
+      const stored = await tx.refreshToken.findUnique({
+        where: { tokenHash },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              ativo: true,
+              deletedAt: true,
+              empresas: {
+                select: {
+                  empresaId: true,
+                  perfis: {
+                    select: {
+                      id: true,
+                      nome: true,
+                      codigo: true,
+                      descricao: true,
+                      permissoes: {
+                        select: {
+                          id: true,
+                          nome: true,
+                          codigo: true,
+                          descricao: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
-        'Reuso de refresh token detectado — todos os tokens revogados',
-      );
-      throw new ForbiddenException(
-        'Atividade suspeita detectada. Todos os tokens revogados.',
-      );
-    }
+      });
 
-    if (new Date() > tokenRecord.expiresAt) {
-      this.logger.warn(
-        { event: 'auth.refresh.expired', userId: tokenRecord.userId },
-        'Refresh token expirado',
-      );
-      throw new UnauthorizedException('Refresh token expirado.');
-    }
+      if (!stored) {
+        throw new UnauthorizedException('Refresh token inválido.');
+      }
 
-    // Revoga o token atual (rotação)
-    await this.refreshTokenRepository.revoke(tokenRecord.id);
+      // Detecção de Reuso de Token (Ataque Detectado) — defesa em profundidade.
+      // Se um token já revogado for apresentado, revogamos TODOS os tokens
+      // ativos do usuário e abortamos a transação. Esse caminho trata 2
+      // cenários:
+      //   (a) Atacante roubou token já usado (vazamento).
+      //   (b) Race: 2 refreshes simultâneos — a 2ª chamada chega após o
+      //       commit da 1ª e vê `revokedAt != null`.
+      if (stored.revokedAt) {
+        await tx.refreshToken.updateMany({
+          where: { userId: stored.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        this.logger.error(
+          {
+            event: 'auth.refresh.reuse_detected',
+            userId: stored.userId,
+          },
+          'Reuso de refresh token detectado — todos os tokens revogados',
+        );
+        throw new ForbiddenException(
+          'Atividade suspeita detectada. Todos os tokens revogados.',
+        );
+      }
 
-    return this.generateTokens(
-      tokenRecord.user.id,
-      tokenRecord.user.email,
-      tokenRecord.user.empresas,
-    );
+      if (stored.expiresAt < new Date()) {
+        this.logger.warn(
+          { event: 'auth.refresh.expired', userId: stored.userId },
+          'Refresh token expirado',
+        );
+        throw new UnauthorizedException('Refresh token expirado.');
+      }
+
+      // Usuário soft-deletado ou inativo: nada de refresh.
+      if (!stored.user.ativo || stored.user.deletedAt) {
+        this.logger.warn(
+          {
+            event: 'auth.refresh.user_inactive',
+            userId: stored.userId,
+          },
+          'Tentativa de refresh com usuário inativo/deletado',
+        );
+        throw new UnauthorizedException('Usuário inativo.');
+      }
+
+      // 2. Revoga o token atual (rotação) — atomicamente
+      await tx.refreshToken.update({
+        where: { id: stored.id },
+        data: { revokedAt: new Date() },
+      });
+
+      // 3. Cria novo refresh token — atomicamente
+      const newRefreshTokenValue = uuidv4();
+      const expiresInDays =
+        this.configService.get<number>('JWT_REFRESH_EXPIRES_DAYS') ?? 2;
+      const newExpiresAt = new Date();
+      newExpiresAt.setDate(newExpiresAt.getDate() + expiresInDays);
+
+      await tx.refreshToken.create({
+        data: {
+          tokenHash: hashRefreshToken(newRefreshTokenValue),
+          userId: stored.userId,
+          expiresAt: newExpiresAt,
+        },
+      });
+
+      // 4. Gera novo access token (não escreve no DB, apenas assina JWT)
+      const mappedEmpresas: EmpresaJwtPayload[] =
+        stored.user.empresas?.map((ue) => ({
+          id: ue.empresaId,
+          perfis: ue.perfis?.map((perfil) => ({
+            codigo: perfil.codigo,
+            permissoes: perfil.permissoes?.map((permissao) => ({
+              codigo: permissao.codigo,
+            })),
+          })),
+        })) ?? [];
+
+      const payload: JwtAccessTokenPayload = {
+        email: stored.user.email,
+        sub: stored.userId,
+        empresas: mappedEmpresas,
+      };
+
+      const accessToken = this.jwtService.sign(payload, {
+        expiresIn: this.configService.get<string>(
+          'JWT_ACCESS_EXPIRES_IN',
+        ) as any,
+        secret: this.configService.getOrThrow<string>('JWT_SECRET'),
+      });
+
+      return {
+        access_token: accessToken,
+        refresh_token: newRefreshTokenValue,
+      };
+    });
+
+    return result;
   }
 }

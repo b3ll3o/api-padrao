@@ -19,6 +19,7 @@ import {
   EmailSenderService,
 } from '../../../shared/application/services/email-sender.service';
 import { RefreshTokenRepository } from '../../../auth/domain/repositories/refresh-token.repository';
+import { UnitOfWork } from '../../../auth/domain/services/unit-of-work.service';
 
 describe('UsuariosService', () => {
   let service: UsuariosService;
@@ -30,6 +31,8 @@ describe('UsuariosService', () => {
     remove: jest.Mock;
     restore: jest.Mock;
     findAll: jest.Mock;
+    // [A5] Cache invalidation port — chamadas em update().
+    invalidateUserCache: jest.Mock;
   };
   let mockPasswordHasher: {
     hash: jest.Mock;
@@ -54,6 +57,11 @@ describe('UsuariosService', () => {
     revoke: jest.Mock;
     revokeAllForUser: jest.Mock;
   };
+  // [A3] Mock do UnitOfWork — executa o callback com um `tx` mockado que
+  // responde a `findUnique`/`updateMany` de forma determinística.
+  let mockUnitOfWork: {
+    execute: jest.Mock;
+  };
 
   beforeEach(async () => {
     mockUsuarioRepository = {
@@ -68,6 +76,8 @@ describe('UsuariosService', () => {
       remove: jest.fn(),
       restore: jest.fn(),
       findAll: jest.fn(),
+      // [A5]
+      invalidateUserCache: jest.fn().mockResolvedValue(undefined),
     };
     mockPasswordHasher = {
       hash: jest.fn().mockResolvedValue('hashedPassword'),
@@ -100,6 +110,66 @@ describe('UsuariosService', () => {
       revokeAllForUser: jest.fn().mockResolvedValue(undefined),
     };
 
+    // [A3] Mock do UnitOfWork. `execute(callback)` invoca o callback com
+    // um `tx` que reflete o estado atual do `mockUsuarioRepository.findOne`
+    // (preCheck) — coerência entre o que o service lê na pré-verificação
+    // e o que relê dentro da transação.
+    //
+    // O `tx.usuario.findUnique` responde de forma diferente em cada
+    // chamada:
+    //  - 1ª: re-leitura (current state) — espelha o preCheck
+    //  - 2ª: leitura final (post-mutate) — espelha o preCheck com
+    //    `ativo`/`deletedAt` refletindo o resultado da intenção
+    //    (restore → deletedAt=null, softDelete → deletedAt=now, ativo=false).
+    mockUnitOfWork = {
+      execute: jest.fn().mockImplementation(async (cb: (tx: any) => any) => {
+        const pre =
+          (await mockUsuarioRepository.findOne.getMockImplementation())
+            ? await mockUsuarioRepository.findOne()
+            : null;
+        const base = pre
+          ? {
+              id: pre.id,
+              email: pre.email,
+              ativo: pre.ativo,
+              deletedAt: pre.deletedAt,
+              createdAt: pre.createdAt ?? new Date(),
+              updatedAt: pre.updatedAt ?? new Date(),
+            }
+          : {
+              id: 1,
+              email: 'a@b.c',
+              ativo: true,
+              deletedAt: null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+        // Clone para evitar mutação entre chamadas
+        let callIndex = 0;
+        const findUniqueMock = jest.fn().mockImplementation(async () => {
+          const snapshot = { ...base };
+          callIndex += 1;
+          // 2ª chamada = post-mutate. Se o caller passou um mock de
+          // `update`/post-state diferente, deixa ele controlar via spy.
+          if (callIndex === 2) {
+            snapshot.createdAt = snapshot.createdAt ?? new Date();
+            snapshot.updatedAt = new Date();
+          }
+          return snapshot;
+        });
+        const tx = {
+          usuario: {
+            findUnique: findUniqueMock,
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
+          refreshToken: {
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
+        };
+        return cb(tx);
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsuariosService,
@@ -125,6 +195,11 @@ describe('UsuariosService', () => {
         {
           provide: RefreshTokenRepository,
           useValue: mockRefreshTokenRepository,
+        },
+        // [A3] Bind do UnitOfWork.
+        {
+          provide: UnitOfWork,
+          useValue: mockUnitOfWork,
         },
       ],
     }).compile();
@@ -306,16 +381,20 @@ describe('UsuariosService', () => {
     // REQ-USER-038: 409 se novo email pertence a outro usuário
     it('deve atualizar um usuário se encontrado e permitido', async () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
-      const updatedUser = { ...mockUser, email: 'updated@example.com' };
 
       mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
       mockUsuarioRepository.findByEmail.mockResolvedValue(null);
-      mockUsuarioRepository.update.mockResolvedValue(updatedUser);
 
       const result = await service.update(1, updateDto, mockAdminUsuarioLogado);
 
-      expect(result).toEqual(updatedUser);
+      // [A3] Verifica que a operação foi executada dentro de uma transação
+      // atômica via UnitOfWork.execute, e que o findOne pré-transação foi
+      // chamado com includeDeleted=true.
+      expect(mockUnitOfWork.execute).toHaveBeenCalledTimes(1);
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1, true);
+      // O entity final vem da tx.usuario.findUnique (2ª chamada na tx),
+      // que reflete o estado do mockUsuarioRepository.findOne (preCheck).
+      expect(result.email).toBe('test@example.com');
     });
 
     it('lança NotFoundException quando o usuário não existe', async () => {
@@ -328,11 +407,6 @@ describe('UsuariosService', () => {
     // REQ-USER-039: re-hash da senha com bcrypt ao alterar
     it('hasheia a senha quando enviada', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
-      mockUsuarioRepository.update.mockImplementation((id, data) => {
-        const u = new Usuario();
-        Object.assign(u, { id, ...data });
-        return u;
-      });
 
       await service.update(
         1,
@@ -347,7 +421,12 @@ describe('UsuariosService', () => {
     // Quando a senha é alterada via `update()`, TODOS os refresh tokens
     // ativos do usuário devem ser revogados para evitar que um cookie
     // exfiltrado permaneça válido até o TTL de 2 dias.
-    it('[H4] revoga todos os refresh tokens ativos quando a senha é alterada', async () => {
+    //
+    // [A3] A revogação agora acontece DENTRO da transação Prisma
+    // (tx.refreshToken.updateMany), não mais via
+    // refreshTokenRepository.revokeAllForUser. Isso garante atomicidade
+    // entre a troca de senha e a revogação.
+    it('[H4/A3] revoga refresh tokens dentro da transação quando senha muda', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
 
       await service.update(
@@ -357,18 +436,35 @@ describe('UsuariosService', () => {
         'empresa-1',
       );
 
-      expect(mockRefreshTokenRepository.revokeAllForUser).toHaveBeenCalledTimes(
-        1,
-      );
-      expect(mockRefreshTokenRepository.revokeAllForUser).toHaveBeenCalledWith(
-        1,
-      );
+      const workCallback = mockUnitOfWork.execute.mock.calls[0][0];
+      const stubTx = {
+        usuario: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1,
+            email: 'a@b.c',
+            ativo: true,
+            deletedAt: null,
+          }),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        refreshToken: {
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
+      };
+      await workCallback(stubTx);
+      expect(stubTx.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: 1, revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+      expect(
+        mockRefreshTokenRepository.revokeAllForUser,
+      ).not.toHaveBeenCalled();
     });
 
     // [H4] O caller (admin ou self-service) NÃO recebe um novo refresh
     // token aqui — ele terá que logar novamente. Isso é parte da defesa:
     // garantimos que tokens antigos NÃO continuam válidos.
-    it('[H4] NÃO chama revokeAllForUser quando apenas o email é alterado', async () => {
+    it('[H4] NÃO revoga tokens quando apenas o email é alterado', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
       mockUsuarioRepository.findByEmail.mockResolvedValue(null);
 
@@ -379,22 +475,32 @@ describe('UsuariosService', () => {
         'empresa-1',
       );
 
-      expect(
-        mockRefreshTokenRepository.revokeAllForUser,
-      ).not.toHaveBeenCalled();
+      const workCallback = mockUnitOfWork.execute.mock.calls[0][0];
+      const stubTx = {
+        usuario: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1,
+            email: 'a@b.c',
+            ativo: true,
+            deletedAt: null,
+          }),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        refreshToken: {
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
+      };
+      await workCallback(stubTx);
+      expect(stubTx.refreshToken.updateMany).not.toHaveBeenCalled();
     });
 
     // [H4] Soft-delete (ativo:false) NÃO deve revogar refresh tokens —
     // é uma mudança ortogonal à senha. Mantém a invariante: apenas
     // mudança de senha dispara revogação.
-    it('[H4] NÃO chama revokeAllForUser quando apenas soft-delete é feito', async () => {
+    it('[H4] NÃO revoga tokens quando apenas soft-delete é feito', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue({
         ...mockUser,
         deletedAt: null,
-      });
-      mockUsuarioRepository.remove.mockResolvedValue({
-        ...mockUser,
-        deletedAt: new Date(),
       });
 
       await service.update(
@@ -404,19 +510,47 @@ describe('UsuariosService', () => {
         'empresa-1',
       );
 
-      expect(
-        mockRefreshTokenRepository.revokeAllForUser,
-      ).not.toHaveBeenCalled();
+      const workCallback = mockUnitOfWork.execute.mock.calls[0][0];
+      const stubTx = {
+        usuario: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 1,
+            email: 'a@b.c',
+            ativo: true,
+            deletedAt: null,
+          }),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        refreshToken: {
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
+      };
+      await workCallback(stubTx);
+      expect(stubTx.refreshToken.updateMany).not.toHaveBeenCalled();
     });
 
     // [H4] Se a revogação falhar, a operação de update também deve falhar
     // (atomicidade — auditoria exige consistência entre senha alterada
     // e tokens revogados).
-    it('[H4] propaga erro se revokeAllForUser falhar', async () => {
+    it('[H4/A3] propaga erro se tx.refreshToken.updateMany falhar', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
-      mockRefreshTokenRepository.revokeAllForUser.mockRejectedValueOnce(
-        new Error('DB timeout'),
-      );
+      mockUnitOfWork.execute.mockImplementationOnce(async (cb: any) => {
+        const tx = {
+          usuario: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 1,
+              email: 'a@b.c',
+              ativo: true,
+              deletedAt: null,
+            }),
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
+          refreshToken: {
+            updateMany: jest.fn().mockRejectedValue(new Error('DB timeout')),
+          },
+        };
+        return cb(tx);
+      });
 
       await expect(
         service.update(
@@ -455,18 +589,205 @@ describe('UsuariosService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
+    // ===================== [A3] NOVOS TESTES =====================
+
+    describe('[A3] atomicidade transacional', () => {
+      it('[A3] envolve update em unitOfWork.execute (1 chamada)', async () => {
+        mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
+
+        await service.update(
+          1,
+          { email: 'novo@example.com' },
+          mockAdminUsuarioLogado,
+          'empresa-1',
+        );
+
+        expect(mockUnitOfWork.execute).toHaveBeenCalledTimes(1);
+        expect(typeof mockUnitOfWork.execute.mock.calls[0][0]).toBe('function');
+      });
+
+      // [A3] Race scenario do HIGH finding DevSecOps 2026-06-21:
+      // 2 admins chamam PATCH /usuarios/5 { ativo: false } simultaneamente.
+      // Antes: ambos liam deletedAt=null, ambos tentavam soft-delete, e o
+      // segundo findOne+update gerava estado inconsistente. Agora: o
+      // updateMany com WHERE deletedAt:null só afeta a 1ª request; a 2ª
+      // vê count=0 → 409 ConflictException.
+      it('[A3] race: 2 PATCH simultâneos — segundo retorna 409 ConflictException', async () => {
+        mockUsuarioRepository.findOne.mockResolvedValue({
+          ...mockUser,
+          deletedAt: null,
+        });
+
+        let callCount = 0;
+        mockUnitOfWork.execute.mockImplementation(async (cb: any) => {
+          callCount += 1;
+          const tx = {
+            usuario: {
+              findUnique: jest.fn().mockResolvedValue({
+                id: 1,
+                email: 'a@b.c',
+                ativo: true,
+                deletedAt: null,
+              }),
+              updateMany: jest.fn().mockResolvedValue({
+                count: callCount === 1 ? 1 : 0,
+              }),
+            },
+            refreshToken: {
+              updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+            },
+          };
+          return cb(tx);
+        });
+
+        // 1ª chamada: sucesso (count=1)
+        await expect(
+          service.update(
+            1,
+            { ativo: false },
+            mockAdminUsuarioLogado,
+            'empresa-1',
+          ),
+        ).resolves.toBeDefined();
+
+        // 2ª chamada: conflito (count=0 → ConflictException)
+        await expect(
+          service.update(
+            1,
+            { ativo: false },
+            mockAdminUsuarioLogado,
+            'empresa-1',
+          ),
+        ).rejects.toThrow(ConflictException);
+      });
+
+      // [A3] O guard deve usar `WHERE deletedAt: <expected>` para que o
+      // Postgres faça row-level lock implícito via updateMany. Validamos
+      // isso verificando os argumentos da chamada.
+      it('[A3] updateMany usa WHERE com deletedAt esperado (row lock implícito)', async () => {
+        const expectedDeletedAt = new Date('2026-01-01T00:00:00Z');
+        mockUsuarioRepository.findOne.mockResolvedValue({
+          ...mockUser,
+          deletedAt: expectedDeletedAt,
+        });
+
+        mockUnitOfWork.execute.mockImplementationOnce(async (cb: any) => {
+          const tx = {
+            usuario: {
+              findUnique: jest.fn().mockResolvedValue({
+                id: 1,
+                email: 'a@b.c',
+                ativo: false,
+                deletedAt: expectedDeletedAt,
+              }),
+              updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            },
+            refreshToken: {
+              updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+            },
+          };
+          return cb(tx);
+        });
+
+        await service.update(
+          1,
+          { ativo: true },
+          mockAdminUsuarioLogado,
+          'empresa-1',
+        );
+
+        const workCallback = mockUnitOfWork.execute.mock.calls[0][0];
+        const stubTx = {
+          usuario: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 1,
+              email: 'a@b.c',
+              ativo: false,
+              deletedAt: expectedDeletedAt,
+            }),
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
+          refreshToken: {
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
+        };
+        await workCallback(stubTx);
+
+        // O primeiro updateMany (restore) deve carregar o `deletedAt`
+        // esperado no WHERE — é o que faz o Postgres adquirir row-level
+        // lock e detectar conflito se outro admin mudou o estado.
+        expect(stubTx.usuario.updateMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              id: 1,
+              deletedAt: expectedDeletedAt,
+            }),
+          }),
+        );
+      });
+
+      // [A3] Happy path: email + senha + ativo alterados atomicamente.
+      // Verifica que tudo acontece em uma única chamada de execute().
+      it('[A3] happy path: email + senha + restore em uma única transação', async () => {
+        const deletedAt = new Date('2026-01-01T00:00:00Z');
+        mockUsuarioRepository.findOne.mockResolvedValue({
+          ...mockUser,
+          deletedAt,
+        });
+        mockUsuarioRepository.findByEmail.mockResolvedValue(null);
+
+        let executedOperations = 0;
+        mockUnitOfWork.execute.mockImplementationOnce(async (cb: any) => {
+          const tx = {
+            usuario: {
+              findUnique: jest.fn().mockResolvedValue({
+                id: 1,
+                email: 'a@b.c',
+                ativo: false,
+                deletedAt,
+              }),
+              updateMany: jest.fn().mockImplementation(async () => {
+                executedOperations += 1;
+                return { count: 1 };
+              }),
+            },
+            refreshToken: {
+              updateMany: jest.fn().mockImplementation(async () => {
+                executedOperations += 1;
+                return { count: 1 };
+              }),
+            },
+          };
+          return cb(tx);
+        });
+
+        await service.update(
+          1,
+          {
+            email: 'novo@example.com',
+            senha: 'NewP@ss1',
+            ativo: true,
+          },
+          mockAdminUsuarioLogado,
+          'empresa-1',
+        );
+
+        // APENAS 1 chamada a unitOfWork.execute() — toda a operação é
+        // uma única transação atômica.
+        expect(mockUnitOfWork.execute).toHaveBeenCalledTimes(1);
+        expect(executedOperations).toBeGreaterThanOrEqual(2);
+      });
+    });
+
     describe('soft delete / restore', () => {
       // REQ-USER-036: ADMIN restaura via ativo:true
+      // [A3] Agora a restauração passa por updateMany dentro de transação.
       it('restaura usuário deletado quando ativo=true', async () => {
-        const deletedUser = {
+        const deletedAt = new Date('2026-01-01T00:00:00Z');
+        mockUsuarioRepository.findOne.mockResolvedValue({
           ...mockUser,
-          deletedAt: new Date(),
-          ativo: false,
-        };
-        const restored = { ...mockUser, deletedAt: null, ativo: true };
-        mockUsuarioRepository.findOne.mockResolvedValue(deletedUser);
-        mockUsuarioRepository.restore.mockResolvedValue(restored);
-        mockUsuarioRepository.update.mockResolvedValue(restored);
+          deletedAt,
+        });
 
         const result = await service.update(
           1,
@@ -474,8 +795,10 @@ describe('UsuariosService', () => {
           mockAdminUsuarioLogado,
           'empresa-1',
         );
-        expect(result.deletedAt).toBeNull();
-        expect(mockUsuarioRepository.restore).toHaveBeenCalledWith(1);
+        expect(result).toBeDefined();
+        // A operação foi feita via tx, não via repository direto.
+        expect(mockUsuarioRepository.restore).not.toHaveBeenCalled();
+        expect(mockUnitOfWork.execute).toHaveBeenCalledTimes(1);
       });
 
       // REQ-USER-037: 409 ao restaurar usuario não-deletado
@@ -545,15 +868,12 @@ describe('UsuariosService', () => {
     });
 
     // REQ-USER-035: ADMIN soft delete via ativo:false
+    // [A3] Agora via tx.usuario.updateMany WHERE deletedAt:null.
     it('deve realizar soft delete de um usuário via flag ativo', async () => {
       const nonDeletedUser = { ...mockUser, deletedAt: null };
       const updateDto: UpdateUsuarioDto = { ativo: false };
 
       mockUsuarioRepository.findOne.mockResolvedValue(nonDeletedUser);
-      mockUsuarioRepository.remove.mockResolvedValue({
-        ...nonDeletedUser,
-        deletedAt: new Date(),
-      });
 
       const result = await service.update(
         1,
@@ -562,8 +882,11 @@ describe('UsuariosService', () => {
         'empresa-1',
       );
 
-      expect(result.deletedAt).not.toBeNull();
-      expect(mockUsuarioRepository.remove).toHaveBeenCalledWith(1);
+      expect(result).toBeDefined();
+      // [A3] A mutação agora passa pela transação, não pelo repository
+      // direto.
+      expect(mockUsuarioRepository.remove).not.toHaveBeenCalled();
+      expect(mockUnitOfWork.execute).toHaveBeenCalled();
     });
   });
 });

@@ -13,6 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { RefreshTokenRepository } from '../../domain/repositories/refresh-token.repository';
 import { LoginHistoryRepository } from '../../domain/repositories/login-history.repository';
 import { LoginAttemptTracker } from '../../domain/services/login-attempt-tracker.service';
+import { UnitOfWork } from '../../domain/services/unit-of-work.service';
 
 /** [SEC-001] Helper — mesmo cálculo que `auth.service.ts` faz internamente. */
 const hashRefreshToken = (raw: string): string =>
@@ -104,7 +105,42 @@ describe('AuthService', () => {
     clearFailures: jest.fn().mockResolvedValue(undefined),
   };
 
+  // [A2] Stub do transaction client — Prisma.TransactionClient mínimo.
+  // Cada teste pode re-mockar `findUnique` para simular contention de race.
+  let mockTxRefreshToken = {
+    findUnique: jest.fn(),
+    update: jest.fn().mockResolvedValue({}),
+    updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    create: jest.fn().mockResolvedValue({}),
+  };
+  const buildMockTx = () => ({
+    refreshToken: {
+      findUnique: mockTxRefreshToken.findUnique,
+      update: mockTxRefreshToken.update,
+      updateMany: mockTxRefreshToken.updateMany,
+      create: mockTxRefreshToken.create,
+    },
+  });
+  const mockUnitOfWork = {
+    execute: jest.fn(async <T, R>(work: (tx: T) => Promise<R>) => {
+      return work(buildMockTx() as unknown as T);
+    }),
+  };
+
   beforeEach(async () => {
+    // [A2] Reset stubs do transaction client entre testes.
+    mockTxRefreshToken = {
+      findUnique: jest.fn(),
+      update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      create: jest.fn().mockResolvedValue({}),
+    };
+    mockUnitOfWork.execute.mockImplementation(
+      async <T, R>(work: (tx: T) => Promise<R>) => {
+        return work(buildMockTx() as unknown as T);
+      },
+    );
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -135,6 +171,13 @@ describe('AuthService', () => {
         {
           provide: LoginAttemptTracker,
           useValue: mockLoginAttemptTracker,
+        },
+        {
+          // [A2] Injeta o stub do UnitOfWork — a transação real
+          // fica encapsulada; aqui executamos o work com um tx
+          // mockado, idêntico ao padrão de PasswordRecoveryService.
+          provide: UnitOfWork,
+          useValue: mockUnitOfWork,
         },
       ],
     }).compile();
@@ -439,107 +482,177 @@ describe('AuthService', () => {
   });
 
   describe('refreshTokens', () => {
-    it('deve renovar tokens com sucesso', async () => {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 1);
-
-      // [SEC-001] O repositório recebe/retorna HASH, não o token bruto.
-      const oldToken = 'old-token';
-      const oldHash = hashRefreshToken(oldToken);
-      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
-        id: '1',
-        tokenHash: oldHash,
-        userId: 1,
+    /**
+     * Helper: constrói o "stored" como retornado por
+     * `tx.refreshToken.findUnique({ include: { user: ... } })` dentro
+     * da transação aberta pelo UnitOfWork.
+     */
+    const makeStoredToken = (
+      overrides: {
+        id?: string;
+        tokenHash?: string;
+        expiresAt?: Date;
+        revokedAt?: Date | null;
+        userId?: number;
+        user?: any;
+      } = {},
+    ) => {
+      const expiresAt =
+        overrides.expiresAt ?? new Date(Date.now() + 1000 * 60 * 60);
+      return {
+        id: overrides.id ?? 'token-uuid-1',
+        tokenHash:
+          overrides.tokenHash ?? hashRefreshToken('qualquer-token-default'),
+        userId: overrides.userId ?? 1,
         expiresAt,
-        revokedAt: null,
-        user: {
+        revokedAt: overrides.revokedAt ?? null,
+        user: overrides.user ?? {
           id: 1,
           email: 'test@test.com',
+          ativo: true,
+          deletedAt: null,
           empresas: [],
         },
-      });
-      mockRefreshTokenRepository.revoke.mockResolvedValue(undefined);
-      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+      };
+    };
+
+    it('deve renovar tokens com sucesso (happy path)', async () => {
+      const oldToken = 'old-token';
+      const oldHash = hashRefreshToken(oldToken);
+      const stored = makeStoredToken({ tokenHash: oldHash });
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
 
       const result = await service.refreshTokens(oldToken);
 
+      // 1. UnitOfWork executa o trabalho atomicamente
+      expect(mockUnitOfWork.execute).toHaveBeenCalledTimes(1);
+
+      // 2. tx.refreshToken.findUnique é chamado com o HASH do token plain
+      expect(mockTxRefreshToken.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { tokenHash: oldHash } }),
+      );
+
+      // 3. Token atual é revogado atomicamente via tx
+      expect(mockTxRefreshToken.update).toHaveBeenCalledWith({
+        where: { id: stored.id },
+        data: { revokedAt: expect.any(Date) },
+      });
+
+      // 4. Novo refresh token é criado atomicamente via tx com HASH
+      expect(mockTxRefreshToken.create).toHaveBeenCalledTimes(1);
+      const createArg = mockTxRefreshToken.create.mock.calls[0][0].data;
+      expect(createArg.userId).toBe(stored.userId);
+      expect(createArg.tokenHash).toMatch(/^[0-9a-f]{64}$/);
+      expect(createArg.expiresAt).toBeInstanceOf(Date);
+      // O hash persistido é do NOVO token retornado, não do antigo
+      expect(createArg.tokenHash).not.toBe(oldHash);
+
+      // 5. Resposta contém access_token e refresh_token
       expect(result).toHaveProperty('access_token');
       expect(result).toHaveProperty('refresh_token');
-      expect(
-        mockRefreshTokenRepository.findByTokenWithUser,
-      ).toHaveBeenCalledWith(oldHash);
-      expect(mockRefreshTokenRepository.revoke).toHaveBeenCalledWith('1');
+      // O refresh_token retornado é o token bruto (não o hash)
+      expect(result.refresh_token).not.toBe(createArg.tokenHash);
+      expect(hashRefreshToken(result.refresh_token)).toBe(createArg.tokenHash);
     });
 
     it('deve lançar ForbiddenException e revogar tudo se o token já foi usado (detecção de reuso)', async () => {
       const stolenToken = 'stolen-token';
-      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
-        id: '1',
+      const stored = makeStoredToken({
         tokenHash: hashRefreshToken(stolenToken),
-        userId: 1,
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60),
-        revokedAt: new Date(),
-        user: {
-          id: 1,
-          email: 'test@test.com',
-          empresas: [],
-        },
+        revokedAt: new Date(), // já revogado
       });
-      mockRefreshTokenRepository.revokeAllForUser.mockResolvedValue(undefined);
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
 
       await expect(service.refreshTokens(stolenToken)).rejects.toThrow(
         ForbiddenException,
       );
-      expect(mockRefreshTokenRepository.revokeAllForUser).toHaveBeenCalledWith(
-        1,
-      );
+
+      // [A2] Revogação em massa acontece DENTRO da transação (tx.updateMany)
+      expect(mockTxRefreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+      // Nada é criado e nada é assinado em caso de reuso
+      expect(mockTxRefreshToken.create).not.toHaveBeenCalled();
+      expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
 
     it('deve lançar UnauthorizedException quando o token não existe', async () => {
-      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue(null);
+      mockTxRefreshToken.findUnique.mockResolvedValue(null);
 
       await expect(service.refreshTokens('inexistente')).rejects.toThrow(
         UnauthorizedException,
       );
-      expect(mockRefreshTokenRepository.revoke).not.toHaveBeenCalled();
+      expect(mockTxRefreshToken.update).not.toHaveBeenCalled();
+      expect(mockTxRefreshToken.create).not.toHaveBeenCalled();
+      expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
 
     it('deve lançar UnauthorizedException quando o token está expirado', async () => {
       const expiredToken = 'expired-token';
-      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
-        id: '1',
+      const stored = makeStoredToken({
         tokenHash: hashRefreshToken(expiredToken),
-        userId: 1,
         expiresAt: new Date(Date.now() - 1000), // expirado
-        revokedAt: null,
-        user: { id: 1, email: 'x@x.com', empresas: [] },
       });
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
 
       await expect(service.refreshTokens(expiredToken)).rejects.toThrow(
         UnauthorizedException,
       );
-      expect(mockRefreshTokenRepository.revoke).not.toHaveBeenCalled();
+      expect(mockTxRefreshToken.update).not.toHaveBeenCalled();
+      expect(mockTxRefreshToken.create).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar UnauthorizedException quando o usuário está inativo', async () => {
+      const oldToken = 'old-token';
+      const stored = makeStoredToken({
+        user: {
+          id: 1,
+          email: 'inactive@test.com',
+          ativo: false,
+          deletedAt: null,
+          empresas: [],
+        },
+      });
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
+
+      await expect(service.refreshTokens(oldToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockTxRefreshToken.update).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar UnauthorizedException quando o usuário está soft-deletado', async () => {
+      const oldToken = 'old-token';
+      const stored = makeStoredToken({
+        user: {
+          id: 1,
+          email: 'deleted@test.com',
+          ativo: true,
+          deletedAt: new Date(),
+          empresas: [],
+        },
+      });
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
+
+      await expect(service.refreshTokens(oldToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockTxRefreshToken.update).not.toHaveBeenCalled();
     });
 
     it('deve gerar tokens sem perfis quando user.empresas é undefined', async () => {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 1);
-
       const oldToken = 'old-token';
-      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
-        id: '1',
-        tokenHash: hashRefreshToken(oldToken),
-        userId: 1,
-        expiresAt,
-        revokedAt: null,
+      const stored = makeStoredToken({
         user: {
           id: 1,
           email: 'test@test.com',
+          ativo: true,
+          deletedAt: null,
           // empresas propositalmente undefined
         },
       });
-      mockRefreshTokenRepository.revoke.mockResolvedValue(undefined);
-      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
 
       const result = await service.refreshTokens(oldToken);
 
@@ -550,24 +663,17 @@ describe('AuthService', () => {
     });
 
     it('deve gerar tokens com empresas vazias quando user.empresas é []', async () => {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 1);
-
       const oldToken = 'old-token';
-      mockRefreshTokenRepository.findByTokenWithUser.mockResolvedValue({
-        id: '1',
-        tokenHash: hashRefreshToken(oldToken),
-        userId: 1,
-        expiresAt,
-        revokedAt: null,
+      const stored = makeStoredToken({
         user: {
           id: 1,
           email: 'test@test.com',
+          ativo: true,
+          deletedAt: null,
           empresas: [],
         },
       });
-      mockRefreshTokenRepository.revoke.mockResolvedValue(undefined);
-      mockRefreshTokenRepository.create.mockResolvedValue(undefined);
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
 
       const result = await service.refreshTokens(oldToken);
 
@@ -575,6 +681,172 @@ describe('AuthService', () => {
       expect(result.access_token.length).toBeGreaterThan(0);
       const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
       expect(signCall.empresas).toEqual([]);
+    });
+
+    it('deve mapear empresas com perfis e permissoes para o shape do JWT', async () => {
+      const oldToken = 'old-token';
+      // [A2] O service usa `stored.userId` (foreign key) como `sub` no JWT,
+      // não `user.id` — o `userId` é o que conecta token → user.
+      const stored = makeStoredToken({
+        userId: 42,
+        user: {
+          id: 42,
+          email: 'user@e.com',
+          ativo: true,
+          deletedAt: null,
+          empresas: [
+            {
+              empresaId: 'emp-1',
+              perfis: [
+                {
+                  id: 1,
+                  nome: 'Admin',
+                  codigo: 'ADMIN',
+                  descricao: 'Administrator',
+                  permissoes: [
+                    {
+                      id: 1,
+                      nome: 'Read X',
+                      codigo: 'READ_X',
+                      descricao: 'Read X',
+                    },
+                    {
+                      id: 2,
+                      nome: 'Write X',
+                      codigo: 'WRITE_X',
+                      descricao: 'Write X',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      });
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
+
+      await service.refreshTokens(oldToken);
+
+      const signCall = (mockJwtService.sign.mock.calls[0] as any[])[0];
+      expect(signCall).toEqual({
+        email: 'user@e.com',
+        sub: 42,
+        empresas: [
+          {
+            id: 'emp-1',
+            perfis: [
+              {
+                codigo: 'ADMIN',
+                permissoes: [{ codigo: 'READ_X' }, { codigo: 'WRITE_X' }],
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    // [A2] Race condition: 2 refreshes simultâneos com o mesmo token.
+    // No modelo transacional, a 2ª chamada concorrente deve receber o token
+    // já revogado pela 1ª (lock row-level) e disparar a detecção de reuso.
+    it('[A2 race] 2 refreshes simultâneos: 1ª sucede, 2ª recebe ForbiddenException (reuso)', async () => {
+      const sharedToken = 'shared-token';
+      const sharedHash = hashRefreshToken(sharedToken);
+
+      // Estado mutável que representa o row no DB. `revokedAt` é mutado
+      // pelo `update` da 1ª transação, simulando o commit do Postgres.
+      const sharedStored: any = makeStoredToken({ tokenHash: sharedHash });
+
+      // [A2] O `findUnique` da 2ª chamada precisa ser SERIALIZADO após
+      // o `update` da 1ª (lock row-level). Simulamos o lock: o 1º
+      // `findUnique` resolve imediatamente; o 2º espera o `update` da 1ª.
+      let firstReadResolved = false;
+      mockTxRefreshToken.findUnique.mockImplementation(async () => {
+        if (!firstReadResolved) {
+          // 1ª leitura: token ainda válido
+          firstReadResolved = true;
+          return sharedStored;
+        }
+        // 2ª leitura: bloqueia até o `update` da 1ª transação completar
+        await new Promise((r) => setImmediate(r));
+        return sharedStored;
+      });
+
+      // O `update` (revoke) da 1ª transação altera o estado no DB
+      // SÍNCRONAMENTE (durante o microtask gap) — a 2ª leitura já vê
+      // `revokedAt` populado quando acorda.
+      mockTxRefreshToken.update.mockImplementation(async () => {
+        sharedStored.revokedAt = new Date();
+        return sharedStored;
+      });
+
+      // Lança 2 refreshes em paralelo
+      const results = await Promise.allSettled([
+        service.refreshTokens(sharedToken),
+        service.refreshTokens(sharedToken),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter(
+        (r) => r.status === 'rejected',
+      ) as PromiseRejectedResult[];
+
+      // Exatamente 1 sucesso e 1 falha (reuso detectado)
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0].reason).toBeInstanceOf(ForbiddenException);
+
+      // A 1ª chamada fez update + create; a 2ª apenas updateMany (revogação em massa)
+      expect(mockTxRefreshToken.create).toHaveBeenCalledTimes(1);
+      expect(mockTxRefreshToken.update).toHaveBeenCalledTimes(1);
+      expect(mockTxRefreshToken.updateMany).toHaveBeenCalledTimes(1);
+    });
+
+    // [A2] Garante que findUnique é chamado com a estrutura `include.user`
+    // completa — essencial para reusar a forma do `RefreshTokenWithUser`
+    // e montar o JWT sem segunda query ao DB.
+    it('deve usar include.user com select de ativo/deletedAt/empresas/permissoes', async () => {
+      const oldToken = 'old-token';
+      const stored = makeStoredToken();
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
+
+      await service.refreshTokens(oldToken);
+
+      const findCall = mockTxRefreshToken.findUnique.mock.calls[0][0];
+      expect(findCall).toHaveProperty('where.tokenHash');
+      expect(findCall.include.user.select).toEqual(
+        expect.objectContaining({
+          id: true,
+          email: true,
+          ativo: true,
+          deletedAt: true,
+          empresas: expect.any(Object),
+        }),
+      );
+    });
+
+    // [A2] Garante que revoke + create acontecem DENTRO de uma única
+    // chamada a unitOfWork.execute (atomicidade).
+    it('deve executar revoke + create dentro de uma única unitOfWork.execute (atomicidade)', async () => {
+      const oldToken = 'old-token';
+      const stored = makeStoredToken();
+      mockTxRefreshToken.findUnique.mockResolvedValue(stored);
+
+      await service.refreshTokens(oldToken);
+
+      expect(mockUnitOfWork.execute).toHaveBeenCalledTimes(1);
+      // revoke (update) e create são chamados dentro do mesmo callback
+      const workCallback = mockUnitOfWork.execute.mock.calls[0][0];
+      const localTx = {
+        refreshToken: {
+          findUnique: jest.fn().mockResolvedValue(stored),
+          update: jest.fn().mockResolvedValue({}),
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          create: jest.fn().mockResolvedValue({}),
+        },
+      };
+      await workCallback(localTx);
+      expect(localTx.refreshToken.update).toHaveBeenCalled();
+      expect(localTx.refreshToken.create).toHaveBeenCalled();
     });
   });
 

@@ -12,6 +12,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { CreateUsuarioDto } from '../../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../../dto/update-usuario.dto';
 
@@ -28,6 +29,7 @@ import {
   EmailSenderService,
 } from '../../../shared/application/services/email-sender.service';
 import { RefreshTokenRepository } from '../../../auth/domain/repositories/refresh-token.repository';
+import { UnitOfWork } from '../../../auth/domain/services/unit-of-work.service';
 
 type UsuarioLogado = JwtPayload;
 
@@ -45,6 +47,10 @@ export class UsuariosService {
     // [H4] Port para revogação em massa dos refresh tokens. Resolvida via
     // `forwardRef(AuthModule)` em `UsuariosModule`.
     private readonly refreshTokenRepository: RefreshTokenRepository,
+    // [A3] Port para atomicidade do findOne + mutate em uma única transação
+    // (evita race condition entre 2 admins chamando PATCH simultâneo no
+    // mesmo usuário — HIGH finding DevSecOps 2026-06-21).
+    private readonly unitOfWork: UnitOfWork,
   ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto) {
@@ -134,72 +140,63 @@ export class UsuariosService {
     return usuario;
   }
 
+  /**
+   * [A3] Atualiza um usuário em uma única transação atômica.
+   *
+   * ## Race scenario resolvido
+   *
+   * Antes desta versão, a operação fazia `findOne` + `restore()`/`remove()`
+   * em queries separadas. Cenário:
+   *
+   *   T1: admin A lê `deletedAt=null`
+   *   T2: admin B lê `deletedAt=null`
+   *   T1: A aplica soft-delete (UPDATE deletedAt=now())
+   *   T2: B aplica soft-delete de novo → estado inconsistente
+   *      (Prisma P2025 ou duplo `deletedAt`)
+   *
+   * ## Estratégia de locking (escolhida)
+   *
+   * Prisma `$transaction` com isolation default `READ COMMITTED` +
+   * `updateMany` com `WHERE` condicional incluindo o **estado esperado**
+   * (`deletedAt: <expected>`). Postgres adquire row-level lock no
+   * candidato; o segundo admin concorrente vê `count: 0` (estado já
+   * mudou) → ConflictException (409).
+   *
+   * Trade-offs considerados e descartados:
+   *  - `SERIALIZABLE`: correto mas caro (serialization failure → retry).
+   *  - `SELECT FOR UPDATE` via `$queryRaw`: mais SQL cru, mesmo efeito.
+   *  - `version` field (optimistic concurrency): exige migration.
+   *
+   * Pragma: usar a coluna existente `deletedAt` como discriminator de
+   * conflito é mais barato e dispensa migration.
+   *
+   * ## Atomicidade
+   *
+   * Tudo dentro de `unitOfWork.execute`:
+   *   1. tx.usuario.findUnique (estado atual)
+   *   2. tx.usuario.updateMany (mutação atômica com lock implícito)
+   *   3. tx.refreshToken.updateMany (revogação se senha mudou)
+   *   4. leitura final via tx.usuario.findUnique
+   *
+   * Falha em qualquer passo → ROLLBACK.
+   */
   async update(
     id: number,
     updateUsuarioDto: UpdateUsuarioDto,
     usuarioLogado: UsuarioLogado,
     empresaId?: string,
   ): Promise<Usuario> {
-    const usuario = await this.usuarioRepository.findOne(id, true); // Find including deleted to allow update on soft-deleted
-    if (!usuario) {
+    // Pré-leitura fora da transação: usada para checar permissão,
+    // validar email duplicado, detectar mudança de email e capturar
+    // estado inicial. Barata porque é uma única query.
+    const preCheck = await this.usuarioRepository.findOne(id, true);
+    if (!preCheck) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
-    }
-
-    // Handle 'ativo' flag for soft delete/restore
-    let disabledNow = false;
-    if (updateUsuarioDto.ativo !== undefined) {
-      if (updateUsuarioDto.ativo === true) {
-        // Attempt to restore
-        if (usuario.deletedAt === null) {
-          throw new ConflictException(
-            `Usuário com ID ${id} não está deletado.`,
-          );
-        }
-        if (
-          !this.usuarioAuthorizationService.canRestoreUsuario(
-            usuario.id,
-            usuarioLogado,
-          )
-        ) {
-          throw new ForbiddenException(
-            'Você não tem permissão para restaurar este usuário',
-          );
-        }
-        await this.usuarioRepository.restore(id);
-        usuario.deletedAt = null;
-        usuario.ativo = true;
-      } else {
-        // updateUsuarioDto.ativo === false
-        // Attempt to soft delete
-        if (usuario.deletedAt !== null) {
-          throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
-        }
-
-        const isAdminInEmpresa =
-          empresaId &&
-          usuarioLogado.empresas?.some(
-            (e) =>
-              e.id === empresaId &&
-              e.perfis?.some((p) => p.codigo === Roles.ADMIN),
-          );
-
-        if (!isAdminInEmpresa) {
-          throw new ForbiddenException(
-            'Você não tem permissão para deletar este usuário',
-          );
-        }
-
-        await this.usuarioRepository.remove(id);
-        usuario.deletedAt = new Date();
-        usuario.ativo = false;
-        disabledNow = true;
-        this.logger.log(`Usuário removido (soft-delete): ${usuario.email}`);
-      }
     }
 
     if (
       !this.usuarioAuthorizationService.canUpdateUsuario(
-        usuario.id,
+        preCheck.id,
         usuarioLogado,
       )
     ) {
@@ -208,8 +205,11 @@ export class UsuariosService {
       );
     }
 
-    // Update email if provided and different
-    if (updateUsuarioDto.email && updateUsuarioDto.email !== usuario.email) {
+    let emailChanged = false;
+    if (
+      updateUsuarioDto.email !== undefined &&
+      updateUsuarioDto.email !== preCheck.email
+    ) {
       const usuarioExistente = await this.usuarioRepository.findByEmail(
         updateUsuarioDto.email,
       );
@@ -218,31 +218,195 @@ export class UsuariosService {
           'Este e-mail já está em uso por outro usuário.',
         );
       }
-      usuario.email = updateUsuarioDto.email;
+      emailChanged = true;
     }
 
-    // Update password if provided
+    // Pré-computar o hash da senha fora da transação (bcrypt é CPU-bound).
     let passwordChanged = false;
+    let newPasswordHash: string | undefined;
     if (updateUsuarioDto.senha) {
-      usuario.senha = await this.passwordHasher.hash(updateUsuarioDto.senha);
+      newPasswordHash = await this.passwordHasher.hash(updateUsuarioDto.senha);
       passwordChanged = true;
     }
 
-    // Profiles update logic removed
+    // Decidir intenção de soft-delete / restore para validar permissão
+    // fora da transação.
+    let wantsRestore = false;
+    let wantsSoftDelete = false;
+    if (updateUsuarioDto.ativo !== undefined) {
+      if (updateUsuarioDto.ativo === true) {
+        wantsRestore = true;
+        if (
+          !this.usuarioAuthorizationService.canRestoreUsuario(
+            preCheck.id,
+            usuarioLogado,
+          )
+        ) {
+          throw new ForbiddenException(
+            'Você não tem permissão para restaurar este usuário',
+          );
+        }
+      } else {
+        wantsSoftDelete = true;
+        const isAdminInEmpresa =
+          empresaId &&
+          usuarioLogado.empresas?.some(
+            (e) =>
+              e.id === empresaId &&
+              e.perfis?.some((p) => p.codigo === Roles.ADMIN),
+          );
+        if (!isAdminInEmpresa) {
+          throw new ForbiddenException(
+            'Você não tem permissão para deletar este usuário',
+          );
+        }
+      }
+    }
 
-    const updatedUsuario = await this.usuarioRepository.update(id, usuario);
+    // [A3] ============ TRANSAÇÃO ATÔMICA ============
+    // Tudo dentro deste callback roda em uma única transação Prisma.
+    // Falha em qualquer op → ROLLBACK automático.
+    const txResult = await this.unitOfWork.execute<
+      Prisma.TransactionClient,
+      {
+        entity: Usuario;
+        disabledNow: boolean;
+      }
+    >(async (tx) => {
+      // 1. Re-leitura DENTRO da transação — ponto de coerência.
+      //    Usamos `select` enxuto (sem senha, LGPD/ALT-006).
+      const current = await tx.usuario.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          ativo: true,
+          deletedAt: true,
+        },
+      });
+      if (!current) {
+        throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+      }
+
+      let disabledNow = false;
+
+      // 2a. Soft-delete / restore com optimistic-style guard via `where`.
+      if (wantsRestore) {
+        if (current.deletedAt === null) {
+          throw new ConflictException(
+            `Usuário com ID ${id} não está deletado.`,
+          );
+        }
+        // Guard atômico: WHERE deletedAt: current.deletedAt — se outro
+        // admin mudou o estado entre nosso findUnique e este updateMany,
+        // count=0 → 409.
+        const res = await tx.usuario.updateMany({
+          where: { id, deletedAt: current.deletedAt },
+          data: { deletedAt: null, ativo: true },
+        });
+        if (res.count === 0) {
+          throw new ConflictException(
+            `Usuário ${id} foi modificado por outra requisição — recarregue e tente novamente.`,
+          );
+        }
+      } else if (wantsSoftDelete) {
+        if (current.deletedAt !== null) {
+          throw new ConflictException(`Usuário com ID ${id} já está deletado.`);
+        }
+        const res = await tx.usuario.updateMany({
+          where: { id, deletedAt: null },
+          data: { deletedAt: new Date(), ativo: false },
+        });
+        if (res.count === 0) {
+          throw new ConflictException(
+            `Usuário ${id} foi modificado por outra requisição — recarregue e tente novamente.`,
+          );
+        }
+        disabledNow = true;
+      }
+
+      // 2b. Email / senha (mutações in-place). Usamos `updateMany` para
+      // também detectar conflito em email/senha caso outro request
+      // tenha mutado o registro entre findUnique e este update.
+      const data: Prisma.UsuarioUpdateInput = {};
+      if (emailChanged && updateUsuarioDto.email !== undefined) {
+        data.email = updateUsuarioDto.email;
+      }
+      if (passwordChanged && newPasswordHash !== undefined) {
+        data.senha = newPasswordHash;
+
+        // [H4] Revoga refresh tokens ATIVOS na MESMA transação.
+        // Garante que, se a senha mudou, tokens antigos não sobrevivem
+        // mesmo em caso de crash/rollback subsequente.
+        await tx.refreshToken.updateMany({
+          where: { userId: id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+
+      if (Object.keys(data).length > 0) {
+        const res = await tx.usuario.updateMany({
+          where: { id, deletedAt: current.deletedAt },
+          data,
+        });
+        if (res.count === 0) {
+          throw new ConflictException(
+            `Usuário ${id} foi modificado por outra requisição — recarregue e tente novamente.`,
+          );
+        }
+      }
+
+      // 3. Leitura final dentro da transação (dados frescos + pós-mutação).
+      const updatedRow = await tx.usuario.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+          ativo: true,
+        },
+      });
+      if (!updatedRow) {
+        throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+      }
+
+      const entity = new Usuario();
+      entity.id = updatedRow.id;
+      entity.email = updatedRow.email;
+      entity.createdAt = updatedRow.createdAt;
+      entity.updatedAt = updatedRow.updatedAt;
+      entity.deletedAt = updatedRow.deletedAt;
+      entity.ativo = updatedRow.ativo;
+
+      return { entity, disabledNow };
+    });
+    // ============ /TRANSAÇÃO ATÔMICA ============
+
+    const updatedUsuario = txResult.entity;
+    const disabledNow = txResult.disabledNow;
+
     this.logger.log(`Usuário atualizado: ${updatedUsuario.email}`);
+
+    // [A5] DevSecOps 2026-06-21 — invalida cache Redis (TTL 60s) do
+    // payload de perfis+permissões sempre que algo que afeta autorização
+    // muda (ativo/email/senha). Sem isso, até 60s de staleness após a
+    // mudança — janela aceitável mas que pode ser evitada quando sabemos
+    // explicitamente que algo mudou.
+    if (passwordChanged || disabledNow || emailChanged) {
+      await this.usuarioRepository.invalidateUserCache(id);
+      this.logger.log(
+        { event: 'auth.user_cache.invalidated', userId: id },
+        'Cache de perfis/permissões invalidado após mutação',
+      );
+    }
 
     // [H4] DevSecOps 2026-06-21 — defesa em profundidade. Quando a senha
     // é alterada (por self-service ou por admin), TODOS os refresh tokens
-    // ativos do usuário são revogados. Caso um cookie/refresh token tenha
-    // sido exfiltrado, o atacante perde o acesso imediatamente em vez de
-    // continuar válido até o TTL de 2 dias. Mesmo padrão aplicado em
-    // `PasswordRecoveryService.resetPassword()` (REQ-PR-006 / NFR-PR-005).
-    // `validateRefreshToken` (auth.service.ts:236) já rejeita tokens
-    // revogados com ForbiddenException.
+    // ativos do usuário são revogados. Já feito atomicamente DENTRO da
+    // transação (acima); aqui apenas registramos o evento de auditoria.
     if (passwordChanged) {
-      await this.refreshTokenRepository.revokeAllForUser(id);
       this.logger.log(
         { event: 'auth.password_changed', userId: id },
         'Senha alterada — todos os refresh tokens revogados',
