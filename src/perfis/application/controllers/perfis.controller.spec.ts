@@ -46,6 +46,7 @@ describe('PerfisController', () => {
   });
 
   describe('create', () => {
+    // REQ-PERFIL-001: POST /perfis persiste Perfil escopado por empresaId
     it('deve criar um novo perfil', async () => {
       const createPerfilDto: CreatePerfilDto = {
         nome: 'Test Perfil',
@@ -64,6 +65,7 @@ describe('PerfisController', () => {
   });
 
   describe('findAll', () => {
+    // REQ-PERFIL-006: GET /perfis paginado filtrando por empresaId
     it('deve retornar uma lista paginada de perfis', async () => {
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       const expectedResult: PaginatedResponseDto<Perfil> = {
@@ -87,6 +89,7 @@ describe('PerfisController', () => {
   });
 
   describe('findOne', () => {
+    // REQ-PERFIL-007: GET /perfis/:id escopado por empresaId
     it('deve retornar um perfil pelo ID', async () => {
       const expectedResult = { id: 1, nome: 'Test' } as Perfil;
       mockPerfisService.findOne.mockResolvedValue(expectedResult);
@@ -99,6 +102,8 @@ describe('PerfisController', () => {
   });
 
   describe('update', () => {
+    // REQ-PERFIL-009: PATCH /perfis/:id (partial update)
+    // REQ-PERFIL-010: aceita ativo:true/false (restore/soft-delete)
     it('deve atualizar um perfil', async () => {
       const updatePerfilDto: UpdatePerfilDto = { nome: 'Updated' };
       const expectedResult = { id: 1, nome: 'Updated' } as Perfil;

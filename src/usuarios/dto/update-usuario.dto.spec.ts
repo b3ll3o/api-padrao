@@ -3,6 +3,10 @@ import { validate } from 'class-validator';
 import { UpdateUsuarioDto } from './update-usuario.dto';
 
 // TDD: features/usuarios.feature:Cenário: Atualizar usuário (todos os campos opcionais)
+// REQ-USER-002: email válido na atualização
+// REQ-USER-003/004: senha com regras de validação herdadas
+// REQ-USER-030: PATCH /usuarios/:id
+// REQ-USER-035/036: aceitar ativo:true/false (soft delete/restore)
 
 describe('UpdateUsuarioDto', () => {
   const validateDto = async (data: any) => {

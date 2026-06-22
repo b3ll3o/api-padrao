@@ -3,6 +3,14 @@ import { validate } from 'class-validator';
 import { CreateUsuarioDto } from './create-usuario.dto';
 
 // TDD: features/usuarios.feature:Cenário: Criar usuário com dados válidos
+// REQ-USER-001: POST /usuarios (endpoint público, auto-cadastro)
+// REQ-USER-002: email sintaticamente válido (RFC 5322 subset)
+// REQ-USER-003: senha >= 8 caracteres
+// REQ-USER-004: senha com complexidade (maiusc, minusc, dígito/símbolo)
+// REQ-USER-005: 400 com mensagem localizável em falhas de validação
+// REQ-USER-006: 409 quando email já existe
+// REQ-USER-007: persistir senha como bcrypt (custo 10)
+// REQ-USER-008: 201 com id, email, timestamps (sem senha)
 
 describe('CreateUsuarioDto', () => {
   const validateDto = async (data: any) => {

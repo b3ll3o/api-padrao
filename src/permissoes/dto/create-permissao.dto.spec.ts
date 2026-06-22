@@ -3,6 +3,12 @@ import { validate } from 'class-validator';
 import { CreatePermissaoDto } from './create-permissao.dto';
 
 // TDD: features/permissoes.feature:Cenário: Criar permissão com dados válidos
+// REQ-PERM-001: nome único global (case-sensitive) — 409 em duplicidade
+// REQ-PERM-002: codigo único global (case-sensitive) — 409 em duplicidade
+// REQ-PERM-003: validar nome/codigo/descricao como strings não vazias (HTTP 400)
+// REQ-PERM-004: codigo SCREAMING_SNAKE_CASE (alerta, não bloqueia)
+// REQ-PERM-005: Permissao é entidade global (sem empresaId)
+// REQ-PERM-010: POST /permissoes (autorização CREATE_PERMISSAO)
 
 describe('CreatePermissaoDto', () => {
   const validateDto = async (data: any) => {

@@ -59,6 +59,10 @@ describe('PermissoesService', () => {
   });
 
   describe('criação', () => {
+    // REQ-PERM-001: nome único global (case-sensitive) — 409 em duplicidade
+    // REQ-PERM-002: codigo único global (case-sensitive) — 409 em duplicidade
+    // REQ-PERM-005: Permissao é entidade global (sem empresaId)
+    // REQ-PERM-010: POST /permissoes (autorização CREATE_PERMISSAO)
     it('deve criar uma permissão', async () => {
       const createPermissaoDto = {
         nome: 'Test Permissao',
@@ -89,6 +93,7 @@ describe('PermissoesService', () => {
       );
     });
 
+    // REQ-PERM-001: rejeitar criação duplicada por nome
     it('deve lançar ConflictException se uma permissão com o mesmo nome já existir', async () => {
       const createPermissaoDto = {
         nome: 'Existing Permissao',
@@ -133,6 +138,9 @@ describe('PermissoesService', () => {
       },
     ] as Permissao[];
 
+    // REQ-PERM-011: GET /permissoes paginado (READ_PERMISSOES)
+    // REQ-PERM-030: listagem padrão exclui soft-deletadas
+    // REQ-PERM-031: paginação (page>=1, limit 1..100)
     it('deve retornar uma lista paginada de permissões não excluídas por padrão', async () => {
       const paginationDto = { page: 1, limit: 10 };
       (mockPermissaoRepository.findAll as jest.Mock).mockResolvedValue([
@@ -176,6 +184,7 @@ describe('PermissoesService', () => {
       ativo: true,
     } as Permissao;
 
+    // REQ-PERM-012: GET /permissoes/:id (404 se não encontrada)
     it('deve retornar uma única permissão (não excluída) por padrão', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
         expectedPermissao,
@@ -199,6 +208,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.findOne).toHaveBeenCalledWith(1, true);
     });
 
+    // REQ-PERM-012: 404 quando id inexistente
     it('deve lançar NotFoundException se a permissão não for encontrada', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
 
@@ -227,6 +237,7 @@ describe('PermissoesService', () => {
       },
     ] as Permissao[];
 
+    // REQ-PERM-013: GET /permissoes/nome/:nome (contains, paginado)
     it('deve retornar uma lista paginada de permissões não excluídas contendo o nome por padrão', async () => {
       const paginationDto = { page: 1, limit: 10 };
       (
@@ -296,6 +307,7 @@ describe('PermissoesService', () => {
       ativo?: boolean;
     };
 
+    // REQ-PERM-014: PATCH /permissoes/:id (UPDATE_PERMISSAO)
     it('deve atualizar uma permissão', async () => {
       const updatePermissaoDto = {
         nome: 'Updated Permissao',
@@ -328,6 +340,7 @@ describe('PermissoesService', () => {
       );
     });
 
+    // REQ-PERM-014: 404 quando id inexistente
     it('deve lançar NotFoundException se a permissão a ser atualizada não for encontrada', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
 
@@ -346,6 +359,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-021: restore (ativo:true) — seta deletedAt=null, ativo=true
     it('deve restaurar uma permissão com soft delete via flag ativo', async () => {
       const softDeletedPermissao = {
         ...existingPermissao,
@@ -370,6 +384,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-022: 409 ao restaurar permissão não-deletada
     it('deve lançar ConflictException se tentar restaurar uma permissão não deletada via flag ativo', async () => {
       const nonDeletedPermissao = { ...existingPermissao, deletedAt: null };
       const updateDto: UpdatePermissaoDto = { ativo: true };
@@ -384,6 +399,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-024: 403 quando não-admin tenta restore
     it('deve lançar ForbiddenException se não for admin ao tentar restaurar via flag ativo', async () => {
       const softDeletedPermissao = {
         ...existingPermissao,
@@ -402,6 +418,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-020: soft delete (ativo:false) — seta deletedAt=NOW, ativo=false
     it('deve realizar soft delete de uma permissão via flag ativo', async () => {
       const nonDeletedPermissao = { ...existingPermissao, deletedAt: null };
       const updateDto: UpdatePermissaoDto = { ativo: false };
@@ -423,6 +440,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.update).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-023: 409 ao soft-deletar permissão já deletada
     it('deve lançar ConflictException se tentar deletar uma permissão já deletada via flag ativo', async () => {
       const softDeletedPermissao = {
         ...existingPermissao,
@@ -440,6 +458,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-024: 403 quando não-admin tenta soft delete
     it('deve lançar ForbiddenException se não for admin ao tentar deletar via flag ativo', async () => {
       const nonDeletedPermissao = { ...existingPermissao, deletedAt: null };
       const updateDto: UpdatePermissaoDto = { ativo: false };
@@ -453,6 +472,64 @@ describe('PermissoesService', () => {
         service.update(1, updateDto, mockUserUsuarioLogado),
       ).rejects.toThrow(ForbiddenException);
       expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
+    });
+
+    // REQ-PERM-014: 404 se repo.update retorna null
+    // [Branch coverage] if (!updatedPermissao) — repo.update retorna null
+    it('deve lançar NotFoundException se permissaoRepository.update retornar null', async () => {
+      const updateDto = {
+        nome: 'Qualquer',
+        codigo: 'QUALQUER',
+        descricao: 'desc',
+      };
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        existingPermissao,
+      );
+      (mockPermissaoRepository.update as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.update(1, updateDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPermissaoRepository.update).toHaveBeenCalledWith(1, updateDto);
+    });
+
+    // REQ-PERM-021: branch null no restore
+    // [Branch coverage] if (!restoredPermissao) — repo.restore retorna null
+    it('deve lançar NotFoundException se permissaoRepository.restore retornar null', async () => {
+      const softDeletedPermissao = {
+        ...existingPermissao,
+        deletedAt: new Date(),
+      };
+      const updateDto: UpdatePermissaoDto = { ativo: true };
+
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        softDeletedPermissao,
+      );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true);
+      (mockPermissaoRepository.restore as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.update(1, updateDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPermissaoRepository.restore).toHaveBeenCalledWith(1);
+    });
+
+    // REQ-PERM-020: branch null no soft delete
+    // [Branch coverage] if (!softDeletedPermissao) — repo.remove retorna null
+    it('deve lançar NotFoundException se permissaoRepository.remove retornar null', async () => {
+      const nonDeletedPermissao = { ...existingPermissao, deletedAt: null };
+      const updateDto: UpdatePermissaoDto = { ativo: false };
+
+      (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
+        nonDeletedPermissao,
+      );
+      (mockAuthorizationService.isAdmin as jest.Mock).mockReturnValue(true);
+      (mockPermissaoRepository.remove as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.update(1, updateDto, mockAdminUsuarioLogado),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPermissaoRepository.remove).toHaveBeenCalledWith(1);
     });
   });
 
@@ -478,6 +555,8 @@ describe('PermissoesService', () => {
       empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
     };
 
+    // REQ-PERM-020: soft delete (autorização ADMIN)
+    // REQ-PERM-024: exigir perfil ADMIN (403 senao)
     it('deve remover uma permissão com sucesso se for admin', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
         existingPermissao,
@@ -500,6 +579,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.remove).toHaveBeenCalledWith(1);
     });
 
+    // REQ-PERM-012: 404 quando permissão não existe (em remove)
     it('deve lançar NotFoundException se a permissão não for encontrada', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
 
@@ -511,6 +591,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.remove).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-024: 403 quando não-admin tenta remover
     it('deve lançar ForbiddenException se não for admin', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
         existingPermissao,
@@ -559,6 +640,8 @@ describe('PermissoesService', () => {
       empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'USER' }] }],
     };
 
+    // REQ-PERM-021: restore (autorização ADMIN)
+    // REQ-PERM-024: exigir perfil ADMIN
     it('deve restaurar uma permissão deletada com sucesso se for admin', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
         softDeletedPermissao,
@@ -581,6 +664,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.restore).toHaveBeenCalledWith(1);
     });
 
+    // REQ-PERM-012: 404 em restore
     it('deve lançar NotFoundException se a permissão não for encontrada', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(null);
 
@@ -592,6 +676,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-022: 409 em restore de permissão não-deletada
     it('deve lançar ConflictException se a permissão não estiver deletada', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
         nonDeletedPermissao,
@@ -605,6 +690,7 @@ describe('PermissoesService', () => {
       expect(mockPermissaoRepository.restore).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-024: 403 quando não-admin tenta restore
     it('deve lançar ForbiddenException se não for admin', async () => {
       (mockPermissaoRepository.findOne as jest.Mock).mockResolvedValue(
         softDeletedPermissao,
@@ -622,6 +708,7 @@ describe('PermissoesService', () => {
     });
   });
 
+  // REQ-PERM-005: entidade global — findManyByIds sem filtro de tenant
   // [PERF-004] findManyByIds — 1 round-trip em vez de N paralelos
   describe('findManyByIds (batch validation)', () => {
     it('deve retornar array vazio para input vazio', async () => {

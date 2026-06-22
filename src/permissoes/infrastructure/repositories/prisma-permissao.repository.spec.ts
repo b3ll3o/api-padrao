@@ -46,6 +46,8 @@ describe('PrismaPermissaoRepository', () => {
   });
 
   describe('criação', () => {
+    // REQ-PERM-005: Permissao é entidade global (sem empresaId)
+    // REQ-PERM-010: POST /permissoes
     it('deve criar uma nova permissão', async () => {
       const createPermissaoDto: CreatePermissaoDto = {
         nome: 'Test Permissao',
@@ -98,6 +100,8 @@ describe('PrismaPermissaoRepository', () => {
       },
     ];
 
+    // REQ-PERM-011: GET /permissoes paginado
+    // REQ-PERM-030: default exclui soft-deletadas
     it('deve retornar uma lista de permissões não excluídas e a contagem total por padrão', async () => {
       mockPermissaoModel.findMany.mockResolvedValue([prismaResults[0]]); // Only return non-deleted
       mockPermissaoModel.count.mockResolvedValue(1);
@@ -135,6 +139,7 @@ describe('PrismaPermissaoRepository', () => {
       deletedAt: null,
     };
 
+    // REQ-PERM-012: GET /permissoes/:id (404 se não encontrada)
     it('deve retornar uma única permissão por ID (não excluída)', async () => {
       mockPermissaoModel.findFirst.mockResolvedValue(prismaResult);
 
@@ -189,6 +194,7 @@ describe('PrismaPermissaoRepository', () => {
   });
 
   describe('atualização', () => {
+    // REQ-PERM-014: PATCH /permissoes/:id
     it('deve atualizar uma permissão existente', async () => {
       const updatePermissaoDto: UpdatePermissaoDto = {
         nome: 'Updated Permissao',
@@ -270,6 +276,7 @@ describe('PrismaPermissaoRepository', () => {
   });
 
   describe('remoção', () => {
+    // REQ-PERM-020: soft delete via client estendido (deletedAt=NOW, ativo=false)
     it('deve realizar soft delete de uma permissão chamando delete do extended client', async () => {
       const prismaResult = {
         id: 1,
@@ -318,6 +325,7 @@ describe('PrismaPermissaoRepository', () => {
   });
 
   describe('restauração', () => {
+    // REQ-PERM-021: restore (deletedAt=null, ativo=true)
     it('deve restaurar uma permissão com soft delete', async () => {
       const prismaResult = {
         id: 1,
@@ -375,6 +383,7 @@ describe('PrismaPermissaoRepository', () => {
       deletedAt: null,
     };
 
+    // REQ-PERM-001: findByNome global (sem empresaId)
     it('deve retornar uma permissão por nome (não excluída)', async () => {
       mockPermissaoModel.findFirst.mockResolvedValue(prismaResult);
 
@@ -430,6 +439,7 @@ describe('PrismaPermissaoRepository', () => {
   });
 
   describe('busca por nome contendo', () => {
+    // REQ-PERM-013: GET /permissoes/nome/:nome (contains)
     const prismaResults = [
       {
         id: 1,

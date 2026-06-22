@@ -54,6 +54,8 @@ describe('UsuariosController', () => {
   });
 
   describe('criação', () => {
+    // REQ-USER-001: POST /usuarios (público, auto-cadastro)
+    // REQ-USER-008: 201 com id, email, timestamps
     it('deve criar um usuário', async () => {
       const createDto: CreateUsuarioDto = {
         email: 'test@example.com',
@@ -70,6 +72,9 @@ describe('UsuariosController', () => {
   });
 
   describe('busca por um', () => {
+    // REQ-USER-020: GET /usuarios/:id
+    // REQ-USER-021: exigir JWT + READ_USUARIO_BY_ID
+    // REQ-USER-026: excluir senha da resposta
     it('deve retornar um usuário', async () => {
       const user = new Usuario();
       mockUsuariosService.findOne.mockResolvedValue(user);
@@ -81,6 +86,9 @@ describe('UsuariosController', () => {
   });
 
   describe('atualização', () => {
+    // REQ-USER-030: PATCH /usuarios/:id
+    // REQ-USER-031: exigir permissão UPDATE_USUARIO
+    // REQ-USER-032: throttling 10 req/min
     it('deve atualizar um usuário', async () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
       const updatedUser = new Usuario();

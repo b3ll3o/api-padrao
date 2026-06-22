@@ -39,6 +39,7 @@ describe('EmpresasService', () => {
     remove: jest.fn(),
     addUserToCompany: jest.fn(),
     findUsersByCompany: jest.fn(),
+    findCompaniesByUser: jest.fn(),
   };
 
   const mockUsuarioRepository = {
@@ -97,6 +98,7 @@ describe('EmpresasService', () => {
   });
 
   describe('create', () => {
+    // REQ-EMP-001: POST /empresas cria empresa (HTTP 201)
     it('deve criar uma nova empresa', async () => {
       const createDto: CreateEmpresaDto = {
         nome: 'Empresa Teste',
@@ -112,6 +114,7 @@ describe('EmpresasService', () => {
   });
 
   describe('findAll', () => {
+    // REQ-EMP-002: GET /empresas retorna lista paginada filtrando ativo=true/deletedAt=null
     it('deve retornar uma lista paginada de empresas', async () => {
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       const paginatedResult: PaginatedResponseDto<Empresa> = {
@@ -131,6 +134,7 @@ describe('EmpresasService', () => {
   });
 
   describe('findOne', () => {
+    // REQ-EMP-003: GET /empresas/:id retorna empresa (404 se não encontrada)
     it('deve retornar uma empresa pelo ID', async () => {
       repository.findOne.mockResolvedValue(mockEmpresa);
 
@@ -150,6 +154,7 @@ describe('EmpresasService', () => {
   });
 
   describe('update', () => {
+    // REQ-EMP-004: PATCH /empresas/:id aplica partial update (404 se id inexistente)
     it('deve atualizar uma empresa', async () => {
       const updateDto: UpdateEmpresaDto = { nome: 'Empresa Atualizada' };
       const updatedEmpresa = { ...mockEmpresa, nome: 'Empresa Atualizada' };
@@ -172,6 +177,7 @@ describe('EmpresasService', () => {
   });
 
   describe('remove', () => {
+    // REQ-EMP-005: DELETE /empresas/:id realiza soft-delete (ativo=false, deletedAt=NOW)
     it('deve remover uma empresa', async () => {
       repository.findOne.mockResolvedValue(mockEmpresa);
       repository.remove.mockResolvedValue(undefined);
@@ -191,6 +197,8 @@ describe('EmpresasService', () => {
   });
 
   describe('addUser', () => {
+    // REQ-EMP-006: POST /empresas/:id/usuarios vincula Usuario + perfis (idempotente)
+    // REQ-EMP-008: validar empresa, usuário e cada perfil antes de vincular
     const addDto: AddUsuarioEmpresaDto = {
       usuarioId: 1,
       perfilIds: [1, 2],
@@ -249,9 +257,63 @@ describe('EmpresasService', () => {
         /Perfil com ID 2 não encontrado/,
       );
     });
+
+    // [Branch coverage] APP_LOGIN_URL ausente → fallback 'http://localhost:3000'
+    it('deve usar URL padrão quando APP_LOGIN_URL não está configurada', async () => {
+      repository.findOne.mockResolvedValue(mockEmpresa);
+      usuarioRepository.findOne.mockResolvedValue({
+        id: 1,
+        email: 'user@empresa.com',
+        nome: 'João',
+      } as any);
+      perfilRepository.findManyByIds.mockResolvedValue([
+        { id: 1, nome: 'Admin' },
+        { id: 2, nome: 'Leitor' },
+      ] as any);
+      repository.addUserToCompany.mockResolvedValue(undefined);
+      // APP_LOGIN_URL não configurada (retorna null)
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'APP_NAME' ? 'API Padrão' : null,
+      );
+
+      await service.addUser('uuid-123', addDto);
+
+      expect(mockEmailSender.send).toHaveBeenCalledWith(
+        'empresas.user_added',
+        'user@empresa.com',
+        expect.objectContaining({
+          loginUrl: 'http://localhost:3000',
+        }),
+      );
+    });
+
+    // [Branch coverage] p.nome ?? 'perfil-${p.id}' — perfil sem nome
+    it('deve usar fallback "perfil-{id}" quando algum perfil retornado não tem nome', async () => {
+      repository.findOne.mockResolvedValue(mockEmpresa);
+      usuarioRepository.findOne.mockResolvedValue({
+        id: 1,
+        email: 'user@empresa.com',
+        nome: 'João',
+      } as any);
+      perfilRepository.findManyByIds.mockResolvedValue([
+        { id: 7, nome: null },
+      ] as any);
+      repository.addUserToCompany.mockResolvedValue(undefined);
+
+      await service.addUser('uuid-123', { usuarioId: 1, perfilIds: [7] });
+
+      expect(mockEmailSender.send).toHaveBeenCalledWith(
+        'empresas.user_added',
+        'user@empresa.com',
+        expect.objectContaining({
+          perfis: 'perfil-7',
+        }),
+      );
+    });
   });
 
   describe('findUsersByCompany', () => {
+    // REQ-EMP-007: GET /empresas/:id/usuarios retorna usuários vinculados paginados
     it('deve retornar usuários da empresa', async () => {
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       repository.findOne.mockResolvedValue(mockEmpresa);
@@ -270,6 +332,38 @@ describe('EmpresasService', () => {
       await expect(service.findUsersByCompany('invalid', {})).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('findCompaniesByUser', () => {
+    // [Branch coverage] if (!usuario) — caminho de erro
+    it('deve lançar NotFoundException se o usuário não existir', async () => {
+      usuarioRepository.findOne.mockResolvedValue(undefined);
+
+      await expect(service.findCompaniesByUser(999, {})).rejects.toThrow(
+        `Usuário com ID 999 não encontrado`,
+      );
+      expect(usuarioRepository.findOne).toHaveBeenCalledWith(999);
+    });
+
+    it('deve retornar empresas do usuário quando ele existir', async () => {
+      const mockUsuario = { id: 1, email: 'user@empresa.com' } as any;
+      usuarioRepository.findOne.mockResolvedValue(mockUsuario);
+      repository.findCompaniesByUser.mockResolvedValue({
+        data: [mockEmpresa],
+      } as any);
+
+      const result = await service.findCompaniesByUser(1, {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result).toEqual({ data: [mockEmpresa] });
+      expect(usuarioRepository.findOne).toHaveBeenCalledWith(1);
+      expect(repository.findCompaniesByUser).toHaveBeenCalledWith(1, {
+        page: 1,
+        limit: 10,
+      });
     });
   });
 });

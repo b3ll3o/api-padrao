@@ -73,6 +73,7 @@ describe('PermissoesController', () => {
   });
 
   describe('criação', () => {
+    // REQ-PERM-010: POST /permissoes (HTTP 201)
     it('deve criar uma permissão', async () => {
       const createPermissaoDto: CreatePermissaoDto = {
         nome: 'Test Permissao',
@@ -91,6 +92,8 @@ describe('PermissoesController', () => {
   });
 
   describe('busca de todos', () => {
+    // REQ-PERM-011: GET /permissoes paginado
+    // REQ-PERM-030: default exclui soft-deletadas
     it('deve retornar uma lista paginada de permissões', async () => {
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       const expectedResponse: PaginatedResponseDto<Permissao> = {
@@ -111,6 +114,7 @@ describe('PermissoesController', () => {
   });
 
   describe('busca por um', () => {
+    // REQ-PERM-012: GET /permissoes/:id
     it('deve retornar uma única permissão por ID', async () => {
       const id = '1';
       const expectedPermissao = { id: 1, nome: 'Test Permissao' } as Permissao;
@@ -125,6 +129,7 @@ describe('PermissoesController', () => {
   });
 
   describe('busca por nome', () => {
+    // REQ-PERM-013: GET /permissoes/nome/:nome
     it('deve retornar uma lista paginada de permissões por nome', async () => {
       const nome = 'Test';
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
@@ -149,6 +154,8 @@ describe('PermissoesController', () => {
   });
 
   describe('atualização', () => {
+    // REQ-PERM-014: PATCH /permissoes/:id
+    // REQ-PERM-024: 403 para não-admin em restore
     it('deve lançar NotFoundException se a permissão não for encontrada', async () => {
       (mockPermissoesService.update as jest.Mock).mockRejectedValueOnce(
         new NotFoundException('Permissão não encontrada'),
@@ -182,6 +189,7 @@ describe('PermissoesController', () => {
       expect(mockPermissoesService.update).not.toHaveBeenCalled();
     });
 
+    // REQ-PERM-024: 403 quando não-admin tenta restore
     it('deve lançar ForbiddenException se um não-admin tentar restaurar uma permissão', async () => {
       const updatePermissaoDto: UpdatePermissaoDto = { ativo: true };
       const req = mockRequest(false); // Non-admin user

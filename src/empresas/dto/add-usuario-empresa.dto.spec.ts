@@ -3,6 +3,8 @@ import { validate } from 'class-validator';
 import { AddUsuarioEmpresaDto } from './add-usuario-empresa.dto';
 
 // TDD: features/empresas.feature:Cenário: Vincular usuário a empresa com perfis
+// REQ-EMP-006: POST /empresas/:id/usuarios vincula Usuario + perfis
+// REQ-EMP-008: validar usuarioId + cada perfilId existente
 
 describe('AddUsuarioEmpresaDto', () => {
   const validateDto = async (data: any) => {

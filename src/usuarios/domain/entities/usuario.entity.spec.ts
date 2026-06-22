@@ -4,6 +4,12 @@ import { UsuarioEmpresa } from './usuario-empresa.entity';
 
 // TDD: features/usuarios.feature:Cenário: Criar/Listar/Restaurar usuário
 //      + AGENTS.md §5 — segurança de dados: @Exclude() na entity + ClassSerializerInterceptor
+// REQ-USER-002: email válido
+// REQ-USER-007: persistir como bcrypt
+// REQ-USER-014: excluir soft-deletados por default
+// REQ-USER-026: excluir senha da resposta (@Exclude + ClassSerializerInterceptor)
+// REQ-USER-035/036: soft delete + restore
+// REQ-USER-039: re-hash ao alterar senha
 
 describe('Usuario', () => {
   it('deve ser uma instância de Usuario', () => {
@@ -120,6 +126,8 @@ describe('Usuario', () => {
   // ---- [MED-003] Cobertura DDD: factory + transições ----
 
   describe('criar() (fábrica de domínio)', () => {
+    // REQ-USER-002: email válido
+    // REQ-USER-007: senha já deve ser hash bcrypt
     it('deve criar usuário válido com senhaHash obrigatório', () => {
       const u = Usuario.criar({
         email: 'User@Example.com',

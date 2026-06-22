@@ -3,6 +3,9 @@ import { validate } from 'class-validator';
 import { CreatePerfilDto } from './create-perfil.dto';
 
 // TDD: features/perfis.feature:Cenário: Criar perfil com dados válidos
+// REQ-PERFIL-001: persistir Perfil escopado por empresaId
+// REQ-PERFIL-003: validar campos obrigatórios (nome, codigo, descricao, empresaId)
+// REQ-PERFIL-004: permitir criar Perfil sem permissoesIds (array vazio)
 
 describe('CreatePerfilDto', () => {
   const validateDto = async (data: any) => {

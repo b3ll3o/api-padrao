@@ -3,6 +3,8 @@ import { Perfil } from '../../../perfis/domain/entities/perfil.entity';
 import { Empresa } from '../../../empresas/domain/entities/empresa.entity';
 
 // TDD: features/empresas.feature:Cenário: Vincular usuário a empresa com perfis
+// REQ-USER-050/051/052: GET /usuarios/:id/empresas (perfis incluídos)
+// REQ-EMP-006/008: vinculação idempotente (usuarioId+empresaId+perfis)
 
 describe('UsuarioEmpresa', () => {
   it('deve aceitar payload parcial via construtor (Object.assign)', () => {

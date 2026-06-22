@@ -116,6 +116,9 @@ describe('UsuariosService', () => {
   });
 
   describe('criação', () => {
+    // REQ-USER-001: POST /usuarios (público, auto-cadastro)
+    // REQ-USER-006: 409 se email já existe
+    // REQ-USER-007: persistir senha como bcrypt (custo 10)
     it('deve criar um usuário com senha hasheada', async () => {
       const createDto: CreateUsuarioDto = {
         email: 'test@example.com',
@@ -148,6 +151,7 @@ describe('UsuariosService', () => {
       expect(mockPasswordHasher.hash).not.toHaveBeenCalled();
     });
 
+    // REQ-USER-006: 409 quando email já existe
     it('lança ConflictException se email já existe', async () => {
       mockUsuarioRepository.findByEmail.mockResolvedValue({ id: 99 });
       await expect(
@@ -163,6 +167,10 @@ describe('UsuariosService', () => {
       empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
     };
 
+    // REQ-USER-010: GET /usuarios paginado
+    // REQ-USER-011: exigir permissão READ_USUARIOS
+    // REQ-USER-014: default exclui soft-deletados
+    // REQ-USER-015: 403 sem perfil ADMIN
     it('deve listar usuários para um administrador', async () => {
       mockUsuarioRepository.findAll.mockResolvedValue({
         data: [],
@@ -202,6 +210,7 @@ describe('UsuariosService', () => {
       expect(result.data).toBeInstanceOf(Array);
     });
 
+    // REQ-USER-015: 403 sem ADMIN
     it('deve lançar ForbiddenException para não-administradores', async () => {
       const mockUsuarioLogado: JwtPayload = {
         userId: 1,
@@ -226,6 +235,10 @@ describe('UsuariosService', () => {
       empresas: [],
     };
 
+    // REQ-USER-020: GET /usuarios/:id
+    // REQ-USER-022: próprio userId no token acessa sem checagem extra
+    // REQ-USER-024: 403 quando não-próprio e não-ADMIN
+    // REQ-USER-025: 404 quando id inexistente ou soft-deletado
     it('deve retornar um usuário se encontrado e permitido', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
 
@@ -235,6 +248,7 @@ describe('UsuariosService', () => {
       expect(mockUsuarioRepository.findOne).toHaveBeenCalledWith(1, false);
     });
 
+    // REQ-USER-025: 404 quando id não existe
     it('lança NotFoundException quando o usuário não existe', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(null);
       await expect(service.findOne(99, mockUsuarioLogado)).rejects.toThrow(
@@ -242,6 +256,7 @@ describe('UsuariosService', () => {
       );
     });
 
+    // REQ-USER-024: 403 quando canAccessUsuario=false
     it('lança ForbiddenException quando canAccessUsuario=false', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
       mockUsuarioAuthorizationService.canAccessUsuario.mockReturnValue(false);
@@ -263,6 +278,11 @@ describe('UsuariosService', () => {
       empresas: [{ id: 'empresa-1', perfis: [{ codigo: 'ADMIN' }] }],
     };
 
+    // REQ-USER-030: PATCH /usuarios/:id
+    // REQ-USER-031: exigir permissão UPDATE_USUARIO
+    // REQ-USER-033: próprio user pode atualizar email/senha
+    // REQ-USER-034: ADMIN pode atualizar qualquer usuário
+    // REQ-USER-038: 409 se novo email pertence a outro usuário
     it('deve atualizar um usuário se encontrado e permitido', async () => {
       const updateDto: UpdateUsuarioDto = { email: 'updated@example.com' };
       const updatedUser = { ...mockUser, email: 'updated@example.com' };
@@ -284,6 +304,7 @@ describe('UsuariosService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    // REQ-USER-039: re-hash da senha com bcrypt ao alterar
     it('hasheia a senha quando enviada', async () => {
       mockUsuarioRepository.findOne.mockResolvedValue(mockUser);
       mockUsuarioRepository.update.mockImplementation((id, data) => {
@@ -329,6 +350,7 @@ describe('UsuariosService', () => {
     });
 
     describe('soft delete / restore', () => {
+      // REQ-USER-036: ADMIN restaura via ativo:true
       it('restaura usuário deletado quando ativo=true', async () => {
         const deletedUser = {
           ...mockUser,
@@ -350,6 +372,7 @@ describe('UsuariosService', () => {
         expect(mockUsuarioRepository.restore).toHaveBeenCalledWith(1);
       });
 
+      // REQ-USER-037: 409 ao restaurar usuario não-deletado
       it('lança ConflictException ao tentar restaurar usuário não-deletado', async () => {
         mockUsuarioRepository.findOne.mockResolvedValue({
           ...mockUser,
@@ -383,6 +406,7 @@ describe('UsuariosService', () => {
         ).rejects.toThrow(ForbiddenException);
       });
 
+      // REQ-USER-037: 409 ao soft-deletar usuario ja deletado
       it('lança ConflictException ao tentar soft-deletar usuário já deletado', async () => {
         mockUsuarioRepository.findOne.mockResolvedValue({
           ...mockUser,
@@ -414,6 +438,7 @@ describe('UsuariosService', () => {
       });
     });
 
+    // REQ-USER-035: ADMIN soft delete via ativo:false
     it('deve realizar soft delete de um usuário via flag ativo', async () => {
       const nonDeletedUser = { ...mockUser, deletedAt: null };
       const updateDto: UpdateUsuarioDto = { ativo: false };

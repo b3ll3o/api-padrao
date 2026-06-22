@@ -49,6 +49,7 @@ describe('EmpresasController', () => {
   });
 
   describe('create', () => {
+    // REQ-EMP-001: POST /empresas cria empresa (HTTP 201)
     it('deve criar uma empresa com sucesso', async () => {
       const dto: CreateEmpresaDto = {
         nome: 'Empresa Teste',
@@ -64,6 +65,7 @@ describe('EmpresasController', () => {
   });
 
   describe('findAll', () => {
+    // REQ-EMP-002: GET /empresas lista paginada filtrando soft-deletadas
     it('deve retornar empresas paginadas', async () => {
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       const paginatedResponse: PaginatedResponseDto<Empresa> = {
@@ -83,6 +85,7 @@ describe('EmpresasController', () => {
   });
 
   describe('findOne', () => {
+    // REQ-EMP-003: GET /empresas/:id retorna empresa (404 se não encontrada)
     it('deve retornar uma empresa pelo ID', async () => {
       mockEmpresasService.findOne.mockResolvedValue(mockEmpresa);
 
@@ -94,6 +97,7 @@ describe('EmpresasController', () => {
   });
 
   describe('update', () => {
+    // REQ-EMP-004: PATCH /empresas/:id aplica partial update
     it('deve atualizar uma empresa com sucesso', async () => {
       const dto: UpdateEmpresaDto = { nome: 'Nome Atualizado' };
       const updatedEmpresa = { ...mockEmpresa, nome: 'Nome Atualizado' };
@@ -107,6 +111,7 @@ describe('EmpresasController', () => {
   });
 
   describe('remove', () => {
+    // REQ-EMP-005: DELETE /empresas/:id realiza soft-delete
     it('deve remover uma empresa com sucesso', async () => {
       mockEmpresasService.remove.mockResolvedValue(undefined);
 
@@ -117,6 +122,7 @@ describe('EmpresasController', () => {
   });
 
   describe('addUser', () => {
+    // REQ-EMP-006: POST /empresas/:id/usuarios vincula usuário (idempotente)
     it('deve adicionar um usuário à empresa', async () => {
       const dto: AddUsuarioEmpresaDto = {
         usuarioId: 1,
@@ -131,6 +137,7 @@ describe('EmpresasController', () => {
   });
 
   describe('findUsersByCompany', () => {
+    // REQ-EMP-007: GET /empresas/:id/usuarios retorna usuários paginados
     it('deve retornar usuários de uma empresa paginados', async () => {
       const paginationDto: PaginationDto = { page: 1, limit: 10 };
       const usersResponse = {

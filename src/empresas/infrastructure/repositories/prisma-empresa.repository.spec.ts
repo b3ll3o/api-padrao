@@ -54,6 +54,7 @@ describe('PrismaEmpresaRepository', () => {
   });
 
   describe('create', () => {
+    // REQ-EMP-001: POST /empresas cria empresa (HTTP 201)
     it('deve criar uma empresa', async () => {
       const createDto: CreateEmpresaDto = {
         nome: 'Teste',
@@ -91,6 +92,7 @@ describe('PrismaEmpresaRepository', () => {
   });
 
   describe('findAll', () => {
+    // REQ-EMP-002: listagem paginada filtrando soft-deletadas
     it('deve retornar empresas paginadas', async () => {
       const mockEmpresas = [
         { id: 'uuid', nome: 'Teste', createdAt: new Date() },
@@ -137,6 +139,7 @@ describe('PrismaEmpresaRepository', () => {
   });
 
   describe('remove', () => {
+    // REQ-EMP-005: soft delete via client estendido (deletedAt=NOW, ativo=false)
     it('deve realizar soft delete chamando delete do extended client', async () => {
       await repository.remove('uuid');
 
@@ -147,6 +150,8 @@ describe('PrismaEmpresaRepository', () => {
   });
 
   describe('addUserToCompany', () => {
+    // REQ-EMP-006: vinculação idempotente (upsert)
+    // REQ-EMP-008: validar empresa, usuário e cada perfil
     it('deve usar upsert atômico (evita race condition) ao vincular usuário', async () => {
       // TDD: features/empresas.feature:Cenário: Vincular usuário a empresa
       // BDD: vinculação é idempotente e atômica (constraint @@unique[usuarioId,empresaId])
@@ -179,6 +184,7 @@ describe('PrismaEmpresaRepository', () => {
   });
 
   describe('findUsersByCompany', () => {
+    // REQ-EMP-007: GET /empresas/:id/usuarios retorna usuários vinculados paginados
     it('deve listar usuários de uma empresa', async () => {
       mockUsuarioEmpresaModel.findMany.mockResolvedValue([]);
       mockUsuarioEmpresaModel.count.mockResolvedValue(0);

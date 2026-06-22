@@ -2,6 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsuarioAuthorizationService } from './usuario-authorization.service';
 import { JwtPayload } from 'src/auth/infrastructure/strategies/jwt.strategy';
 
+// REQ-USER-022: próprio userId acessa sem checagem extra
+// REQ-USER-023: ADMIN acessa qualquer usuario
+// REQ-USER-024: 403 quando não-próprio e não-ADMIN
+// REQ-USER-034: ADMIN pode atualizar qualquer usuario
+// REQ-USER-035: ADMIN soft delete
+// REQ-USER-036: ADMIN restore
+
 describe('UsuarioAuthorizationService', () => {
   let service: UsuarioAuthorizationService;
 
@@ -20,6 +27,7 @@ describe('UsuarioAuthorizationService', () => {
   });
 
   describe('pode acessar usuário', () => {
+    // REQ-USER-022/023/024
     const usuarioId = 1;
 
     it('deve retornar true se o usuário for o proprietário', () => {
@@ -62,6 +70,7 @@ describe('UsuarioAuthorizationService', () => {
   });
 
   describe('pode atualizar usuário', () => {
+    // REQ-USER-033/034
     const usuarioId = 1;
 
     it('deve retornar true se o usuário for o proprietário', () => {
@@ -104,6 +113,7 @@ describe('UsuarioAuthorizationService', () => {
   });
 
   describe('pode deletar usuário', () => {
+    // REQ-USER-035: ADMIN soft delete
     const usuarioId = 1;
 
     it('deve retornar true se o usuário for o proprietário', () => {
@@ -146,6 +156,7 @@ describe('UsuarioAuthorizationService', () => {
   });
 
   describe('pode restaurar usuário', () => {
+    // REQ-USER-036: ADMIN restore
     const usuarioId = 1;
 
     it('deve retornar true se o usuário for admin', () => {

@@ -3,6 +3,9 @@ import { validate } from 'class-validator';
 import { UpdatePermissaoDto } from './update-permissao.dto';
 
 // TDD: features/permissoes.feature:Cenário: Atualizar permissão (campos opcionais)
+// REQ-PERM-014: PATCH /permissoes/:id atualiza nome, codigo, descricao, ativo
+// REQ-PERM-020: soft-delete via flag ativo:false (deletedAt=NOW)
+// REQ-PERM-021: restore via flag ativo:true (deletedAt=null)
 
 describe('UpdatePermissaoDto', () => {
   const validateDto = async (data: any) => {

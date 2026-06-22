@@ -3,6 +3,9 @@ import { validate } from 'class-validator';
 import { CreateEmpresaDto } from './create-empresa.dto';
 
 // TDD: features/empresas.feature:Cenário: Criar empresa com dados válidos
+// REQ-EMP-001: POST /empresas exige nome (string não vazia) e responsavelId (int)
+// REQ-EMP-002: GET /empresas retorna lista paginada filtrando soft-deletadas
+// REQ-EMP-003: GET /empresas/:id retorna empresa (404 se não encontrada)
 
 describe('CreateEmpresaDto', () => {
   const validateDto = async (data: any) => {

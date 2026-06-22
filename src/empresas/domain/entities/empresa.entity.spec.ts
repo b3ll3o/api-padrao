@@ -2,6 +2,8 @@ import { Empresa } from './empresa.entity';
 
 // TDD: features/empresas.feature:Cenário: Criar/Atualizar/Soft-delete empresa
 // [MED-003] Cobertura adicional: factory criar() + transições + validações.
+// REQ-EMP-001: POST /empresas exige nome não vazio e responsavelId
+// REQ-EMP-005: soft-delete (ativo=false, deletedAt=NOW)
 
 describe('Empresa', () => {
   it('deve aceitar payload parcial via construtor (Object.assign)', () => {

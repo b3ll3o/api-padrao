@@ -3,6 +3,8 @@ import { Permissao } from '../../../permissoes/domain/entities/permissao.entity'
 
 // TDD: features/perfis.feature:Cenário: Criar/Listar perfil com permissões
 // [MED-003] Cobertura adicional: factory + transições + gerenciamento de permissões.
+// REQ-PERFIL-001: Perfil escopado por empresaId (multi-tenancy)
+// REQ-PERFIL-009: codigo e empresaId imutáveis em partial update
 
 describe('Perfil', () => {
   it('deve aceitar payload mínimo (id, nome, codigo, descricao, empresaId, ativo)', () => {
@@ -105,6 +107,7 @@ describe('Perfil', () => {
   });
 
   describe('desativar() / restaurar()', () => {
+    // REQ-PERFIL-010: soft delete (ativo=false) + restore (ativo=true)
     it('desativar deve ser idempotente', () => {
       const p = Perfil.criar({ nome: 'X', codigo: 'XX', empresaId: 'e1' });
       p.desativar();

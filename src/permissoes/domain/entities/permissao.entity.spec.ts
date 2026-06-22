@@ -2,6 +2,11 @@ import { Permissao } from './permissao.entity';
 
 // TDD: features/permissoes.feature:Cenário: Criar/Listar permissão
 // [MED-003] Cobertura adicional: factory criar() + transições + imutabilidade de codigo.
+// REQ-PERM-001: nome único global
+// REQ-PERM-002: codigo único global
+// REQ-PERM-004: codigo SCREAMING_SNAKE_CASE
+// REQ-PERM-005: Permissao é entidade global (sem empresaId)
+// REQ-PERM-020/021: soft delete + restore
 
 describe('Permissao', () => {
   it('deve aceitar payload mínimo (id, nome, codigo, descricao, ativo)', () => {

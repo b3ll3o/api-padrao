@@ -3,6 +3,7 @@ import { validate } from 'class-validator';
 import { UpdateEmpresaDto } from './update-empresa.dto';
 
 // TDD: features/empresas.feature:Cenário: Atualizar dados da empresa (campos opcionais)
+// REQ-EMP-004: PATCH /empresas/:id aplica partial update (campos opcionais)
 
 describe('UpdateEmpresaDto', () => {
   const validateDto = async (data: any) => {

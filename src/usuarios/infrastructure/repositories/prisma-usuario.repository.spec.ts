@@ -48,6 +48,8 @@ describe('PrismaUsuarioRepository', () => {
   };
 
   describe('criação', () => {
+    // REQ-USER-001: POST /usuarios persiste no DB
+    // REQ-USER-007: senha armazenada como hash bcrypt
     it('deve criar um novo usuário', async () => {
       const createData: Partial<Usuario> = {
         email: 'test@example.com',
@@ -71,6 +73,7 @@ describe('PrismaUsuarioRepository', () => {
   });
 
   describe('busca por um', () => {
+    // REQ-USER-020: GET /usuarios/:id
     it('deve retornar um usuário por ID', async () => {
       mockUsuarioModel.findUnique.mockResolvedValue(mockPrismaUser);
       const result = await repository.findOne(1);
@@ -85,6 +88,9 @@ describe('PrismaUsuarioRepository', () => {
   });
 
   describe('busca de todos', () => {
+    // REQ-USER-010: GET /usuarios paginado
+    // REQ-USER-013: PaginatedResponseDto
+    // REQ-USER-014: default exclui soft-deletados
     it('deve retornar usuários paginados', async () => {
       mockUsuarioModel.findMany.mockResolvedValue([mockPrismaUser]);
       mockUsuarioModel.count.mockResolvedValue(1);
@@ -107,6 +113,7 @@ describe('PrismaUsuarioRepository', () => {
   });
 
   describe('findByEmailWithPerfisAndPermissoes', () => {
+    // REQ-USER-021: autenticação carrega perfis+permissoes
     it('deve retornar usuário com relações carregadas', async () => {
       const userWithRelations = {
         ...mockPrismaUser,
@@ -165,6 +172,7 @@ describe('PrismaUsuarioRepository', () => {
   });
 
   describe('findByEmail', () => {
+    // REQ-USER-002/006: busca por email (unicidade)
     it('deve retornar um usuário por email', async () => {
       mockUsuarioModel.findUnique.mockResolvedValue(mockPrismaUser);
       const result = await repository.findByEmail('test@test.com');
@@ -179,6 +187,8 @@ describe('PrismaUsuarioRepository', () => {
   });
 
   describe('atualização e remoção', () => {
+    // REQ-USER-030: PATCH /usuarios/:id
+    // REQ-USER-035/036: soft delete + restore
     it('deve atualizar um usuário', async () => {
       mockUsuarioModel.update.mockResolvedValue(mockPrismaUser);
       const result = await repository.update(1, { email: 'new@test.com' });

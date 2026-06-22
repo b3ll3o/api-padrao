@@ -51,6 +51,8 @@ describe('PrismaPerfilRepository', () => {
   };
 
   describe('create', () => {
+    // REQ-PERFIL-001: persistir Perfil escopado por empresaId
+    // REQ-PERFIL-005: connect permissoesIds
     it('deve criar um perfil com permissões', async () => {
       const createPerfilDto: CreatePerfilDto = {
         nome: 'Admin',
@@ -83,6 +85,7 @@ describe('PrismaPerfilRepository', () => {
       expect(total).toBe(1);
     });
 
+    // REQ-PERFIL-006: filtrar por empresaId
     it('deve filtrar por empresaId se fornecido', async () => {
       mockPerfilModel.findMany.mockResolvedValue([mockPerfil]);
       mockPerfilModel.count.mockResolvedValue(1);
@@ -120,6 +123,7 @@ describe('PrismaPerfilRepository', () => {
   });
 
   describe('remove', () => {
+    // REQ-PERFIL-010: soft delete via client estendido (deletedAt=NOW, ativo=false)
     it('deve realizar soft delete chamando delete do client estendido', async () => {
       mockPerfilModel.delete.mockResolvedValue({
         ...mockPerfil,
@@ -139,6 +143,7 @@ describe('PrismaPerfilRepository', () => {
   });
 
   describe('restore', () => {
+    // REQ-PERFIL-010: restore (deletedAt=null, ativo=true)
     it('deve restaurar um perfil deletado', async () => {
       mockPerfilModel.update.mockResolvedValue(mockPerfil);
 
@@ -336,6 +341,7 @@ describe('PrismaPerfilRepository', () => {
   });
 
   describe('create (branches)', () => {
+    // REQ-PERFIL-004: criar sem permissoesIds (connect=undefined)
     it('cria sem permissoesIds quando não fornecido', async () => {
       mockPerfilModel.create.mockResolvedValue(mockPerfil);
       const dto: CreatePerfilDto = {

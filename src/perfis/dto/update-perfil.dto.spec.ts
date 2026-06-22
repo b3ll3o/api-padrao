@@ -3,6 +3,8 @@ import { validate } from 'class-validator';
 import { UpdatePerfilDto } from './update-perfil.dto';
 
 // TDD: features/perfis.feature:Cenário: Atualizar perfil (campos opcionais)
+// REQ-PERFIL-009: permitir partial update (campos opcionais)
+// REQ-PERFIL-010: aceitar ativo:true (restore) e ativo:false (soft delete)
 
 describe('UpdatePerfilDto', () => {
   const validateDto = async (data: any) => {
